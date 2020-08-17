@@ -19,7 +19,7 @@ Author is not responsible for any damage caused by this software. Be careful and
 - TA-lib indicators, you can request an indicator as well if its missing
 - Very easy strategy implementation, should be easy enough to migrate most pine script(tradinview) strategies - see Sample strategy
 
-## Implemented strategies reference strategies
+## Implemented reference strategies
 
 1. Channel Breakout
 2. Cross SMA
