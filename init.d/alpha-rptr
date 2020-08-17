@@ -12,7 +12,7 @@
 DAEMON_NAME=alpha-rptr
 DAEMON_DIR=/usr/local/bin/
 
-START_SCRIPT="python main.py --strategy OCC"
+START_SCRIPT="python main.py --account binanceaccount1 --exchnage binance --pair BTCUSDT --strategy OCC"
 
 PID_FILE=/var/run/$DAEMON_NAME.pid
 LOCK_FILE=/var/lock/subsys/$DAEMON_NAME
