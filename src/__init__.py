@@ -43,8 +43,7 @@ def ord_suffix():
 def load_data(file):
     """
     Read data from a file.
-    """
-    logger.info(f"load dataaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa{file}")
+    """    
     source = pd.read_csv(file)
     # data_frame = pd.DataFrame({
     #     'timestamp': pd.to_datetime(source['timestamp']),
@@ -116,8 +115,7 @@ def retry(func, count=5):
 def retry_binance_futures(func, count=5):
     err = None
     for i in range(count):
-        try:
-            #logger.info(f"{func()}")
+        try:            
             ret, res = func()
 
             #res_header = res.headers['X-MBX-USED-WEIGHT-1M']                   
