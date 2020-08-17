@@ -228,7 +228,7 @@ class BinanceFutures:
         self.__init_client()
         if self.market_price != 0:
             return self.market_price
-        else:  # WebSocketで取得できていない場合
+        else:  # when the WebSocket cant get it
             self.market_price = retry(lambda: self.client
                                       .futures_symbol_ticker(symbol=self.pair))
             return float(self.market_price['price'])
