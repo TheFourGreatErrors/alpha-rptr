@@ -1,0 +1,11 @@
+.DS_Store
+.idea/
+*.pyc
+output.log
+include/
+lib/
+backtest.csv
+ohlc/
+*.egg-info/
+credentials.json
+token.json

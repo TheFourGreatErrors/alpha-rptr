@@ -1,0 +1,100 @@
+#!/bin/sh
+
+### BEGIN INIT INFO
+# Provides:          alpha-rptr
+# chkconfig:         2345 99 99
+# Required-Start:    $remote_fs $syslog
+# Required-Stop:     $remote_fs $syslog
+# Short-Description: alpha-rptr
+# Description:       alpha-rptr
+### END INIT INFO
+
+DAEMON_NAME=alpha-rptr
+DAEMON_DIR=/usr/local/bin/
+
+START_SCRIPT="python main.py --strategy OCC"
+
+PID_FILE=/var/run/$DAEMON_NAME.pid
+LOCK_FILE=/var/lock/subsys/$DAEMON_NAME
+LOG_FILE=/var/log/$DAEMON_NAME.log
+
+source /etc/profile.d/env.sh
+
+# ***********************************************
+# ***********************************************
+
+start() {
+    cd $DAEMON_DIR
+    PID=`$START_SCRIPT >> $LOG_FILE 2>&1 & echo $!`
+}
+
+case "$1" in
+start)
+    if [ -f $PID_FILE ]; then
+        PID=`cat $PID_FILE`
+        if [ -z "`ps axf | grep -w ${PID} | grep -v grep`" ]; then
+            start
+        else
+            echo "Already running [$PID]"
+            exit 0
+        fi
+    else
+        start
+    fi
+
+    if [ -z $PID ]; then
+        echo "Failed starting"
+        exit 3
+    else
+        echo $PID > $PID_FILE
+        touch $LOCK_FILE
+        echo "Started [$PID]"
+        exit 0
+    fi
+;;
+
+status)
+    if [ -f $PID_FILE ]; then
+        PID=`cat $PID_FILE`
+        if [ -z "`ps axf | grep -w ${PID} | grep -v grep`" ]; then
+            echo "Not running (process dead but pidfile exists)"
+            exit 1
+        else
+            echo "Running [$PID]"
+            exit 0
+        fi
+    else
+        echo "Not running"
+        exit 3
+    fi
+;;
+
+stop)
+    if [ -f $PID_FILE ]; then
+        PID=`cat $PID_FILE`
+        if [ -z "`ps axf | grep -w ${PID} | grep -v grep`" ]; then
+            echo "Not running (process dead but pidfile exists)"
+            exit 1
+        else
+            PID=`cat $PID_FILE`
+            kill -HUP $PID
+            echo "Stopped [$PID]"
+            rm -f $PID_FILE
+            rm -f $LOCK_FILE
+            exit 0
+        fi
+    else
+        echo "Not running (pid not found)"
+        exit 3
+    fi
+;;
+
+restart)
+    $0 stop
+    $0 start
+;;
+
+*)
+    echo "Usage: $0 {status|start|stop|restart}"
+    exit 1
+esac
