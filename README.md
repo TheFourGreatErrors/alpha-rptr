@@ -135,22 +135,6 @@ You can add a strategy by creating a new class in `src / strategy.py`.
 Follow this example, which hopefully explains a lot of questions.
 
 ```python
-class CandleTester(Bot):
-    def __init__(self):
-        Bot.__init__(self, '1m')
-
-    # this is for parameter optimization in hyperopt mode
-    def options(self):
-        return {}
-
-    def strategy(self, open, close, high, low, volume):
-        logger.info(f"open: {open[-1]}")
-        logger.info(f"high: {high[-1]}")
-        logger.info(f"low: {low[-1]}")
-        logger.info(f"close: {close[-1]}")
-        logger.info(f"volume: {volume[-1]}")
-        
-
 # sample strategy
 
 class Sample(Bot):
@@ -162,6 +146,7 @@ class Sample(Bot):
         # set time frame here       
         Bot.__init__(self, '1m')
         
+    # this for parameter optimization in hyperopt mode - see other reference strategies  
     def options(self):
         return {}
 
