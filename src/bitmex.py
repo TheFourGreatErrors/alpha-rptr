@@ -731,8 +731,7 @@ class BitMex:
         if is_update_pos_size and position['currentQty'] != 0:
             self.set_trail_price(self.market_price)
 
-        if is_update_pos_size:
-            logger.info(f"get_position()))))))))){self.get_position()}")
+        if is_update_pos_size:            
             if 'avgEntryPrice' not in position:
                 position.update( {'avgEntryPrice' : self.get_position()['avgEntryPrice']})
             logger.info(f"Updated Position\n"
@@ -772,8 +771,7 @@ class BitMex:
             self.ws.bind('position', self.__on_update_position)
             self.ws.bind('margin', self.__on_update_margin)
             self.ob = OrderBook(self.ws)
-        logger.info(f" on_update(self, bin_size, strategy)")
-
+                        
     def stop(self):
         """
         Stop the crawler
