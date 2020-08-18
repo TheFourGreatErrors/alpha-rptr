@@ -94,7 +94,7 @@ class BitMex:
 
         self.private_client = bitmex_api(test=self.demo, api_key=api_key, api_secret=api_secret)
         self.public_client = bitmex_api(test=self.demo)
-        logger.info(f"8 clients")
+        
     def now_time(self):
         """
         current time
