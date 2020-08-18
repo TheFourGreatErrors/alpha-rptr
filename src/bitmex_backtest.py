@@ -81,6 +81,21 @@ class BitMexBackTest(BitMexStub):
         """
         BitMexStub.entry(self, id, long, qty, limit, stop, post_only, when)
 
+    def order(self, id, long, qty, limit=0, stop=0, post_only=False, reduce_only=False, allow_amend=True, when=False):
+        """
+        places an entry order, works equivalent to tradingview pine script implementation
+        https://jp.tradingview.com/study-script-reference/#fun_strategy{dot}entry
+        :param id: Order id
+        :param long: Long or Short
+        :param qty: Quantity
+        :param limit: Limit price
+        :param stop: Stop limit
+        :param post_only: Post only        
+        :param when: Do you want to execute the order or not - True for live trading
+        :return:
+        """
+        BitMexStub.order(self, id, long, qty, limit, stop, post_only, reduce_only, allow_amend, when)
+
     def commit(self, id, long, qty, price, need_commission=True):
         """
         Commit
