@@ -306,8 +306,7 @@ class BitMex:
             i = 0
             while True:
                 prices = self.ob.get_prices()
-                limit = prices[0] if side == "Buy" else prices[1]
-                logger.info(f"best price0000000000000000000000000000000000000000000:{prices}")
+                limit = prices[0] if side == "Buy" else prices[1]                
                 retry(lambda: self.private_client.Order.Order_new(symbol=self.pair, ordType=ord_type, clOrdID=ord_id,
                                                                   side=side, orderQty=ord_qty, price=limit,
                                                                   execInst='ParticipateDoNotInitiate').result())
