@@ -13,7 +13,7 @@ Author is not responsible for any damage caused by this software. Be careful and
 - Event-driven
 - all types of orders supported including majorty of parameters/combinations - if you miss any, you can request
 - Supports custom strategies
-- Back testing
+- Backtesting
 - Testnet only for BitMEX (todo Binance Futures testnet)
 - Stub trading 
 - TA-lib indicators, you can request an indicator as well if its missing
