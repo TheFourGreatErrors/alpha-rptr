@@ -88,13 +88,8 @@ class BitMex:
         """
         if self.private_client is not None and self.public_client is not None:
             return
-        #api_key = os.environ.get("BITMEX_TEST_APIKEY") if self.demo else os.environ.get("BITMEX_APIKEY")
-        #api_key = "yfTVvwacKsaX3vqhAu-CrsxM"
-        #api_key = "RZQ3A55IyvE-iFdkiX1pzt7S"
-        api_key =  conf['bitmext_test_keys'][self.account]['API_KEY'] if self.demo else conf['bitmex_keys'][self.account]['API_KEY']
-        #api_secret = os.environ.get("BITMEX_TEST_SECRET") if self.demo else os.environ.get("BITMEX_SECRET")
-        #api_secret = "qzY1tADyJeMXCXlnWPy2krOxntCbXOsa03Tr4O5rVHVpnVjx"
-        #api_secret = "qsHpAaKY9YJNHLng9BRrgXOslLjfl5J7ELaOpg5UtHX7UX3p"
+       
+        api_key =  conf['bitmext_test_keys'][self.account]['API_KEY'] if self.demo else conf['bitmex_keys'][self.account]['API_KEY']        
         api_secret = conf['bitmex_test_keys'][self.account]['SECRET_KEY'] if self.demo else conf['bitmex_keys'][self.account]['SECRET_KEY']
 
         self.private_client = bitmex_api(test=self.demo, api_key=api_key, api_secret=api_secret)
