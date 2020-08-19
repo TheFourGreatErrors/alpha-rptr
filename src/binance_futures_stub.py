@@ -134,7 +134,7 @@ class BinanceFuturesStub(BinanceFutures):
             self.commit(id, long, ord_qty, self.get_market_price(), True)
             return
 
-     def order(self, id, long, qty, limit=0, stop=0, post_only=False, reduce_only=False, trailing_stop=0, activationPrice=0, when=False):
+    def order(self, id, long, qty, limit=0, stop=0, post_only=False, reduce_only=False, trailing_stop=0, activationPrice=0, when=False):
         """
         places an entry order, works equivalent to tradingview pine script implementation
         https://jp.tradingview.com/study-script-reference/#fun_strategy{dot}entry
