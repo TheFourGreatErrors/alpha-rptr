@@ -438,7 +438,10 @@ class BinanceFutures:
 
         ord_qty = qty + abs(pos_size)
 
-        self.order(id, long, ord_qty, limit, stop, post_only, reduce_only, when)
+        trailing_stop=0
+        activationPrice=0
+
+        self.order(id, long, ord_qty, limit, stop, post_only, reduce_only, trailing_stop, activationPrice, when)
 
     def order(self, id, long, qty, limit=0, stop=0, post_only=False, reduce_only=False, trailing_stop=0, activationPrice=0, when=True):
         """
