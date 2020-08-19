@@ -11,13 +11,13 @@ Author is not responsible for any damage caused by this software. Be careful and
 - API and Websocket implementation for both Binance Futures and  BitMEX
 - Supports all pairs
 - Event-driven
-- all types of orders supported including majorty of parameters/combinations - if you miss any, you can request
+- all types of orders supported including majority of parameters/combinations - if you miss any, you can request
 - Supports custom strategies
 - Backtesting
 - Testnet only for BitMEX (todo Binance Futures testnet)
 - Stub trading 
 - TA-lib indicators, you can request an indicator as well if its missing
-- Very easy strategy implementation, should be easy enough to migrate most pine script(tradinview) strategies - see Sample strategy
+- Very easy strategy implementation, should be easy enough to migrate most pine script(tradingview) strategies - see Sample strategy
 
 ## Implemented reference strategies
 
