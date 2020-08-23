@@ -89,7 +89,7 @@ class BitMex:
         if self.private_client is not None and self.public_client is not None:
             return
        
-        api_key =  conf['bitmext_test_keys'][self.account]['API_KEY'] if self.demo else conf['bitmex_keys'][self.account]['API_KEY']        
+        api_key =  conf['bitmex_test_keys'][self.account]['API_KEY'] if self.demo else conf['bitmex_keys'][self.account]['API_KEY']        
         api_secret = conf['bitmex_test_keys'][self.account]['SECRET_KEY'] if self.demo else conf['bitmex_keys'][self.account]['SECRET_KEY']
 
         self.private_client = bitmex_api(test=self.demo, api_key=api_key, api_secret=api_secret)
