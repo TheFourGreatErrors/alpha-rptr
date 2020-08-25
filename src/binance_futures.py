@@ -658,7 +658,7 @@ class BinanceFutures:
         sl_percent_short = self.get_sltp_values()['stop_short']
 
         # sl execution logic
-        if sl_percent_long > 0 and (is_sl_full_size == False or sl_side == False):
+        if sl_percent_long > 0 and is_sl_full_size == False:
             if pos_size > 0:
                 sl_price_long = round(avg_entry - (avg_entry*sl_percent_long), self.round_decimals)
                 if sl_order is not None:
@@ -668,7 +668,7 @@ class BinanceFutures:
                     self.order("SL", False, abs(pos_size), stop=sl_price_long, reduce_only=True)
                 else:  
                     self.order("SL", False, abs(pos_size), stop=sl_price_long, reduce_only=True)
-        if sl_percent_short > 0 and (is_sl_full_size == False or sl_side == True):
+        if sl_percent_short > 0 and is_sl_full_size == False:
             if pos_size < 0:
                 sl_price_short = round(avg_entry + (avg_entry*sl_percent_short), self.round_decimals)
                 if sl_order is not None: 
