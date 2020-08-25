@@ -552,7 +552,7 @@ class BitMex:
 
         if tp_order is not None:
             origQty = tp_order['orderQty']
-            is_tp_full_size = origQty == pos_size if True else False
+            is_tp_full_size = origQty == abs(pos_size) if True else False
             #pos_size =  pos_size - origQty                 
         
         tp_percent_long = self.get_sltp_values()['profit_long']
@@ -581,8 +581,10 @@ class BitMex:
         sl_order = self.get_open_order('SL')
         if sl_order is not None:
             origQty = sl_order['orderQty']
-            is_sl_full_size = origQty == pos_size if True else False
-            #pos_size =  pos_size - origQty
+            orig_side = sl_order['side'] == "Buy" if True else False
+            if orig_side == False:
+                origQty = -origQty            
+            is_sl_full_size = origQty == -pos_size if True else False           
 
         sl_percent_long = self.get_sltp_values()['stop_long']
         sl_percent_short = self.get_sltp_values()['stop_short']

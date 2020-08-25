@@ -616,7 +616,7 @@ class BinanceFutures:
 
         if tp_order is not None:
             origQty = float(tp_order['origQty'])
-            is_tp_full_size = origQty == pos_size if True else False
+            is_tp_full_size = origQty == abs(pos_size) if True else False
             #pos_size =  pos_size - origQty                 
         
         tp_percent_long = self.get_sltp_values()['profit_long']
@@ -649,14 +649,16 @@ class BinanceFutures:
         sl_order = self.get_open_order('SL')
         if sl_order is not None:
             origQty = float(sl_order['origQty'])
-            is_sl_full_size = origQty == pos_size if True else False
-            #pos_size =  pos_size - origQty
+            orig_side = sl_order['side'] == "BUY" if True else False
+            if orig_side == False:
+                origQty = -origQty            
+            is_sl_full_size = origQty == -pos_size if True else False     
 
         sl_percent_long = self.get_sltp_values()['stop_long']
         sl_percent_short = self.get_sltp_values()['stop_short']
 
         # sl execution logic
-        if sl_percent_long > 0 and is_sl_full_size == False:
+        if sl_percent_long > 0 and (is_sl_full_size == False or sl_side == False):
             if pos_size > 0:
                 sl_price_long = round(avg_entry - (avg_entry*sl_percent_long), self.round_decimals)
                 if sl_order is not None:
@@ -666,7 +668,7 @@ class BinanceFutures:
                     self.order("SL", False, abs(pos_size), stop=sl_price_long, reduce_only=True)
                 else:  
                     self.order("SL", False, abs(pos_size), stop=sl_price_long, reduce_only=True)
-        if sl_percent_short > 0 and is_sl_full_size == False:
+        if sl_percent_short > 0 and (is_sl_full_size == False or sl_side == True):
             if pos_size < 0:
                 sl_price_short = round(avg_entry + (avg_entry*sl_percent_short), self.round_decimals)
                 if sl_order is not None: 
