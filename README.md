@@ -105,7 +105,7 @@ $ python main.py --account binanceaccount1 --exchange binance --pair BTCUSDT --s
 
 ### 2. Demo Trade Mode
 
-It is possible to trade on BitMEX testned [testnet](https://testnet.bitmex.com/). (todo Binance Futures testnet)
+It is possible to trade on BitMEX [testnet](https://testnet.bitmex.com/). (todo Binance Futures testnet)
 
 ```bash
 $ python main.py --demo --account bitmexaccount1 --exchange bitmex --pair XBTUSD --strategy Sample
