@@ -107,7 +107,7 @@ class BinanceFuturesWs:
         client = Client(api_key, api_secret)
         def loop_function():
             while self.is_running:
-                client.stream_keepalive
+                client.stream_keepalive()
                 time.sleep(3480)
         timer = threading.Timer(10, loop_function)
         timer.daemon = True
