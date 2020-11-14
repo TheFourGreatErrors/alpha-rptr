@@ -9,7 +9,7 @@ import time
 import numpy
 from hyperopt import hp
 
-from src import highest, lowest, atr, MAX, sma, cci, rsi, crossover, crossunder, last, rci, double_ema, ema, triple_ema, wma, \
+from src import highest, lowest, atr, MAX, sma, bbands, macd, adx, sar, cci, rsi, crossover, crossunder, last, rci, double_ema, ema, triple_ema, wma, \
     ssma, hull, logger, notify
 from src.bitmex import BitMex
 from src.binance_futures import BinanceFutures
