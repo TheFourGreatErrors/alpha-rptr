@@ -9,7 +9,7 @@ import traceback
 import urllib
 
 import websocket
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from src import logger, to_data_frame, notify
 from src.config import config as conf
@@ -124,7 +124,18 @@ class BitMexWs:
 
                 if table.startswith("tradeBin"):
                     data[0]['timestamp'] = datetime.strptime(data[0]['timestamp'][:-5], '%Y-%m-%dT%H:%M:%S')
-                    self.__emit(table, action, to_data_frame([data[0]]))                    
+                    new_data = []
+                    new_data.append(data[0])
+                    #add placeholder tick so it resamples correctly
+                    new_data.append({
+                        "timestamp": data[0]['timestamp'] + timedelta(seconds=0.01),
+                        "open": data[0]['close'],
+                        "high": data[0]['close'],
+                        "low" : data[0]['close'],
+                        "close" : data[0]['close'],
+                        "volume": 0
+                    })                    
+                    self.__emit(table, action, to_data_frame(new_data))                 
                 elif table.startswith("instrument"):
                     self.__emit(table, action, data[0])
 
