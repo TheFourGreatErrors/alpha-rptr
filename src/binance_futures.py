@@ -761,7 +761,7 @@ class BinanceFutures:
 
             source = retry(lambda: self.client.futures_klines(symbol=self.pair, interval=fetch_bin_size,
                                                                               startTime=left_time_to_timestamp, endTime=right_time_to_timestamp,
-                                                                              limit=500))
+                                                                              limit=1500))
             if len(source) == 0:
                 break
             
