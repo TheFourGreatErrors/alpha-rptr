@@ -302,7 +302,7 @@ class BitMexBackTest(BitMexStub):
         logger.info(f"TRADE COUNT         : {self.order_count}")
         logger.info(f"BALANCE             : {self.get_balance()}")
         logger.info(f"PROFIT RATE         : {self.get_balance()/self.start_balance*100} %")
-        logger.info(f"WIN RATE            : {0 if self.order_count == 0 else self.win_count/self.order_count*100} %")
+        logger.info(f"WIN RATE            : {0 if self.order_count == 0 else self.win_count/(self.win_count + self.lose_count)*100} %")
         logger.info(f"PROFIT FACTOR       : {self.win_profit if self.lose_loss == 0 else self.win_profit/self.lose_loss}")
         logger.info(f"MAX DRAW DOWN TOTAL : {round(self.max_draw_down_session, 4)} or {round(self.max_draw_down_session_perc, 2)}%")
         logger.info(f"======================================")
