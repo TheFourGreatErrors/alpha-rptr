@@ -27,6 +27,10 @@ class BinanceFuturesStub(BinanceFutures):
     lose_loss = 0
     # Max Loss Rate
     max_draw_down = 0
+    # max drawdown for the session
+    max_draw_down_session = 0
+    # max drawdown session %
+    max_draw_down_session_perc = 0
     # orders
     open_orders = []
 
@@ -39,7 +43,8 @@ class BinanceFuturesStub(BinanceFutures):
         """
         self.pair = pair
         BinanceFutures.__init__(self, account, pair, threading=threading)
-
+        self.balance_ath = self.balance
+        
     def get_lot(self):
         """
          Calculate the Lot
@@ -88,9 +93,21 @@ class BinanceFuturesStub(BinanceFutures):
         pos_size = self.position_size
         if pos_size == 0:
             return
-        long = pos_size < 0
+        long = pos_size < 0 if True else False 
         ord_qty = abs(pos_size)
         self.commit(id, long, ord_qty, self.get_market_price(), True)
+    
+    def close_all_at_price(self, price):
+        """
+        close the current position at price, for backtesting purposes its important to have a function that closes at given price
+        :param price: price
+        """
+        pos_size = self.position_size
+        if pos_size == 0:
+            return
+        long = pos_size < 0 if True else False 
+        ord_qty = abs(pos_size)
+        self.commit(id, long, ord_qty, price, True)
 
     def cancel(self, id):
         """
@@ -133,23 +150,66 @@ class BinanceFuturesStub(BinanceFutures):
         else:
             self.commit(id, long, ord_qty, self.get_market_price(), True)
             return
-
-    def order(self, id, long, qty, limit=0, stop=0, post_only=False, reduce_only=False, trailing_stop=0, activationPrice=0, when=False):
+    
+    def entry_pyramiding(self, id, long, qty, limit=0, stop=0, trailValue= 0, post_only=False, reduce_only=False, ioc=False, cancel_all=False, pyramiding=2, when=True):
         """
-        places an entry order, works equivalent to tradingview pine script implementation
-        https://jp.tradingview.com/study-script-reference/#fun_strategy{dot}entry
+        places an entry order, works as equivalent to tradingview pine script implementation with pyramiding
+        https://tradingview.com/study-script-reference/#fun_strategy{dot}entry
         :param id: Order id
         :param long: Long or Short
         :param qty: Quantity
         :param limit: Limit price
         :param stop: Stop limit
-        :param post_only: Post only        
+        :param post_only: Post only
+        :param reduce_only: Reduce Only means that your existing position cannot be increased only reduced by this order
+        :param cancell_all: cancell all open order before sending the entry order?
+        :param pyramiding: number of entries you want in pyramiding
         :param when: Do you want to execute the order or not - True for live trading
         :return:
-        """
-        return
+        """       
 
-    def commit(self, id, long, qty, price, need_commission=True):
+        # if self.get_margin()['excessMargin'] <= 0 or qty <= 0:
+        #     return
+        if qty <= 0:
+            return
+
+        if not when:
+            return
+
+        pos_size = self.get_position_size()
+
+        if long and pos_size >= pyramiding*qty:
+            return
+
+        if not long and pos_size <= -(pyramiding*qty):
+            return
+        
+        if cancel_all:
+            self.cancel_all()   
+
+        if long and pos_size < 0:
+            ord_qty = qty + abs(pos_size)
+        elif not long and pos_size > 0:
+            ord_qty = qty + abs(pos_size)
+        else:
+            ord_qty = qty  
+        
+        if long and (pos_size + qty > pyramiding*qty):
+            ord_qty = (pyramiding*qty) - abs(pos_size)
+
+        if not long and (pos_size - qty < -(pyramiding*qty)):
+            ord_qty = (pyramiding*qty) - abs(pos_size)
+        # make sure it doesnt spam small entries, which in most cases would trigger risk management orders evaluation, you can make this less than 2% if needed  
+        if ord_qty < ((pyramiding*qty) / 100) * 2:
+            return
+
+        if limit > 0 or stop > 0:
+            self.open_orders.append({"id": id, "long": long, "qty": ord_qty, "limit": limit, "stop": stop, "post_only": post_only})
+        else:
+            self.commit(id, long, ord_qty, self.get_market_price(), True)
+            return
+
+    def commit(self, id, long, qty, price, need_commission=False):
         """
          Promise.
          : param id: order number
@@ -173,15 +233,25 @@ class BinanceFuturesStub(BinanceFutures):
                 profit = self.get_position_size() * close_rate
 
             if profit > 0:
-                self.win_profit += profit/self.get_market_price()
-                self.win_count += 1
+                self.win_profit += profit #* self.get_market_price() 
+                self.win_count += 1                
             else:
-                self.lose_loss += -1 * profit/self.get_market_price()
+                self.lose_loss += -1 * profit #* self.get_market_price() 
                 self.lose_count += 1
                 if close_rate > self.max_draw_down:
                     self.max_draw_down = close_rate
 
-            self.balance += profit/self.get_market_price()
+            self.balance += profit #* self.get_market_price() / 100
+            if self.balance_ath < self.balance:
+                    self.balance_ath = self.balance
+            if self.balance_ath > self.balance:
+                if self.max_draw_down_session is 0:
+                    self.max_draw_down_session = self.balance_ath - self.balance 
+                    self.max_draw_down_session_perc = (self.balance_ath - self.balance) / self.balance_ath * 100  
+                else:
+                    if self.max_draw_down_session < self.balance_ath - self.balance:
+                        self.max_draw_down_session = self.balance_ath - self.balance 
+                        self.max_draw_down_session_perc = (self.balance_ath - self.balance) / self.balance_ath * 100                         
 
             if self.enable_trade_log:
                 logger.info(f"========= Close Position =============")
@@ -192,8 +262,10 @@ class BinanceFuturesStub(BinanceFutures):
                 logger.info(f"PROFIT        : {profit}")
                 logger.info(f"BALANCE       : {self.get_balance()}")
                 logger.info(f"WIN RATE      : {0 if self.order_count == 0 else self.win_count/self.order_count*100} %")
+                logger.info(f"WIN RATE      : {0 if self.order_count == 0 else self.win_count/(self.win_count + self.lose_count)*100} %")
                 logger.info(f"PROFIT FACTOR : {self.win_profit if self.lose_loss == 0 else self.win_profit/self.lose_loss}")
                 logger.info(f"MAX DRAW DOWN : {self.max_draw_down * 100}")
+                logger.info(f"MAX DRAW DOWN SESSION : {round(self.max_draw_down_session, 4)} or {round(self.max_draw_down_session_perc, 2)}%")
                 logger.info(f"======================================")
 
         if next_qty != 0:
@@ -204,10 +276,17 @@ class BinanceFuturesStub(BinanceFutures):
                 logger.info(f"TRADE COUNT   : {self.order_count}")
                 logger.info(f"ID            : {id}")
                 logger.info(f"POSITION SIZE : {qty}")
-                logger.info(f"**************************************")
-
+                logger.info(f"**************************************")               
+            if long and self.position_size < next_qty:
+                self.position_avg_price = (self.position_avg_price * self.position_size + price * qty) /  next_qty 
+            elif not long and self.position_size > next_qty:
+                self.position_avg_price = (self.position_avg_price * self.position_size - price * qty) /  next_qty
+            else:
+                 self.position_avg_price = price
             self.position_size = next_qty
-            self.position_avg_price = price
+            logger.info(f"**********{next_qty}") 
+              
+           
             self.set_trail_price(price)
         else:
             self.position_size = 0
@@ -253,7 +332,7 @@ class BinanceFuturesStub(BinanceFutures):
                 0 < self.get_exit_order()['profit'] < abs(unrealised_pnl):
             logger.info(f"Take profit by stop profit: {self.get_exit_order()['profit']}")
             self.close_all()
-
+    
     def on_update(self, bin_size, strategy):
         """
         Register function of strategy.

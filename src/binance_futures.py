@@ -67,8 +67,9 @@ class BinanceFutures:
                     'profit_long': 0,
                     'profit_short': 0,
                     'stop_long': 0,
-                    'stop_short': 0
-                    }        
+                    'stop_short': 0,
+                    'eval_tp_next_candle': False
+                    }         
     # Round decimals
     round_decimals = 2
     # Profit, Loss and Trail Offset
@@ -480,6 +481,64 @@ class BinanceFutures:
             #self.__amend_order(ord_id, side, ord_qty, limit, stop, post_only)
             return
 
+    def entry_pyramiding(self, id, long, qty, limit=0, stop=0, trailValue= 0, post_only=False, reduce_only=False, cancel_all=False, pyramiding=2, when=True):
+        """
+        places an entry order, works as equivalent to tradingview pine script implementation with pyramiding
+        https://tradingview.com/study-script-reference/#fun_strategy{dot}entry
+        :param id: Order id
+        :param long: Long or Short
+        :param qty: Quantity
+        :param limit: Limit price
+        :param stop: Stop limit
+        :param post_only: Post only
+        :param reduce_only: Reduce Only means that your existing position cannot be increased only reduced by this order
+        :param cancell_all: cancell all open order before sending the entry order?
+        :param pyramiding: number of entries you want in pyramiding
+        :param when: Do you want to execute the order or not - True for live trading
+        :return:
+        """       
+
+        # if self.get_margin()['excessMargin'] <= 0 or qty <= 0:
+        #     return
+        if qty <= 0:
+            return
+
+        if not when:
+            return
+
+        pos_size = self.get_position_size()
+
+        if long and pos_size >= pyramiding*qty:
+            return
+
+        if not long and pos_size <= -(pyramiding*qty):
+            return
+        
+        if cancel_all:
+            self.cancel_all()   
+
+        if long and pos_size < 0:
+            ord_qty = qty + abs(pos_size)
+        elif not long and pos_size > 0:
+            ord_qty = qty + abs(pos_size)
+        else:
+            ord_qty = qty  
+        
+        if long and (pos_size + qty > pyramiding*qty):
+            ord_qty = pyramiding*qty - abs(pos_size)
+
+        if not long and (pos_size - qty < -(pyramiding*qty)):
+            ord_qty = pyramiding*qty - abs(pos_size)
+        # make sure it doesnt spam small entries, which in most cases would trigger risk management orders evaluation, you can make this less than 2% if needed  
+        if ord_qty < ((pyramiding*qty) / 100) * 2:
+            return
+
+        trailing_stop = 0
+        activationPrice = 0
+
+        self.order(id, long, ord_qty, limit, stop, post_only, reduce_only, trailing_stop, activationPrice, when)
+
+
     def get_open_order(self, id):
         """
         Get open order by id
@@ -537,7 +596,7 @@ class BinanceFutures:
         """
         self.exit_order = {'profit': profit, 'loss': loss, 'trail_offset': trail_offset}
 
-    def sltp(self, profit_long=0, profit_short=0, stop_long=0, stop_short=0, round_decimals=2):
+    def sltp(self, profit_long=0, profit_short=0, stop_long=0, stop_short=0, eval_tp_next_candle=False, round_decimals=2):
         """
         simple profit target triggered upon entering a position
         :param profit_long: profit target value in % for longs
@@ -547,11 +606,12 @@ class BinanceFutures:
         :param round_decimals: round decimals 
         """
         self.sltp_values = {
-                            'profit_long': profit_long/100,
-                            'profit_short': profit_short/100,
-                            'stop_long': stop_long/100,
-                            'stop_short': stop_short/100
-                            }        
+                    'profit_long': 0,
+                    'profit_short': 0,
+                    'stop_long': 0,
+                    'stop_short': 0,
+                    'eval_tp_next_candle': eval_tp_next_candle
+                    }        
         self.round_decimals = round_decimals
 
     def get_exit_order(self):
@@ -695,7 +755,7 @@ class BinanceFutures:
         while True:
             if left_time > right_time:
                 break
-
+            logger.info(f"fetching OHLCV data")
             left_time_to_timestamp = int(datetime.timestamp(left_time)*1000)
             right_time_to_timestamp = int(datetime.timestamp(right_time)*1000)            
 
@@ -710,7 +770,7 @@ class BinanceFutures:
             for s in source:   
                 timestamp_to_datetime_str = datetime.fromtimestamp(s[6]/1000).strftime('%Y-%m-%dT%H:%M:%S')                           
                 source_to_object_list.append({
-                        "timestamp" : datetime.strptime(timestamp_to_datetime_str,'%Y-%m-%dT%H:%M:%S'),
+                        "timestamp" : datetime.strptime(timestamp_to_datetime_str,'%Y-%m-%dT%H:%M:%S').astimezone(UTC),
                         "high" : float(s[2]),
                         "low" : float(s[3]),
                         "open" : float(s[1]),

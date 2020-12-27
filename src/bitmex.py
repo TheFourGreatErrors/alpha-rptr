@@ -58,8 +58,9 @@ class BitMex:
                     'profit_long': 0,
                     'profit_short': 0,
                     'stop_long': 0,
-                    'stop_short': 0
-                    }       
+                    'stop_short': 0,
+                    'eval_tp_next_candle': False
+                    }        
     # Round decimals
     round_decimals = 0
     # Profit, Loss and Trail Offset
@@ -405,6 +406,60 @@ class BitMex:
 
         self.order(id, long, ord_qty, limit, stop, post_only, reduce_only, when)
 
+    def entry_pyramiding(self, id, long, qty, limit=0, stop=0, post_only=False, reduce_only=False, cancel_all=False, pyramiding=2, when=True):
+        """
+        places an entry order, works as equivalent to tradingview pine script implementation with pyramiding
+        https://tradingview.com/study-script-reference/#fun_strategy{dot}entry
+        :param id: Order id
+        :param long: Long or Short
+        :param qty: Quantity
+        :param limit: Limit price
+        :param stop: Stop limit
+        :param post_only: Post only
+        :param reduce_only: Reduce Only means that your existing position cannot be increased only reduced by this order
+        :param cancell_all: cancell all open order before sending the entry order?
+        :param pyramiding: number of entries you want in pyramiding
+        :param when: Do you want to execute the order or not - True for live trading
+        :return:
+        """       
+
+        # if self.get_margin()['excessMargin'] <= 0 or qty <= 0:
+        #     return
+        if qty <= 0:
+            return
+
+        if not when:
+            return
+
+        pos_size = self.get_position_size()
+
+        if long and pos_size >= pyramiding*qty:
+            return
+
+        if not long and pos_size <= -(pyramiding*qty):
+            return
+        
+        if cancel_all:
+            self.cancel_all()   
+
+        if long and pos_size < 0:
+            ord_qty = qty + abs(pos_size)
+        elif not long and pos_size > 0:
+            ord_qty = qty + abs(pos_size)
+        else:
+            ord_qty = qty  
+        
+        if long and (pos_size + qty > pyramiding*qty):
+            ord_qty = pyramiding*qty - abs(pos_size)
+
+        if not long and (pos_size - qty < -(pyramiding*qty)):
+            ord_qty = pyramiding*qty - abs(pos_size)
+        # make sure it doesnt spam small entries, which in most cases would trigger risk management orders evaluation, you can make this less than 2% if needed  
+        if ord_qty < ((pyramiding*qty) / 100) * 2:
+            return       
+
+        self.order(id, long, ord_qty, limit, stop, post_only, reduce_only, when)
+
     def order(self, id, long, qty, limit=0, stop=0, post_only=False, reduce_only=False, allow_amend=True, when=True):
         """
         places an order, works as equivalent to tradingview pine script implementation
@@ -469,7 +524,7 @@ class BitMex:
         """
         self.exit_order = {'profit': profit, 'loss': loss, 'trail_offset': trail_offset}
 
-    def sltp(self, profit_long=0, profit_short=0, stop_long=0, stop_short=0, round_decimals=2):
+    def sltp(self, profit_long=0, profit_short=0, stop_long=0, stop_short=0, eval_tp_next_candle=False, round_decimals=2):
         """
         simple profit target triggered upon entering a position
         :param profit_long: profit target value in % for longs
@@ -479,11 +534,12 @@ class BitMex:
         :param round_decimals: round decimals 
         """
         self.sltp_values = {
-                            'profit_long': profit_long/100,
-                            'profit_short': profit_short/100,
-                            'stop_long': stop_long/100,
-                            'stop_short': stop_short/100
-                            }        
+                    'profit_long': 0,
+                    'profit_short': 0,
+                    'stop_long': 0,
+                    'stop_short': 0,
+                    'eval_tp_next_candle': eval_tp_next_candle
+                    }         
         self.round_decimals = round_decimals
 
     def get_exit_order(self):
@@ -631,7 +687,7 @@ class BitMex:
                                                                               count=500, partial=True).result())
             if len(source) == 0:
                 break
-
+            logger.info(f"fetching OHLCV data")
             source = to_data_frame(source)
             data = pd.concat([data, source])
 

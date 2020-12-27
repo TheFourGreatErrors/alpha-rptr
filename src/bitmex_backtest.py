@@ -121,6 +121,77 @@ class BitMexBackTest(BitMexStub):
         BitMexStub.close_all(self)
         self.close_signals.append(self.index)
 
+    def close_all_at_price(self, price):
+        """
+        close the current position at price, for backtesting purposes its important to have a function that closes at given price
+        :param price: price
+        """
+        if self.get_position_size() == 0:
+            return 
+        BitMexStub.close_all_at_price(self, price)
+        self.close_signals.append(self.index)        
+
+    def eval_sltp(self):
+        """
+        evaluate simple profit target and stop loss        
+        """
+
+        pos_size = self.get_position_size()
+        if pos_size == 0:
+            return
+
+        best_bid = self.market_price
+        best_ask = self.market_price        
+        tp_percent_long = self.get_sltp_values()['profit_long']
+        tp_percent_short = self.get_sltp_values()['profit_short']   
+
+        avg_entry = self.get_position_avg_price() 
+        
+        #sl        
+
+        sl_percent_long = self.get_sltp_values()['stop_long']
+        sl_percent_short = self.get_sltp_values()['stop_short']
+        
+        # if (self.isLongEntry[-1] == True and self.isLongEntry[-2] == False if True else False) or (self.isShortEntry[-1] == True and self.isShortEntry[-2] == False if True else False):
+        #     return
+
+        # sl execution logic
+        if sl_percent_long > 0:
+            if pos_size > 0:
+                sl_price_long = round(avg_entry - (avg_entry*sl_percent_long), self.round_decimals)
+                if self.OHLC['low'][-1] <= sl_price_long:               
+                    self.close_all_at_price(sl_price_long)
+        if sl_percent_short > 0:
+            if pos_size < 0:
+                sl_price_short = round(avg_entry + (avg_entry*sl_percent_short), self.round_decimals)
+                if self.OHLC['high'][-1] >= sl_price_short:                 
+                    self.close_all_at_price(sl_price_short)  
+        # tp       
+        # if self.get_sltp_values()['eval_tp_next_candle']:
+        #     if (self.isLongEntry[-1] == True and self.isLongEntry[-2] == False if True else False) or (self.isShortEntry[-1] == True and self.isShortEntry[-2] == False if True else False):
+        #         return
+        # if self.get_sltp_values()['eval_tp_next_candle']:
+        #     if self.isLongEntry[-1] or self.isShortEntry[-1] == True:
+        #         return
+        #     if self.isLongEntry[-2] or self.isShortEntry[-2] == True:
+        #         return
+
+        # tp execution logic                
+        if tp_percent_long > 0:
+            if pos_size > 0:                
+                tp_price_long = round(avg_entry +(avg_entry*tp_percent_long), self.round_decimals) 
+                if tp_price_long <= best_ask and self.get_sltp_values()['eval_tp_next_candle'] == True:
+                    tp_price_long = best_ask
+                if self.OHLC['high'][-1] >= tp_price_long:               
+                    self.close_all_at_price(tp_price_long)
+        if tp_percent_short > 0:
+            if pos_size < 0:                
+                tp_price_short = round(avg_entry -(avg_entry*tp_percent_short), self.round_decimals)
+                if tp_price_short >= best_bid and self.get_sltp_values()['eval_tp_next_candle'] == True:
+                    tp_price_short = best_bid
+                if self.OHLC['low'][-1] <= tp_price_short:               
+                    self.close_all_at_price(tp_price_short)
+
     def __crawler_run(self):
         """
         Get the data and execute the strategy.
@@ -147,10 +218,12 @@ class BitMexBackTest(BitMexStub):
             self.market_price = close[-1]
             #self.time = timestamp.tz_convert('Asia/Tokyo')
             self.index = timestamp
+            self.eval_sltp()
             self.strategy(open, close, high, low, volume)
 
             self.balance_history.append((self.get_balance() - self.start_balance) / 100000000 * self.get_market_price())
             self.eval_exit()
+            #eval_sltp()
 
         self.close_all()
         logger.info(f"Back test time : {time.time() - start}")
@@ -226,12 +299,12 @@ class BitMexBackTest(BitMexStub):
         Display results
         """
         logger.info(f"============== Result ================")
-        logger.info(f"TRADE COUNT   : {self.order_count}")
-        logger.info(f"BALANCE       : {self.get_balance()}")
-        logger.info(f"PROFIT RATE   : {self.get_balance()/self.start_balance*100} %")
-        logger.info(f"WIN RATE      : {0 if self.order_count == 0 else self.win_count/self.order_count*100} %")
-        logger.info(f"PROFIT FACTOR : {self.win_profit if self.lose_loss == 0 else self.win_profit/self.lose_loss}")
-        logger.info(f"MAX DRAW DOWN : {self.max_draw_down * 100}")
+        logger.info(f"TRADE COUNT         : {self.order_count}")
+        logger.info(f"BALANCE             : {self.get_balance()}")
+        logger.info(f"PROFIT RATE         : {self.get_balance()/self.start_balance*100} %")
+        logger.info(f"WIN RATE            : {0 if self.order_count == 0 else self.win_count/self.order_count*100} %")
+        logger.info(f"PROFIT FACTOR       : {self.win_profit if self.lose_loss == 0 else self.win_profit/self.lose_loss}")
+        logger.info(f"MAX DRAW DOWN TOTAL : {round(self.max_draw_down_session, 4)} or {round(self.max_draw_down_session_perc, 2)}%")
         logger.info(f"======================================")
 
         import matplotlib.pyplot as plt
