@@ -769,9 +769,9 @@ class BinanceFutures:
            
             for s in source:   
                 timestamp_to_datetime_str = datetime.fromtimestamp(s[6]/1000).strftime('%Y-%m-%dT%H:%M:%S')
-                timestamp = datetime.strptime(timestamp_to_datetime_str,'%Y-%m-%dT%H:%M:%S').astimezone(UTC)
+                timestamp = datetime.strptime(timestamp_to_datetime_str,'%Y-%m-%dT%H:%M:%S')
                 if backtest_mode:
-                    timestamp = datetime.strptime(timestamp_to_datetime_str,'%Y-%m-%dT%H:%M:%S')
+                    timestamp = datetime.strptime(timestamp_to_datetime_str,'%Y-%m-%dT%H:%M:%S').astimezone(UTC)
                 source_to_object_list.append({
                         "timestamp" : timestamp,
                         "high" : float(s[2]),
