@@ -264,7 +264,7 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
                 right_time = end_time
                 is_last_fetch = True
 
-            source = self.fetch_ohlcv(bin_size=bin_size, start_time=left_time, end_time=right_time)            
+            source = self.fetch_ohlcv(bin_size=bin_size, start_time=left_time, end_time=right_time, backtest_mode=True)            
             data = pd.concat([data, source])            
 
             if is_last_fetch:
