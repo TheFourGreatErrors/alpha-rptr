@@ -80,6 +80,16 @@ class BinanceFuturesStub(BinanceFutures):
         """
         return self.position_avg_price
 
+    def get_pnl(self):
+        """
+        get profit and loss calculation in %
+        :return:
+        """
+        # PnL calculation in % 
+        entry_price = self.get_position_avg_price
+        pnl = (self.market_price - entry_price) * 100 / entry_price
+        return pnl        
+
     def cancel_all(self):
         """
         cancel the current orders

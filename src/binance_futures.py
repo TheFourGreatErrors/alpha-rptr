@@ -233,6 +233,15 @@ class BinanceFutures:
             self.market_price = retry(lambda: self.client
                                       .futures_symbol_ticker(symbol=self.pair))
             return float(self.market_price['price'])
+
+    def get_pnl(self):
+        """
+        get profit and loss calculation in %
+        :return:
+        """
+        # PnL calculation in %            
+        pnl = (self.market_price - self.entry_price) * 100 / self.entry_price
+        return pnl        
         
     def get_trail_price(self):
         """
@@ -877,9 +886,8 @@ class BinanceFutures:
             if self.position_size < 0 and \
                     self.market_price < self.get_trail_price():
                 self.set_trail_price(self.market_price)
-
-            # PnL calculation in %
-            self.percent_PnL = (self.market_price - self.entry_price) * 100 / self.entry_price           
+            #Get PnL calculation in %
+            self.pnl = self.get_pnl() 
 
     def __on_update_wallet(self, action, wallet):
         """
