@@ -86,7 +86,7 @@ class BinanceFuturesStub(BinanceFutures):
         :return:
         """
         # PnL calculation in % 
-        entry_price = self.get_position_avg_price
+        entry_price = self.get_position_avg_price()
         pnl = (self.market_price - entry_price) * 100 / entry_price
         return pnl        
 
