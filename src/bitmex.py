@@ -538,7 +538,7 @@ class BitMex:
                             'profit_short': profit_short/100,
                             'stop_long': stop_long/100,
                             'stop_short': stop_short/100,
-                            'eval_tp_next_candle': eval_next_candle
+                            'eval_tp_next_candle': eval_tp_next_candle
                             }        
         self.round_decimals = round_decimals
 
