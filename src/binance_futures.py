@@ -615,12 +615,12 @@ class BinanceFutures:
         :param round_decimals: round decimals 
         """
         self.sltp_values = {
-                    'profit_long': 0,
-                    'profit_short': 0,
-                    'stop_long': 0,
-                    'stop_short': 0,
-                    'eval_tp_next_candle': eval_tp_next_candle
-                    }        
+                            'profit_long': profit_long/100,
+                            'profit_short': profit_short/100,
+                            'stop_long': stop_long/100,
+                            'stop_short': stop_short/100,
+                            'eval_tp_next_candle': eval_next_candle
+                            }        
         self.round_decimals = round_decimals
 
     def get_exit_order(self):
