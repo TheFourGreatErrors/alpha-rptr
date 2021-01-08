@@ -748,7 +748,7 @@ class BinanceFutures:
                 else:  
                     self.order("SL", True, abs(pos_size), stop=sl_price_short, reduce_only=True)                         
         
-    def fetch_ohlcv(self, bin_size, start_time, end_time, backtest_mode=False):
+    def fetch_ohlcv(self, bin_size, start_time, end_time):
         """
         fetch OHLCV data
         :param start_time: start time
@@ -777,12 +777,9 @@ class BinanceFutures:
             source_to_object_list =[]
            
             for s in source:   
-                timestamp_to_datetime_str = datetime.fromtimestamp(s[6]/1000).strftime('%Y-%m-%dT%H:%M:%S')
-                timestamp = datetime.strptime(timestamp_to_datetime_str,'%Y-%m-%dT%H:%M:%S')
-                if backtest_mode:
-                    timestamp = datetime.strptime(timestamp_to_datetime_str,'%Y-%m-%dT%H:%M:%S').astimezone(UTC)
+                timestamp_to_datetime = datetime.fromtimestamp(s[6]/1000).astimezone(UTC)               
                 source_to_object_list.append({
-                        "timestamp" : timestamp,
+                        "timestamp" : timestamp_to_datetime,
                         "high" : float(s[2]),
                         "low" : float(s[3]),
                         "open" : float(s[1]),

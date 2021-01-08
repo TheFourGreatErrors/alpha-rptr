@@ -10,6 +10,7 @@ import urllib
 
 import websocket
 from datetime import datetime
+from pytz import UTC
 
 from src import logger, to_data_frame, notify
 from src.config import config as conf
@@ -154,8 +155,7 @@ class BinanceFuturesWs:
                         "close" : float(datas['k']['c']),
                         "volume" : float(datas['k']['v'])
                     }]                     
-                    data[0]['timestamp'] = datetime.fromtimestamp(data[0]['timestamp']/1000).strftime('%Y-%m-%dT%H:%M:%S')
-                    data[0]['timestamp'] = datetime.strptime(data[0]['timestamp'],'%Y-%m-%dT%H:%M:%S')                                
+                    data[0]['timestamp'] = datetime.fromtimestamp(data[0]['timestamp']/1000).astimezone(UTC)                                        
                     self.__emit(obj['data']['k']['i'], action, to_data_frame([data[0]]))                    
                 elif e.startswith("24hrTicker"):
                     self.__emit(e, action, datas)               
