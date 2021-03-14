@@ -317,6 +317,9 @@ class BinanceFutures:
         """
         create an order
         """
+        #removes "+" from order suffix, because of the new regular expression rule for newClientOrderId updated as ^[\.A-Z\:/a-z0-9_-]{1,36}$ (2021-01-26)
+        ord_id = ord_id.replace("+", "k") 
+        
         if  trailing_stop > 0 and activationPrice > 0:
             ord_type = "TRAILING_STOP_MARKET"
             retry(lambda: self.client.futures_create_order(symbol=self.pair, type=ord_type, newClientOrderId=ord_id,
