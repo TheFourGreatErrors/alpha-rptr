@@ -1,5 +1,5 @@
 matplotlib
-numpy
+numpy==1.19.5
 ta-lib
 pandas==1.0.3
 bravado
