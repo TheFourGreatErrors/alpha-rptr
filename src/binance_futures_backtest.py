@@ -211,12 +211,12 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
                         'close': close
                         }
             # self.time = timestamp.tz_convert('Asia/Tokyo')
-            self.index = timestamp
-            self.eval_sltp()
+            self.index = index
+            #self.eval_sltp()
             self.strategy(open, close, high, low, volume)
 
             self.balance_history.append((self.get_balance() - self.start_balance)) #/ 100000000 * self.get_market_price())
-            self.eval_exit()
+            #self.eval_exit()
             #self.eval_sltp()
 
         self.close_all()

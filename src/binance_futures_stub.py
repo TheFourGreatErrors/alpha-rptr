@@ -451,8 +451,9 @@ class BinanceFuturesStub(BinanceFutures):
                 new_open_orders.append(order)
 
             self.open_orders = new_open_orders
-            strategy(open, close, high, low, volume)
             self.eval_exit()
             self.eval_sltp()
+            strategy(open, close, high, low, volume)
+            
 
         BinanceFutures.on_update(self, bin_size, __override_strategy)
