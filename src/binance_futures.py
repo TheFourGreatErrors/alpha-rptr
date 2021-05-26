@@ -230,9 +230,9 @@ class BinanceFutures:
         if self.market_price != 0:
             return self.market_price
         else:  # when the WebSocket cant get it
-            self.market_price = retry(lambda: self.client
-                                      .futures_symbol_ticker(symbol=self.pair))
-            return float(self.market_price['price'])
+            self.market_price = float(retry(lambda: self.client
+                                      .futures_symbol_ticker(symbol=self.pair))['price'])
+            return self.market_price
 
     def get_pnl(self):
         """
