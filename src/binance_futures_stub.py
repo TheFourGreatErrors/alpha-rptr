@@ -342,6 +342,67 @@ class BinanceFuturesStub(BinanceFutures):
                 0 < self.get_exit_order()['profit'] < abs(unrealised_pnl):
             logger.info(f"Take profit by stop profit: {self.get_exit_order()['profit']}")
             self.close_all()
+
+    def eval_sltp(self):
+        """
+        evaluate simple profit target and stop loss        
+        """
+
+        pos_size = self.get_position_size()
+        if pos_size == 0:
+            return
+
+        best_bid = self.market_price
+        best_ask = self.market_price        
+        tp_percent_long = self.get_sltp_values()['profit_long']
+        tp_percent_short = self.get_sltp_values()['profit_short']   
+
+        avg_entry = self.get_position_avg_price() 
+        
+        #sl        
+
+        sl_percent_long = self.get_sltp_values()['stop_long']
+        sl_percent_short = self.get_sltp_values()['stop_short']
+        
+        # if (self.isLongEntry[-1] == True and self.isLongEntry[-2] == False if True else False) or (self.isShortEntry[-1] == True and self.isShortEntry[-2] == False if True else False):
+        #     return
+
+        # sl execution logic
+        if sl_percent_long > 0:
+            if pos_size > 0:
+                sl_price_long = round(avg_entry - (avg_entry*sl_percent_long), self.round_decimals)
+                if self.OHLC['low'][-1] <= sl_price_long:               
+                    self.close_all_at_price(sl_price_long)
+        if sl_percent_short > 0:
+            if pos_size < 0:
+                sl_price_short = round(avg_entry + (avg_entry*sl_percent_short), self.round_decimals)
+                if self.OHLC['high'][-1] >= sl_price_short:                 
+                    self.close_all_at_price(sl_price_short)  
+        # tp       
+        # if self.get_sltp_values()['eval_tp_next_candle']:
+        #     if (self.isLongEntry[-1] == True and self.isLongEntry[-2] == False if True else False) or (self.isShortEntry[-1] == True and self.isShortEntry[-2] == False if True else False):
+        #         return
+        # if self.get_sltp_values()['eval_tp_next_candle']:
+        #     if self.isLongEntry[-1] or self.isShortEntry[-1] == True:
+        #         return
+        #     if self.isLongEntry[-2] or self.isShortEntry[-2] == True:
+        #         return
+
+        # tp execution logic                
+        if tp_percent_long > 0:
+            if pos_size > 0:                
+                tp_price_long = round(avg_entry +(avg_entry*tp_percent_long), self.round_decimals) 
+                if tp_price_long <= best_ask and self.get_sltp_values()['eval_tp_next_candle'] == True:
+                    tp_price_long = best_ask
+                if self.OHLC['high'][-1] >= tp_price_long:               
+                    self.close_all_at_price(tp_price_long)
+        if tp_percent_short > 0:
+            if pos_size < 0:                
+                tp_price_short = round(avg_entry -(avg_entry*tp_percent_short), self.round_decimals)
+                if tp_price_short >= best_bid and self.get_sltp_values()['eval_tp_next_candle'] == True:
+                    tp_price_short = best_bid
+                if self.OHLC['low'][-1] <= tp_price_short:               
+                    self.close_all_at_price(tp_price_short)
     
     def on_update(self, bin_size, strategy):
         """
@@ -350,6 +411,13 @@ class BinanceFuturesStub(BinanceFutures):
         """
         def __override_strategy(open, close, high, low, volume):
             new_open_orders = []
+
+            self.OHLC = {
+                        'open': open,
+                        'high': high,
+                        'low': low,
+                        'close': close
+                        }
 
             if self.get_position_size() > 0 and low[-1] > self.get_trail_price():
                 self.set_trail_price(low[-1])
@@ -385,5 +453,6 @@ class BinanceFuturesStub(BinanceFutures):
             self.open_orders = new_open_orders
             strategy(open, close, high, low, volume)
             self.eval_exit()
+            self.eval_sltp()
 
         BinanceFutures.on_update(self, bin_size, __override_strategy)

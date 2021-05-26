@@ -230,9 +230,9 @@ class BinanceFutures:
         if self.market_price != 0:
             return self.market_price
         else:  # when the WebSocket cant get it
-            self.market_price = retry(lambda: self.client
-                                      .futures_symbol_ticker(symbol=self.pair))
-            return float(self.market_price['price'])
+            self.market_price = float(retry(lambda: self.client
+                                      .futures_symbol_ticker(symbol=self.pair))['price'])
+            return self.market_price
 
     def get_pnl(self):
         """
@@ -809,6 +809,11 @@ class BinanceFutures:
         return resample(self.data, bin_size)[:-1]
 
     def __update_ohlcv(self, action, new_data):
+
+        # Binance can output wierd timestamps - Eg. 2021-05-25 16:04:59.999000+00:00
+        # We need to round up to the nearest second for further processing
+        new_data = new_data.rename(index={new_data.iloc[0].name: new_data.iloc[0].name.ceil(freq='1T')})
+
         """
         get OHLCV data and execute the strategy
         """        
@@ -817,27 +822,38 @@ class BinanceFutures:
             start_time = end_time - self.ohlcv_len * delta(self.bin_size)
             #logger.info(f"start time fetch ohlcv: {start_time}")
             #logger.info(f"end time fetch ohlcv: {end_time}")
-            d1 = self.fetch_ohlcv(self.bin_size, start_time, end_time)
-            if len(d1) > 0:
-                d2 = self.fetch_ohlcv(allowed_range[self.bin_size][0],
-                                      d1.iloc[-1].name + delta(allowed_range[self.bin_size][0]), end_time)
+            self.data = self.fetch_ohlcv(self.bin_size, start_time, end_time)
+            
+            # The last candle is an incomplete candle with timestamp
+            # in future
+            if(self.data.iloc[-1].name > end_time):
+                last_candle = self.data.iloc[-1].values # Store last candle
+                self.data = self.data[:-1] # exclude last candle
+                self.data.loc[end_time.replace(microsecond=0)] = last_candle #set last candle to end_time
 
-                self.data = pd.concat([d1, d2])                
-            else:
-                self.data = d1
+            logger.info(f"Initial Buffer Fill - Last Candle: {self.data.iloc[-1].name}")
                 
         else:
-            self.data = pd.concat([self.data, new_data])            
+            #replace latest candle if timestamp is same or append
+            if(self.data.iloc[-1].name == new_data.iloc[0].name):
+                self.data = pd.concat([self.data[:-1], new_data])
+            else:
+                self.data = pd.concat([self.data, new_data])        
 
         # exclude current candle data 
         re_sample_data = resample(self.data, self.bin_size)[:-1]
-       
-        if self.data.iloc[-1].name == re_sample_data.iloc[-1].name:
-            self.data = re_sample_data.iloc[-1 * self.ohlcv_len:, :]
+
+        # logger.info(f"{self.last_action_time} : {self.data.iloc[-1].name} : {re_sample_data.iloc[-1].name}")  
 
         if self.last_action_time is not None and \
                 self.last_action_time == re_sample_data.iloc[-1].name:
             return
+
+        # The last candle in the buffer needs to be preserved 
+        # while resetting the buffer as it may be incomlete
+        # or contains latest data from WS
+        self.data = pd.concat([re_sample_data.iloc[-1 * self.ohlcv_len:, :], self.data.iloc[[-1]]]) 
+        #logger.info(f"Buffer Right Edge: {self.data.iloc[-1]}")
 
         open = re_sample_data['open'].values
         close = re_sample_data['close'].values
@@ -846,7 +862,8 @@ class BinanceFutures:
         volume = re_sample_data['volume'].values        
 
         try:
-            if self.strategy is not None:                
+            if self.strategy is not None:   
+                self.timestamp = re_sample_data.iloc[-1].name.isoformat()           
                 self.strategy(open, close, high, low, volume)                
             self.last_action_time = re_sample_data.iloc[-1].name
         except FatalError as e:
