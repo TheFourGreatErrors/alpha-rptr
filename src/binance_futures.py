@@ -977,10 +977,12 @@ class BinanceFutures:
         """
         if self.margin is not None:
             self.margin[0] = {
-                              "balance": float(margin['wb']),
-                              "crossWalletBalance": float(margin['cw'])
+                                "asset": "USDT",
+                                "balance": float(margin['wb']),
+                                "crossWalletBalance": float(margin['cw'])
                              }             
-        else: self.get_margin()       
+        else: self.get_margin()  
+        logger.info(f"Balance: {self.margin[0]['balance']} Cross Balance: {self.margin[0]['crossWalletBalance']}")     
 
     def __on_update_bookticker(self, action, bookticker):
         """
