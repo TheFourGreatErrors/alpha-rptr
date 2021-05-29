@@ -10,8 +10,8 @@ import pandas as pd
 from src import logger, allowed_range, retry, delta, load_data, resample
 from src.binance_futures_stub import BinanceFuturesStub
 
-OHLC_DIRNAME = os.path.join(os.path.dirname(__file__), "../ohlc/{}")
-OHLC_FILENAME = os.path.join(os.path.dirname(__file__), "../ohlc/{}/data.csv")
+OHLC_DIRNAME = os.path.join(os.path.dirname(__file__), "../ohlc/{}/{}")
+OHLC_FILENAME = os.path.join(os.path.dirname(__file__), "../ohlc/{}/{}/data.csv")
 
 class BinanceFuturesBackTest(BinanceFuturesStub):
      # Pair
@@ -340,7 +340,7 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
         """
         start_time = datetime.now(timezone.utc) - 1 * timedelta(days=121)
         end_time = datetime.now(timezone.utc)
-        file = OHLC_FILENAME.format(bin_size)
+        file = OHLC_FILENAME.format(self.pair, bin_size)
 
         if os.path.exists(file):
             self.df_ohlcv = load_data(file)
