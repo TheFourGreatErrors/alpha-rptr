@@ -3,6 +3,7 @@
 import os
 import time
 from datetime import timedelta, datetime, timezone
+import dateutil.parser
 
 import pandas as pd
 
@@ -17,6 +18,10 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
     pair = 'BTCUSDT'
     # Market price
     market_price = 0
+    # Update Data before Backtest
+    update_data = True
+    # Check candles
+    check_candles_flag = True
     # OHLCV
     df_ohlcv = None
     # Current time axis
@@ -191,7 +196,8 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
 
         for i in range(len(self.df_ohlcv) - self.ohlcv_len):
             self.data = self.df_ohlcv.iloc[i:i + self.ohlcv_len, :]
-            timestamp = self.data.iloc[-1].name
+            index = self.data.iloc[-1].name
+            self.timestamp = self.data.iloc[-1][0]
             close = self.data['close'].values
             open = self.data['open'].values
             high = self.data['high'].values
@@ -240,12 +246,62 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
             self.resample_data[bin_size] = resample(self.df_ohlcv, bin_size)
         return self.resample_data[bin_size][:self.data.iloc[-1].name].iloc[-1 * self.ohlcv_len:, :]
 
-    def download_data(self, file, bin_size, start_time, end_time):
-        """
-        download or get the data
-        """
+    def check_candles(self, df):
+
+        logger.info(f"Checking Candles:")
+
+        logger.info(f"Start: {df.iloc[0][0]}")
+        logger.info(f"End: {df.iloc[-1][0]}")
+
+        logger.info("-------")
+
+        diff = (dateutil.parser.isoparse(df.iloc[1][0])-dateutil.parser.isoparse(df.iloc[0][0])).total_seconds()
+
+        logger.info(f"Interval: {diff}s")
+
+        logger.info("-------")
+
+        count = 0
+        rows = df.shape[0]
+        prev_current_date = None
+
+        for index in range(0, rows-1):
+
+            current_date = dateutil.parser.isoparse(df.iloc[index][0])
+            next_date = dateutil.parser.isoparse(df.iloc[index+1][0])
+
+            diff2 = (next_date-current_date).total_seconds()               
+
+            if diff2 != diff:
+
+                count += abs((diff2-diff)/diff)
+                
+                # logger.info(current_date)
+                # logger.info(next_date)
+                # logger.info(f"Missing Candles: {(diff2-diff)/diff} Total: {count}")
+
+                # if(prev_current_date != None):
+                #     logger.info(f"Last Missing Candle Interval: {current_date-prev_current_date}")
+
+                # logger.info("------------")
+
+                prev_current_date = current_date                
+
+        logger.info(f"Total Missing Candles = {count}")
+        logger.info("-------")
+
+    
+    def save_csv(self, data, file):
+
         if not os.path.exists(os.path.dirname(file)):
             os.makedirs(os.path.dirname(file))
+
+        data.to_csv(file)
+    
+    def download_data(self, bin_size, start_time, end_time):
+        """
+        download or get the data
+        """       
 
         data = pd.DataFrame()
         left_time = None
@@ -257,21 +313,25 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
                 left_time = start_time
                 right_time = left_time + delta(allowed_range[bin_size][0]) * 99
             else:
-                left_time = source.iloc[-1].name + + delta(allowed_range[bin_size][0]) * allowed_range[bin_size][2]
+                left_time = source.iloc[-1].name # + + delta(allowed_range[bin_size][0]) * allowed_range[bin_size][2]
                 right_time = left_time + delta(allowed_range[bin_size][0]) * 99
 
             if right_time > end_time:
                 right_time = end_time
                 is_last_fetch = True
 
-            source = self.fetch_ohlcv(bin_size=bin_size, start_time=left_time, end_time=right_time)            
-            data = pd.concat([data, source])            
+            source = self.fetch_ohlcv(bin_size=bin_size, start_time=left_time, end_time=right_time)       
+            
+            # if(data.shape[0]):
+            #     logger.info(f"Last: {data.iloc[-1].name} Left: {left_time} Start: {source.iloc[0].name} Right: {right_time} End: {source.iloc[-1].name}")         
+     
+            data = pd.concat([data, source])   
+
 
             if is_last_fetch:
-                data.to_csv(file)
-                break
+                return data
 
-            time.sleep(0.5)
+            time.sleep(0.25)
 
     def __load_ohlcv(self, bin_size):
         """
@@ -284,9 +344,23 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
 
         if os.path.exists(file):
             self.df_ohlcv = load_data(file)
+            self.df_ohlcv.set_index(self.df_ohlcv.columns[0], inplace=True)
+
+            if(self.update_data):
+                data = self.download_data( bin_size, dateutil.parser.isoparse(self.df_ohlcv.iloc[-1].name), end_time)
+                self.df_ohlcv = pd.concat([self.df_ohlcv, data])
+                self.save_csv(self.df_ohlcv, file) 
+                
+            # self.df_ohlcv.reset_index(inplace=True)
+            self.df_ohlcv = load_data(file)   
+
         else:
-            self.download_data(file, bin_size, start_time, end_time)
+            data = self.download_data(bin_size, start_time, end_time)
+            self.save_csv(data, file)
             self.df_ohlcv = load_data(file)
+
+        if self.check_candles_flag:
+            self.check_candles(self.df_ohlcv)
 
     def show_result(self):
         """
