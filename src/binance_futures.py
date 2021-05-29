@@ -956,7 +956,7 @@ class BinanceFutures:
                             "symbol": position[0]['s'], 
                             "unRealizedProfit":  position[0]['up'], 
                             "positionSide": position[0]['ps'],
-                            } if self.position is not None else self.position
+                            } if self.position is not None else self.position[0]
 
         self.position_size = float(self.position[0]['positionAmt'])
         self.entry_price = float(self.position[0]['entryPrice'])        
