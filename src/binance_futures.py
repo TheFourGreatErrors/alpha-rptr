@@ -767,9 +767,11 @@ class BinanceFutures:
         while True:
             if left_time > right_time:
                 break
-            logger.info(f"fetching OHLCV data")
+            
             left_time_to_timestamp = int(datetime.timestamp(left_time)*1000)
-            right_time_to_timestamp = int(datetime.timestamp(right_time)*1000)            
+            right_time_to_timestamp = int(datetime.timestamp(right_time)*1000)   
+
+            logger.info(f"fetching OHLCV data - {left_time}")         
 
             source = retry(lambda: self.client.futures_klines(symbol=self.pair, interval=fetch_bin_size,
                                                                               startTime=left_time_to_timestamp, endTime=right_time_to_timestamp,
@@ -1007,8 +1009,9 @@ class BinanceFutures:
         """
         Stop the crawler
         """
-        self.is_running = False
-        self.ws.close()
+        if self.is_running:
+            self.is_running = False
+            self.ws.close()
 
     def show_result(self):
         """
