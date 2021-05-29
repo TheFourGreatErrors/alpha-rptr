@@ -142,7 +142,13 @@ class BinanceFutures:
         :return:
         """
         self.__init_client()
-        return float(self.get_margin()[0]["balance"])
+        ret = self.get_margin()
+
+        if len(ret) > 0:
+            balances = [p for p in ret if p["asset"] == "USDT"]            
+            return balances[0]["balance"]
+        else: return None
+
 
     def get_margin(self):
         """
