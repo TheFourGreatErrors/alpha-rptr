@@ -936,7 +936,9 @@ class BinanceFutures:
         """    
 
         if len(position) > 0:
-            position = [p for p in position if p["s"].startswith(self.pair)]            
+            position = [p for p in position if p["s"].startswith(self.pair)]   
+        else:
+            return         
             
         # Was the position size changed?
         is_update_pos_size = self.get_position_size != float(position[0]['pa'])        
