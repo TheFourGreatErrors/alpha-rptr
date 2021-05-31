@@ -285,7 +285,10 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
 
                 # logger.info("------------")
 
-                prev_current_date = current_date                
+                prev_current_date = current_date  
+
+            elif diff2 <= 0:
+                logger.info(f"Duplicate Candle: {current_date}")
 
         logger.info(f"Total Missing Candles = {count}")
         logger.info("-------")
