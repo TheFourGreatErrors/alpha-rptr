@@ -3,20 +3,25 @@
 import os
 import time
 from datetime import timedelta, datetime, timezone
+import dateutil.parser
 
 import pandas as pd
 
 from src import logger, allowed_range, retry, delta, load_data, resample
 from src.binance_futures_stub import BinanceFuturesStub
 
-OHLC_DIRNAME = os.path.join(os.path.dirname(__file__), "../ohlc/{}")
-OHLC_FILENAME = os.path.join(os.path.dirname(__file__), "../ohlc/{}/data.csv")
+OHLC_DIRNAME = os.path.join(os.path.dirname(__file__), "../ohlc/{}/{}")
+OHLC_FILENAME = os.path.join(os.path.dirname(__file__), "../ohlc/{}/{}/data.csv")
 
 class BinanceFuturesBackTest(BinanceFuturesStub):
      # Pair
     pair = 'BTCUSDT'
     # Market price
     market_price = 0
+    # Update Data before Backtest
+    update_data = True
+    # Check candles
+    check_candles_flag = True
     # OHLCV
     df_ohlcv = None
     # Current time axis
@@ -118,67 +123,6 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
         BinanceFuturesStub.close_all_at_price(self, price)
         self.close_signals.append(self.index)        
 
-    def eval_sltp(self):
-        """
-        evaluate simple profit target and stop loss        
-        """
-
-        pos_size = self.get_position_size()
-        if pos_size == 0:
-            return
-
-        best_bid = self.market_price
-        best_ask = self.market_price        
-        tp_percent_long = self.get_sltp_values()['profit_long']
-        tp_percent_short = self.get_sltp_values()['profit_short']   
-
-        avg_entry = self.get_position_avg_price() 
-        
-        #sl        
-
-        sl_percent_long = self.get_sltp_values()['stop_long']
-        sl_percent_short = self.get_sltp_values()['stop_short']
-        
-        # if (self.isLongEntry[-1] == True and self.isLongEntry[-2] == False if True else False) or (self.isShortEntry[-1] == True and self.isShortEntry[-2] == False if True else False):
-        #     return
-
-        # sl execution logic
-        if sl_percent_long > 0:
-            if pos_size > 0:
-                sl_price_long = round(avg_entry - (avg_entry*sl_percent_long), self.round_decimals)
-                if self.OHLC['low'][-1] <= sl_price_long:               
-                    self.close_all_at_price(sl_price_long)
-        if sl_percent_short > 0:
-            if pos_size < 0:
-                sl_price_short = round(avg_entry + (avg_entry*sl_percent_short), self.round_decimals)
-                if self.OHLC['high'][-1] >= sl_price_short:                 
-                    self.close_all_at_price(sl_price_short)  
-        # tp       
-        # if self.get_sltp_values()['eval_tp_next_candle']:
-        #     if (self.isLongEntry[-1] == True and self.isLongEntry[-2] == False if True else False) or (self.isShortEntry[-1] == True and self.isShortEntry[-2] == False if True else False):
-        #         return
-        # if self.get_sltp_values()['eval_tp_next_candle']:
-        #     if self.isLongEntry[-1] or self.isShortEntry[-1] == True:
-        #         return
-        #     if self.isLongEntry[-2] or self.isShortEntry[-2] == True:
-        #         return
-
-        # tp execution logic                
-        if tp_percent_long > 0:
-            if pos_size > 0:                
-                tp_price_long = round(avg_entry +(avg_entry*tp_percent_long), self.round_decimals) 
-                if tp_price_long <= best_ask and self.get_sltp_values()['eval_tp_next_candle'] == True:
-                    tp_price_long = best_ask
-                if self.OHLC['high'][-1] >= tp_price_long:               
-                    self.close_all_at_price(tp_price_long)
-        if tp_percent_short > 0:
-            if pos_size < 0:                
-                tp_price_short = round(avg_entry -(avg_entry*tp_percent_short), self.round_decimals)
-                if tp_price_short >= best_bid and self.get_sltp_values()['eval_tp_next_candle'] == True:
-                    tp_price_short = best_bid
-                if self.OHLC['low'][-1] <= tp_price_short:               
-                    self.close_all_at_price(tp_price_short)
-
     def __crawler_run(self):
         """
         Get the data and execute the strategy.
@@ -191,7 +135,8 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
 
         for i in range(len(self.df_ohlcv) - self.ohlcv_len):
             self.data = self.df_ohlcv.iloc[i:i + self.ohlcv_len, :]
-            timestamp = self.data.iloc[-1].name
+            index = self.data.iloc[-1].name
+            self.timestamp = self.data.iloc[-1][0]
             close = self.data['close'].values
             open = self.data['open'].values
             high = self.data['high'].values
@@ -211,12 +156,12 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
                         'close': close
                         }
             # self.time = timestamp.tz_convert('Asia/Tokyo')
-            self.index = timestamp
-            self.eval_sltp()
+            self.index = index
+            #self.eval_sltp()
             self.strategy(open, close, high, low, volume)
 
             self.balance_history.append((self.get_balance() - self.start_balance)) #/ 100000000 * self.get_market_price())
-            self.eval_exit()
+            #self.eval_exit()
             #self.eval_sltp()
 
         self.close_all()
@@ -240,12 +185,65 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
             self.resample_data[bin_size] = resample(self.df_ohlcv, bin_size)
         return self.resample_data[bin_size][:self.data.iloc[-1].name].iloc[-1 * self.ohlcv_len:, :]
 
-    def download_data(self, file, bin_size, start_time, end_time):
-        """
-        download or get the data
-        """
+    def check_candles(self, df):
+
+        logger.info(f"Checking Candles:")
+
+        logger.info(f"Start: {df.iloc[0][0]}")
+        logger.info(f"End: {df.iloc[-1][0]}")
+
+        logger.info("-------")
+
+        diff = (dateutil.parser.isoparse(df.iloc[1][0])-dateutil.parser.isoparse(df.iloc[0][0])).total_seconds()
+
+        logger.info(f"Interval: {diff}s")
+
+        logger.info("-------")
+
+        count = 0
+        rows = df.shape[0]
+        prev_current_date = None
+
+        for index in range(0, rows-1):
+
+            current_date = dateutil.parser.isoparse(df.iloc[index][0])
+            next_date = dateutil.parser.isoparse(df.iloc[index+1][0])
+
+            diff2 = (next_date-current_date).total_seconds()               
+
+            if diff2 != diff:
+
+                count += abs((diff2-diff)/diff)
+                
+                # logger.info(current_date)
+                # logger.info(next_date)
+                # logger.info(f"Missing Candles: {(diff2-diff)/diff} Total: {count}")
+
+                # if(prev_current_date != None):
+                #     logger.info(f"Last Missing Candle Interval: {current_date-prev_current_date}")
+
+                # logger.info("------------")
+
+                prev_current_date = current_date  
+
+            elif diff2 <= 0:
+                logger.info(f"Duplicate Candle: {current_date}")
+
+        logger.info(f"Total Missing Candles = {count}")
+        logger.info("-------")
+
+    
+    def save_csv(self, data, file):
+
         if not os.path.exists(os.path.dirname(file)):
             os.makedirs(os.path.dirname(file))
+
+        data.to_csv(file)
+    
+    def download_data(self, bin_size, start_time, end_time):
+        """
+        download or get the data
+        """       
 
         data = pd.DataFrame()
         left_time = None
@@ -257,21 +255,25 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
                 left_time = start_time
                 right_time = left_time + delta(allowed_range[bin_size][0]) * 99
             else:
-                left_time = source.iloc[-1].name + + delta(allowed_range[bin_size][0]) * allowed_range[bin_size][2]
+                left_time = source.iloc[-1].name # + + delta(allowed_range[bin_size][0]) * allowed_range[bin_size][2]
                 right_time = left_time + delta(allowed_range[bin_size][0]) * 99
 
             if right_time > end_time:
                 right_time = end_time
                 is_last_fetch = True
 
-            source = self.fetch_ohlcv(bin_size=bin_size, start_time=left_time, end_time=right_time)            
-            data = pd.concat([data, source])            
+            source = self.fetch_ohlcv(bin_size=bin_size, start_time=left_time, end_time=right_time)       
+            
+            # if(data.shape[0]):
+            #     logger.info(f"Last: {data.iloc[-1].name} Left: {left_time} Start: {source.iloc[0].name} Right: {right_time} End: {source.iloc[-1].name}")         
+     
+            data = pd.concat([data, source])   
+
 
             if is_last_fetch:
-                data.to_csv(file)
-                break
+                return data
 
-            time.sleep(0.5)
+            time.sleep(0.25)
 
     def __load_ohlcv(self, bin_size):
         """
@@ -280,13 +282,27 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
         """
         start_time = datetime.now(timezone.utc) - 1 * timedelta(days=121)
         end_time = datetime.now(timezone.utc)
-        file = OHLC_FILENAME.format(bin_size)
+        file = OHLC_FILENAME.format(self.pair, bin_size)
 
         if os.path.exists(file):
             self.df_ohlcv = load_data(file)
+            self.df_ohlcv.set_index(self.df_ohlcv.columns[0], inplace=True)
+
+            if(self.update_data):
+                data = self.download_data( bin_size, dateutil.parser.isoparse(self.df_ohlcv.iloc[-1].name), end_time)
+                self.df_ohlcv = pd.concat([self.df_ohlcv, data])
+                self.save_csv(self.df_ohlcv, file) 
+                
+            # self.df_ohlcv.reset_index(inplace=True)
+            self.df_ohlcv = load_data(file)   
+
         else:
-            self.download_data(file, bin_size, start_time, end_time)
+            data = self.download_data(bin_size, start_time, end_time)
+            self.save_csv(data, file)
             self.df_ohlcv = load_data(file)
+
+        if self.check_candles_flag:
+            self.check_candles(self.df_ohlcv)
 
     def show_result(self):
         """

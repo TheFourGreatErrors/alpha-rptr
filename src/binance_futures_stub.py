@@ -265,6 +265,7 @@ class BinanceFuturesStub(BinanceFutures):
 
             if self.enable_trade_log:
                 logger.info(f"========= Close Position =============")
+                logger.info(f"TIME          : {self.timestamp}")
                 logger.info(f"TRADE COUNT   : {self.order_count}")
                 logger.info(f"POSITION SIZE : {self.position_size}")
                 logger.info(f"ENTRY PRICE   : {self.position_avg_price}")
@@ -281,7 +282,7 @@ class BinanceFuturesStub(BinanceFutures):
         if next_qty != 0:
             if self.enable_trade_log:
                 logger.info(f"********* Create Position ************")
-                logger.info(f"TIME          : {self.now_time()}")
+                logger.info(f"TIME          : {self.timestamp}")
                 logger.info(f"PRICE         : {price}")
                 logger.info(f"TRADE COUNT   : {self.order_count}")
                 logger.info(f"ID            : {id}")
@@ -451,8 +452,9 @@ class BinanceFuturesStub(BinanceFutures):
                 new_open_orders.append(order)
 
             self.open_orders = new_open_orders
-            strategy(open, close, high, low, volume)
             self.eval_exit()
             self.eval_sltp()
+            strategy(open, close, high, low, volume)
+            
 
         BinanceFutures.on_update(self, bin_size, __override_strategy)
