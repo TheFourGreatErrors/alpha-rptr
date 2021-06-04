@@ -937,6 +937,9 @@ class BinanceFutures:
 
         if len(position) > 0:
             position = [p for p in position if p["s"].startswith(self.pair)]   
+            if len(position) == 0:
+                # logger.info(f"Some other pair was traded!")
+                return
         else:
             return         
             
