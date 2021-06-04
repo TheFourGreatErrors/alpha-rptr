@@ -34,6 +34,9 @@ class BinanceFuturesStub(BinanceFutures):
     # orders
     open_orders = []
 
+    isLongEntry = [False, False]
+    isShortEntry = [False,False]
+
     def __init__(self, account, pair, threading=True):
         """
         constructor
