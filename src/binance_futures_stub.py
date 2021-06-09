@@ -377,11 +377,7 @@ class BinanceFuturesStub(BinanceFutures):
         #sl        
 
         sl_percent_long = self.get_sltp_values()['stop_long']
-        sl_percent_short = self.get_sltp_values()['stop_short']        
-        
-        if (self.isLongEntry[-1] == True and self.isLongEntry[-2] == False and self.get_sltp_values()['eval_tp_next_candle']) or \
-            (self.isShortEntry[-1] == True and self.isShortEntry[-2] == False and self.get_sltp_values()['eval_tp_next_candle']):
-            return
+        sl_percent_short = self.get_sltp_values()['stop_short']         
 
         # sl execution logic
         if sl_percent_long > 0:
@@ -403,7 +399,11 @@ class BinanceFuturesStub(BinanceFutures):
         #         return
         #     if self.isLongEntry[-2] or self.isShortEntry[-2] == True:
         #         return
-
+        
+        if (self.isLongEntry[-1] == True and self.isLongEntry[-2] == False and self.get_sltp_values()['eval_tp_next_candle']) or \
+            (self.isShortEntry[-1] == True and self.isShortEntry[-2] == False and self.get_sltp_values()['eval_tp_next_candle']):
+            return
+        
         # tp execution logic                
         if tp_percent_long > 0:
             if pos_size > 0:                
