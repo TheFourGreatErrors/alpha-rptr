@@ -238,7 +238,7 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
         if not os.path.exists(os.path.dirname(file)):
             os.makedirs(os.path.dirname(file))
 
-        data.to_csv(file)
+        data.to_csv(file, index_label="time")
     
     def download_data(self, bin_size, start_time, end_time):
         """
