@@ -214,6 +214,16 @@ class Sample(Bot):
         logger.info(f"short_entry_hist: {self.short_entry_signal_history}")
 ```
 
+## Basic HTML5 Charts and Order Info for Backtests
+
+A basic HTML5 TradingView Lite (Open Source Version) widget based order visualization on top of Candle Stick data is available. It also displays a table with orders that can be sorted in many ways and clicking on any order date will auto-scroll that period into view.
+
+A file called `orders.csv` file is generated after every backtest in the project root folder. And then at the end of each backtest `data.csv` from data folder and `orders.csv` from project root are symlinked into the new `html/data` diretory
+
+We can then use this browser interface by executing `python3 -m http.server 8000` in the `html` folder and browse to https://127.0.0.1:8000/ to view backtest results.
+
+Do not forget to refresh the page after each backtest for evaluating the results.
+
 ## Dedicated discord server
 This server is dedicated for bug reporting, feature requests and support.
 https://discord.gg/ah3MGeN
