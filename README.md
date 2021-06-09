@@ -216,6 +216,8 @@ class Sample(Bot):
 
 ## Basic HTML5 Charts and Order Info for Backtests
 
+<img src="img/html5.png" width="800">
+
 A basic HTML5 TradingView Lite (Open Source Version) widget based order visualization on top of Candle Stick data is available. It also displays a table with orders that can be sorted in many ways and clicking on any order date will auto-scroll that period into view.
 
 A file called `orders.csv` file is generated after every backtest in the project root folder. And then at the end of each backtest `data.csv` from data folder and `orders.csv` from project root are symlinked into the new `html/data` diretory
