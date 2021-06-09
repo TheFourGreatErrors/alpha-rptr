@@ -1,6 +1,6 @@
 # coding: UTF-8
 
-import os
+import os, tempfile
 import time
 from datetime import timedelta, datetime, timezone
 import dateutil.parser
@@ -284,6 +284,8 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
         end_time = datetime.now(timezone.utc)
         file = OHLC_FILENAME.format(self.pair, bin_size)
 
+        self.bin_size = bin_size
+
         if os.path.exists(file):
             self.df_ohlcv = load_data(file)
             self.df_ohlcv.set_index(self.df_ohlcv.columns[0], inplace=True)
@@ -304,7 +306,53 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
         if self.check_candles_flag:
             self.check_candles(self.df_ohlcv)
 
+    # https://stackoverflow.com/questions/8299386/modifying-a-symlink-in-python/55742015#55742015
+    def symlink(self, target, link_name, overwrite=False):
+        
+        '''
+        Create a symbolic link named link_name pointing to target.
+        If link_name exists then FileExistsError is raised, unless overwrite=True.
+        When trying to overwrite a directory, IsADirectoryError is raised.
+        '''
+
+        if not overwrite:
+            os.symlink(target, link_name)
+            return
+
+        # os.replace() may fail if files are on different filesystems
+        link_dir = os.path.dirname(link_name)
+
+        # Create link to target with temporary filename
+        while True:
+            temp_link_name = tempfile.mktemp(dir=link_dir)
+
+            # os.* functions mimic as closely as possible system functions
+            # The POSIX symlink() returns EEXIST if link_name already exists
+            # https://pubs.opengroup.org/onlinepubs/9699919799/functions/symlink.html
+            try:
+                os.symlink(target, temp_link_name)
+                break
+            except FileExistsError:
+                pass
+
+        # Replace link_name with temp_link_name
+        try:
+            # Pre-empt os.replace on a directory with a nicer message
+            if not os.path.islink(link_name) and os.path.isdir(link_name):
+                raise IsADirectoryError(f"Cannot symlink over existing directory: '{link_name}'")
+            os.replace(temp_link_name, link_name)
+        except:
+            if os.path.islink(temp_link_name):
+                os.remove(temp_link_name)
+            raise
+    
     def show_result(self):
+
+        DATA_FILENAME = OHLC_FILENAME.format(self.pair, self.bin_size)
+        self.symlink(DATA_FILENAME, 'html/data/data.csv', overwrite=True)
+        ORDERS_FILENAME = os.path.join(os.path.dirname(__file__), "../orders.csv")
+        self.symlink(ORDERS_FILENAME, 'html/data/orders.csv', overwrite=True)
+
         """
         Display results
         """
