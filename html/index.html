@@ -142,7 +142,11 @@
     function date_link(date)
     {
       var chart_position = time_index[date]
-      chart_position = chart_position - time_length +75
+
+      range = chart.timeScale().getVisibleLogicalRange();
+      range = (Math.floor(range["to"]) - Math.floor(range["from"]))
+
+      chart_position = chart_position - time_length + range/2
       chart.timeScale().scrollToPosition(chart_position,true)
       chart.priceScale().applyOptions({autoScale: true})
     }
