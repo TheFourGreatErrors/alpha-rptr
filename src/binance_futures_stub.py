@@ -25,6 +25,8 @@ class BinanceFuturesStub(BinanceFutures):
     win_profit = 0
     # Lose Loss
     lose_loss = 0
+    #Drawdown from peak
+    drawdown = 0
     # Max Loss Rate
     max_draw_down = 0
     # max drawdown for the session
@@ -49,7 +51,7 @@ class BinanceFuturesStub(BinanceFutures):
         self.balance_ath = self.balance
 
         self.order_log = open("orders.csv", "w")
-        self.order_log.write("time,type,price,quantity,av_price,position,pnl,balance\n") #header
+        self.order_log.write("time,type,price,quantity,av_price,position,pnl,balance,drawdown\n") #header
 
         
     def get_lot(self):
@@ -270,8 +272,10 @@ class BinanceFuturesStub(BinanceFutures):
                         self.max_draw_down_session = self.balance_ath - self.balance 
                         self.max_draw_down_session_perc = (self.balance_ath - self.balance) / self.balance_ath * 100                         
 
-            # self.order_log.write("time,type,price,quantity,av_price,position,pnl,balance\n") #header
-            self.order_log.write(f"{self.timestamp},{'BUY' if long else 'SELL'},{price:.2f},{-self.position_size if abs(next_qty) else order_qty:.2f},{self.position_avg_price:.2f},{0 if abs(next_qty) else self.position_size+order_qty:.2f},{profit:.2f},{self.get_balance():.2f}\n")
+            self.drawdown = (self.balance_ath - self.balance) / self.balance_ath * 100
+
+            # self.order_log.write("time,type,price,quantity,av_price,position,pnl,balance,drawdown\n") #header
+            self.order_log.write(f"{self.timestamp},{'BUY' if long else 'SELL'},{price:.2f},{-self.position_size if abs(next_qty) else order_qty:.2f},{self.position_avg_price:.2f},{0 if abs(next_qty) else self.position_size+order_qty:.2f},{profit:.2f},{self.get_balance():.2f},{self.drawdown:.2f}\n")
             self.order_log.flush()
 
             if self.enable_trade_log:
@@ -308,8 +312,8 @@ class BinanceFuturesStub(BinanceFutures):
             self.position_size = next_qty
             logger.info(f"**********{next_qty}") 
 
-            # self.order_log.write("time,type,price,quantity,av_price,position,pnl,balance\n") #header
-            self.order_log.write(f"{self.timestamp},{'BUY' if long else 'SELL'},{price:.2f},{next_qty:.2f},{self.position_avg_price:.2f},{self.position_size:.2f},{'-'},{self.get_balance():.2f}\n")
+            # self.order_log.write("time,type,price,quantity,av_price,position,pnl,balance,drawdown\n") #header
+            self.order_log.write(f"{self.timestamp},{'BUY' if long else 'SELL'},{price:.2f},{next_qty:.2f},{self.position_avg_price:.2f},{self.position_size:.2f},{'-'},{self.get_balance():.2f},{self.drawdown:.2f}\n")
             self.order_log.flush()
 
             self.set_trail_price(price)
