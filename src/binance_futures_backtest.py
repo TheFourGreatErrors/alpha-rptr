@@ -187,7 +187,9 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
 
     def check_candles(self, df):
 
+        logger.info("-------")
         logger.info(f"Checking Candles:")
+        logger.info("-------")
 
         logger.info(f"Start: {df.iloc[0][0]}")
         logger.info(f"End: {df.iloc[-1][0]}")
