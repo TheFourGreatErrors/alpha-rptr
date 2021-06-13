@@ -139,6 +139,22 @@
       candleSeries.setData(chart_data);
     });
 
+    chart.subscribeCrosshairMove((param) => {
+      if (param.time) {
+        const price = param.seriesPrices.get(candleSeries);
+
+        if ( price.open < price.close)
+        color = "seagreen"
+        else
+        color = "red"
+
+        $("#chart_title").html('<span style="color: '+color+'">O: '+price.open+'</span> <span style="color: seagreen">H: '+price.high+'</span> <span style="color: red;">L: '+price.low+'</span> <span style="color: '+color+'">C: '+price.close+'</span>');
+      }
+      else {
+        $("#chart_title").html('alpha rptr');
+      }
+    });
+
     function date_link(date)
     {
       var chart_position = time_index[date]
