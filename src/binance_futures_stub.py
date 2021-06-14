@@ -59,7 +59,7 @@ class BinanceFuturesStub(BinanceFutures):
          Calculate the Lot
          :return:
          """
-        return int((1 - self.get_retain_rate()) * self.get_balance() * self.get_leverage() * self.get_market_price())
+        return int( self.get_balance() * self.get_leverage() / self.get_market_price())
 
     def get_balance(self):
         """
@@ -245,11 +245,11 @@ class BinanceFuturesStub(BinanceFutures):
 
         if (self.get_position_size() > 0 >= order_qty) or (self.get_position_size() < 0 < order_qty):
             if self.get_position_avg_price() > price:
-                close_rate = ((self.get_position_avg_price() - price) / price - commission) * self.get_leverage()
-                profit = -1 * self.get_position_size() * close_rate
+                close_rate = ((self.get_position_avg_price() - price) / price - commission) 
+                profit = -1 * self.get_position_size() * close_rate * price
             else:
-                close_rate = ((price - self.get_position_avg_price()) / self.get_position_avg_price() - commission) * self.get_leverage()
-                profit = self.get_position_size() * close_rate
+                close_rate = ((price - self.get_position_avg_price()) / self.get_position_avg_price() - commission)
+                profit = self.get_position_size() * close_rate * self.get_position_avg_price()
 
             if profit > 0:
                 self.win_profit += profit #* self.get_market_price() 
