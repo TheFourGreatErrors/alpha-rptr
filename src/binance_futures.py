@@ -146,7 +146,7 @@ class BinanceFutures:
 
         if len(ret) > 0:
             balances = [p for p in ret if p["asset"] == "USDT"]            
-            return balances[0]["balance"]
+            return float(balances[0]["balance"])
         else: return None
 
 
