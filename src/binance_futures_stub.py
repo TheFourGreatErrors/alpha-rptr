@@ -7,6 +7,8 @@ from src.binance_futures import BinanceFutures
 class BinanceFuturesStub(BinanceFutures):
     # Pair
     pair = 'BTCUSDT'
+    # Positions in USDT?
+    qty_in_usdt = False
     # Default Balance (1000 USDT)
     balance = 1000
     # Default Leverage
@@ -59,7 +61,7 @@ class BinanceFuturesStub(BinanceFutures):
          Calculate the Lot
          :return:
          """
-        return int( self.get_balance() * self.get_leverage() / self.get_market_price())
+        return float( self.get_balance() * self.get_leverage() / self.get_market_price())
 
     def get_balance(self):
         """
@@ -246,10 +248,10 @@ class BinanceFuturesStub(BinanceFutures):
         if (self.get_position_size() > 0 >= order_qty) or (self.get_position_size() < 0 < order_qty):
             if self.get_position_avg_price() > price:
                 close_rate = ((self.get_position_avg_price() - price) / price - commission) 
-                profit = -1 * self.get_position_size() * close_rate * price
+                profit = self.get_position_size() * close_rate * (-1 if self.qty_in_usdt else -price)                 
             else:
                 close_rate = ((price - self.get_position_avg_price()) / self.get_position_avg_price() - commission)
-                profit = self.get_position_size() * close_rate * self.get_position_avg_price()
+                profit = self.get_position_size() * close_rate * (1 if self.qty_in_usdt else self.get_position_avg_price())
 
             if profit > 0:
                 self.win_profit += profit #* self.get_market_price() 
