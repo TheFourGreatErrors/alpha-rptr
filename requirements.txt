@@ -1,6 +1,6 @@
 matplotlib
 numpy==1.19.5
-ta-lib
+ta-lib==0.4.18
 pandas==1.0.3
 bravado
 websocket-client==0.52.0

@@ -169,6 +169,18 @@ def highest(source, period):
 def lowest(source, period):
     return pd.Series(source).rolling(period).min().values
 
+def avg_price(open, high, low, close):
+    """
+    also found in tradingview as ohlc4 source
+    """
+    return talib.AVGPRICE(open, high, low, close)
+
+def typ_price(high,low,close):
+    """
+    typical price, also found in tradingview as hl3 source
+    """
+    return talib.TYPPRICE(high, low, close)
+
 def MAX(close, period):
     return talib.MAX(close, period)
 
