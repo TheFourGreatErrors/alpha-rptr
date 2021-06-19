@@ -303,11 +303,11 @@ class BinanceFuturesStub(BinanceFutures):
                 logger.info(f"PRICE         : {price}")
                 logger.info(f"TRADE COUNT   : {self.order_count}")
                 logger.info(f"ID            : {id}")
-                logger.info(f"POSITION SIZE : {qty}")
+                logger.info(f"POSITION SIZE : {order_qty if next_qty * self.position_size > 0 else next_qty}")
                 logger.info(f"**************************************")               
-            if long and self.position_size < next_qty:
+            if long and 0 < self.position_size < next_qty:
                 self.position_avg_price = (self.position_avg_price * self.position_size + price * qty) /  next_qty 
-            elif not long and self.position_size > next_qty:
+            elif not long and 0 > self.position_size > next_qty:
                 self.position_avg_price = (self.position_avg_price * self.position_size - price * qty) /  next_qty
             else:
                  self.position_avg_price = price
