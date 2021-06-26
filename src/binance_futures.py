@@ -198,7 +198,7 @@ class BinanceFutures:
         ret = retry(lambda: self.client
                               .futures_position_information())
         if len(ret) > 0:
-            self.position = [p for p in ret if p["symbol"].startswith(self.pair)]            
+            self.position = [p for p in ret if p["symbol"] == self.pair]            
             return self.position[0]
         else: return None
 
