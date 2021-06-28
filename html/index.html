@@ -7,6 +7,10 @@
   <meta name="description" content="">
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+
   <meta property="og:title" content="">
   <meta property="og:type" content="">
   <meta property="og:url" content="">
@@ -54,6 +58,7 @@
       padding: 4px;
       border-radius: 5px;
       color: #666;
+      left: 50px;
     }
 
     #chart{
@@ -109,13 +114,22 @@
   <script>
     var chart = LightweightCharts.createChart(document.getElementById("chart"), {
       width: 1000,
-      height: 300,
+      height: 350,
       title: "Alpha RPTR",
       timeScale: {
         timeVisible: true,
         secondsVisible: true,
       },
+      rightPriceScale: {
+        visible: true
+      },
+      leftPriceScale: {
+        visible: true,
+        //invertScale: true
+      },
     });
+
+    $.ajaxSetup({ cache: false });
 
     var candleSeries = chart.addCandlestickSeries({
       upColor: 'rgb(38,166,154)',
@@ -137,6 +151,8 @@
         chart_data[i]["time"] = time/1000
       }
       candleSeries.setData(chart_data);
+      window.chart_data = chart_data;
+      load_trades();
     });
 
     chart.subscribeCrosshairMove((param) => {
@@ -169,50 +185,108 @@
 
     var trades_table = Array()
 
-    $.get( "/data/orders.csv", function( data ) {
+    function load_trades(){
+      $.get( "/data/orders.csv", function( data ) {
 
-      var order_data = $.csv.toObjects(data);
+        var order_data = $.csv.toObjects(data);
 
-      var markers = [];
+        var drawdown = {};
 
-      for (var i=0; i<order_data.length; i++){
+        var markers = [];
+        var only_markers = [];
 
-        //"time,type,price,quantity,av_price,position,pnl,balance\n"
+        for (var i=0; i<order_data.length; i++){
 
-        var order_date = moment.utc(order_data[i]["time"]).format("YYYY-MM-DD HH:mm")
-        order_date = '<a class="chart_link underline" href="javascript:date_link(\''+order_data[i]["time"]+'\')">📈 '+order_date+'</a>'
+          //"time,type,price,quantity,av_price,position,pnl,balance\n"
 
-        var type = '<span class="'+order_data[i]["type"]+'">'+order_data[i]["type"]+'</span>'
-        
-        trades_table.push([order_date, type, order_data[i]["price"], order_data[i]["quantity"], order_data[i]["av_price"],  order_data[i]["position"], order_data[i]["pnl"], order_data[i]["balance"],order_data[i]["drawdown"]])
+          var order_date = moment.utc(order_data[i]["time"]).format("YYYY-MM-DD HH:mm")
+          order_date = '<a class="chart_link underline" href="javascript:date_link(\''+order_data[i]["time"]+'\')">� '+order_date+'</a>'
 
-        var time = new Date(order_data[i]["time"]).getTime()/1000
+          var type = '<span class="'+order_data[i]["type"]+'">'+order_data[i]["type"]+'</span>'
+          
+          trades_table.push([order_date, type, order_data[i]["price"], order_data[i]["quantity"], order_data[i]["av_price"],  order_data[i]["position"], order_data[i]["pnl"], order_data[i]["balance"],order_data[i]["drawdown"]])
 
-        if(order_data[i]["type"] == 'BUY')
-        markers.push({ time: time, position: 'belowBar', color: '#0345a1', shape: 'arrowUp', text: 'Buy @ ' + order_data[i]["price"] + ' Qty: ' + order_data[i]["quantity"] });
-        else        
-        markers.push({ time: time, position: 'aboveBar', color: "#870a01", shape: 'arrowDown', text: 'Sell @ ' + order_data[i]["price"] + ' Qty: ' + order_data[i]["quantity"] });
-      }
+          var time = new Date(order_data[i]["time"]).getTime()/1000
 
-      candleSeries.setMarkers(markers);
+          //drawdown.push({ time: time, value: parseInt(order_data[i]["drawdown"]) });
+          drawdown[time] = parseInt(order_data[i]["drawdown"]);
 
-      trades_table = $('#trades').DataTable( {
-                        data: trades_table,
-                        // searching: false,
-                        columns: [
-                            { title: 'Date' },
-                            { title: 'Type' },
-                            { title: 'Price' },
-                            { title: 'Quantity' },
-                            { title: 'Av. Price' },
-                            { title: 'Position' },
-                            { title: 'PnL' },
-                            { title: 'Balance' },
-                            { title: 'Drawdown' }
-                        ]
-                    } );
+          if(order_data[i]["type"] == 'BUY')
+          {
+            markers.push({ time: time, position: 'belowBar', color: '#0345a1', shape: 'arrowUp', text: 'Buy @ ' + order_data[i]["price"] + ' Qty: ' + order_data[i]["quantity"] });
+            only_markers.push({ time: time, position: 'belowBar', color: '#0345a1', shape: 'arrowUp' });
+          }        
+          else  
+          {
+            markers.push({ time: time, position: 'aboveBar', color: "#870a01", shape: 'arrowDown', text: 'Sell @ ' + order_data[i]["price"] + ' Qty: ' + order_data[i]["quantity"] });
+            only_markers.push({ time: time, position: 'aboveBar', color: "#870a01", shape: 'arrowDown'});
+          }          
+        }
 
-    });
+        var drawdown_series = [];
+
+        var chart_data = window.chart_data
+
+        var last_drawdown = 0
+
+        for (var i=0; i<chart_data.length; i++){
+
+          let time = chart_data[i]["time"];
+
+          if ( time in drawdown)
+          {
+            drawdown_series.push({time: time, value: drawdown[time]})
+            last_drawdown = drawdown[time]
+          }
+          else 
+          drawdown_series.push({time: time, value: last_drawdown})
+        }
+
+        chart.addAreaSeries({
+          //title: "DD%",
+          topColor: 'rgba(255, 82, 82, 0.1)',
+          bottomColor: 'rgba(255, 82, 82, 0)',
+          lineColor: 'rgba(255, 82, 82, 1)',
+          lineWidth: 0.5,
+          priceScaleId: 'left'
+        }).setData(drawdown_series);
+
+        candleSeries.setMarkers(markers);
+
+        function onVisibleLogicalRangeChanged(range) {
+            console.log(range);
+            start = parseInt(range["from"]);
+            end = parseInt(range["to"]);
+
+            if(end-start > 500)
+            candleSeries.setMarkers([]);
+            else if (end-start > 200)
+            candleSeries.setMarkers(only_markers);
+            else
+            candleSeries.setMarkers(markers);
+        }
+
+        chart.timeScale().subscribeVisibleLogicalRangeChange(onVisibleLogicalRangeChanged);
+
+        trades_table = $('#trades').DataTable( {
+                          data: trades_table,
+                          // searching: false,
+                          columns: [
+                              { title: 'Date' },
+                              { title: 'Type' },
+                              { title: 'Price' },
+                              { title: 'Quantity' },
+                              { title: 'Av. Price' },
+                              { title: 'Position' },
+                              { title: 'PnL' },
+                              { title: 'Balance' },
+                              { title: 'Drawdown' }
+                          ]
+                      } );
+
+      });
+    }   
+
   </script>
 
   <script>
