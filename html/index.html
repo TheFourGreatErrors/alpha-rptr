@@ -200,7 +200,7 @@
           //"time,type,price,quantity,av_price,position,pnl,balance\n"
 
           var order_date = moment.utc(order_data[i]["time"]).format("YYYY-MM-DD HH:mm")
-          order_date = '<a class="chart_link underline" href="javascript:date_link(\''+order_data[i]["time"]+'\')">� '+order_date+'</a>''
+          order_date = '<a class="chart_link underline" href="javascript:date_link(\''+order_data[i]["time"]+'\')">� '+order_date+'</a>'
 
           var type = '<span class="'+order_data[i]["type"]+'">'+order_data[i]["type"]+'</span>'
           
