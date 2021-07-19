@@ -36,6 +36,8 @@ class BinanceFutures:
     market_price = 0
     # Order update
     order_update = None
+    # Order Update Log
+    order_update_log = True
     # Position
     position = None
     # Position size
@@ -424,7 +426,7 @@ class BinanceFutures:
 
     #         notify(f"Amend Order\nType: {ord_type}\nSide: {side}\nQty: {ord_qty}\nLimit: {limit}\nStop: {stop}")
 
-    def entry(self, id, long, qty, limit=0, stop=0, post_only=False, reduce_only=False, when=True):
+    def entry(self, id, long, qty, limit=0, stop=0, post_only=False, reduce_only=False, when=True, round_decimals=3):
         """
         places an entry order, works as equivalent to tradingview pine script implementation
         https://tradingview.com/study-script-reference/#fun_strategy{dot}entry
@@ -456,6 +458,7 @@ class BinanceFutures:
             return
 
         ord_qty = qty + abs(pos_size)
+        ord_qty = round(ord_qty, round_decimals)
 
         trailing_stop=0
         activationPrice=0
@@ -488,6 +491,7 @@ class BinanceFutures:
 
         side = "BUY" if long else "SELL"
         ord_qty = qty
+        logger.info(f"ord_qty: {ord_qty}")
 
         order = self.get_open_order(id)
         ord_id = id + ord_suffix() #if order is None else order["clientOrderId"]
@@ -499,7 +503,7 @@ class BinanceFutures:
             #self.__amend_order(ord_id, side, ord_qty, limit, stop, post_only)
             return
 
-    def entry_pyramiding(self, id, long, qty, limit=0, stop=0, trailValue= 0, post_only=False, reduce_only=False, cancel_all=False, pyramiding=2, when=True):
+    def entry_pyramiding(self, id, long, qty, limit=0, stop=0, trailValue= 0, post_only=False, reduce_only=False, cancel_all=False, pyramiding=2, when=True, round_decimals=3):
         """
         places an entry order, works as equivalent to tradingview pine script implementation with pyramiding
         https://tradingview.com/study-script-reference/#fun_strategy{dot}entry
@@ -553,6 +557,8 @@ class BinanceFutures:
 
         trailing_stop = 0
         activationPrice = 0
+
+        ord_qty = round(ord_qty, round_decimals)
 
         self.order(id, long, ord_qty, limit, stop, post_only, reduce_only, trailing_stop, activationPrice, when)
 
@@ -926,6 +932,22 @@ class BinanceFutures:
         https://binance-docs.github.io/apidocs/futures/en/#event-order-update
         """
         self.order_update = order
+
+        #only after order if completely filled
+        if(self.order_update_log and float(order['q']) == float(order['z'])): 
+            logger.info(f"========= Order Update ==============")
+            logger.info(f"ID     : {order['i']}")
+            logger.info(f"Type   : {order['o']}")
+            logger.info(f"Uses   : {order['wt']}")
+            logger.info(f"Side   : {order['S']}")
+            logger.info(f"Status : {order['X']}")
+            logger.info(f"Qty    : {order['q']}")
+            logger.info(f"Filled : {order['z']}")
+            logger.info(f"Limit  : {order['p']}")
+            logger.info(f"Stop   : {order['sp']}")
+            logger.info(f"APrice : {order['ap']}")
+            logger.info(f"======================================")
+
         # Evaluation of profit and loss
         self.eval_exit()
         #self.eval_sltp()

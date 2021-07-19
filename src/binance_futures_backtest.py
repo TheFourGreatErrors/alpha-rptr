@@ -73,7 +73,7 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
         """
         return self.time    
     
-    def entry(self, id, long, qty, limit=0, stop=0, post_only=False, when=True):
+    def entry(self, id, long, qty, limit=0, stop=0, post_only=False, when=True, round_decimals=3):
         """
         places an entry order, works equivalent to tradingview pine script implementation
         https://jp.tradingview.com/study-script-reference/#fun_strategy{dot}entry
@@ -86,7 +86,7 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
         :param when: Do you want to execute the order or not - True for live trading
         :return:
         """
-        BinanceFuturesStub.entry(self, id, long, qty, limit, stop, post_only, when)
+        BinanceFuturesStub.entry(self, id, long, qty, limit, stop, post_only, when, round_decimals)
 
     def commit(self, id, long, qty, price, need_commission=False):
         """
