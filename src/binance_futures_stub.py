@@ -139,7 +139,7 @@ class BinanceFuturesStub(BinanceFutures):
         self.open_orders = [o for o in self.open_orders if o["id"] != id]
         return True
 
-    def entry(self, id, long, qty, limit=0, stop=0, post_only=False, when=True):
+    def entry(self, id, long, qty, limit=0, stop=0, post_only=False, when=True, round_decimals=3):
         """
          I place an order. Equivalent function to pine's function.
          https://jp.tradingview.com/study-script-reference/#fun_strategy{dot}entry
@@ -165,6 +165,7 @@ class BinanceFuturesStub(BinanceFutures):
 
         self.cancel(id)
         ord_qty = qty + abs(pos_size)
+        ord_qty = round(ord_qty, round_decimals)
 
         if limit > 0 or stop > 0:
             self.open_orders.append({"id": id, "long": long, "qty": ord_qty, "limit": limit, "stop": stop, "post_only": post_only})
@@ -172,7 +173,7 @@ class BinanceFuturesStub(BinanceFutures):
             self.commit(id, long, ord_qty, self.get_market_price(), True)
             return
     
-    def entry_pyramiding(self, id, long, qty, limit=0, stop=0, trailValue= 0, post_only=False, reduce_only=False, ioc=False, cancel_all=False, pyramiding=2, when=True):
+    def entry_pyramiding(self, id, long, qty, limit=0, stop=0, trailValue= 0, post_only=False, reduce_only=False, ioc=False, cancel_all=False, pyramiding=2, when=True, round_decimals=3):
         """
         places an entry order, works as equivalent to tradingview pine script implementation with pyramiding
         https://tradingview.com/study-script-reference/#fun_strategy{dot}entry
@@ -223,6 +224,8 @@ class BinanceFuturesStub(BinanceFutures):
         # make sure it doesnt spam small entries, which in most cases would trigger risk management orders evaluation, you can make this less than 2% if needed  
         if ord_qty < ((pyramiding*qty) / 100) * 2:
             return
+
+        ord_qty = round(ord_qty, round_decimals)
 
         if limit > 0 or stop > 0:
             self.open_orders.append({"id": id, "long": long, "qty": ord_qty, "limit": limit, "stop": stop, "post_only": post_only})
