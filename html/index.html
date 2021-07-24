@@ -51,14 +51,75 @@
       position: absolute;
       z-index: 9;
       background-color: #fff;
-      line-height: 100%;
       margin: 10px;
-      font-size: smaller;
+      font-size: 0.75em;
       border: 1px dotted #ddd;
-      padding: 4px;
-      border-radius: 5px;
+      padding: 0.1em 0.5em;
+      border-radius: 0.25em;
       color: #666;
-      left: 50px;
+      left: 7.5%;
+    }
+
+    #ed_toggle{
+      position: absolute;
+      z-index: 10;
+      right: 7.5%;
+      margin: 10px;
+    }
+
+    .button-wrap {
+      position: relative;
+      text-align: center;
+      top: 50%;
+    }
+
+    .button-label {
+      display: inline-block;
+      padding: 0.1em 1em;
+      margin: 0.1em;
+      cursor: pointer;
+      color: #292929;
+      border-radius: 0.25em;
+      background: #efefef;
+      transition: 0.3s;
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+      user-select: none;
+    }
+    .button-label h1 {
+      font-size: 0.75em;
+      margin: 0.1em;
+      font-family: "Lato", sans-serif;
+    }
+    .button-label:hover {
+      background: #d6d6d6;
+      color: #101010;
+    }
+    .button-label:active {
+      transform: translateY(2px);
+    }
+
+    #equity-button:checked + .button-label {
+      background: seagreen;
+      color: #fff;
+    }
+    #equity-button:checked + .button-label:hover {
+      background: #28784b;
+      color: #fff;
+    }
+
+    #drawdown-button:checked + .button-label {
+      background: red;
+      color: #fff;
+    }
+    #drawdown-button:checked + .button-label:hover {
+      background: #e60000;
+      color: #fff;
+    }
+
+    .hidden {
+      display: none;
     }
 
     #chart{
@@ -107,6 +168,18 @@
   
   <div id="chart_container">
     <div id="chart_title">alpha rptr</div>
+    <div id="ed_toggle">
+      <div class="button-wrap">
+        <input class="hidden radio-label" id="equity-button" type="radio" name="ed_toggle" value="equity" checked="checked"/>
+        <label class="button-label" for="equity-button">
+          <h1>Equity</h1>
+        </label>
+        <input class="hidden radio-label" id="drawdown-button" type="radio" name="ed_toggle" value="drawdown"/>
+        <label class="button-label" for="drawdown-button">
+          <h1>Drawdown</h1>
+        </label>
+      </div>
+    </div>
     <div id="chart"></div>
   </div>
   <div id="trades_cont"><table id="trades" class="display "></table></div>
@@ -191,6 +264,7 @@
         var order_data = $.csv.toObjects(data);
 
         var drawdown = {};
+        var balance = {};
 
         var markers = [];
         var only_markers = [];
@@ -210,6 +284,7 @@
 
           //drawdown.push({ time: time, value: parseInt(order_data[i]["drawdown"]) });
           drawdown[time] = parseInt(order_data[i]["drawdown"]);
+          balance[time] = parseInt(order_data[i]["balance"]);
 
           if(order_data[i]["type"] == 'BUY')
           {
@@ -224,10 +299,12 @@
         }
 
         var drawdown_series = [];
+        var balance_series = [];
 
         var chart_data = window.chart_data
 
         var last_drawdown = 0
+        var last_balance = 0
 
         for (var i=0; i<chart_data.length; i++){
 
@@ -240,16 +317,50 @@
           }
           else 
           drawdown_series.push({time: time, value: last_drawdown})
+
+          if ( time in balance)
+          {
+            balance_series.push({time: time, value: balance[time]})
+            last_balance = balance[time]
+          }
+          else 
+          balance_series.push({time: time, value: last_balance})
         }
 
-        chart.addAreaSeries({
+        var drawdown_chart_series = chart.addAreaSeries({
           //title: "DD%",
           topColor: 'rgba(255, 82, 82, 0.1)',
           bottomColor: 'rgba(255, 82, 82, 0)',
           lineColor: 'rgba(255, 82, 82, 1)',
           lineWidth: 0.5,
-          priceScaleId: 'left'
-        }).setData(drawdown_series);
+          priceScaleId: 'left',
+          visible: false
+        })
+        
+        drawdown_chart_series.setData(drawdown_series);
+
+        var equity_chart_series = chart.addAreaSeries({
+          //title: "Equity",
+          topColor: 'rgba(46, 139, 87, 0.1)',
+          bottomColor: 'rgba(46, 139, 87, 0)',
+          lineColor: 'rgba(46, 139, 87, 1)',
+          lineWidth: 0.5,
+          priceScaleId: 'left',
+          visible: true
+        })
+        
+        equity_chart_series.setData(balance_series);
+
+        $('input[type=radio][name=ed_toggle]').change(function() {
+          if (this.value == 'equity') {
+            equity_chart_series.applyOptions({visible: true})
+            drawdown_chart_series.applyOptions({visible: false})
+          }
+          else if (this.value == 'drawdown') {
+            equity_chart_series.applyOptions({visible: false})
+            drawdown_chart_series.applyOptions({visible: true})
+          }
+        });
 
         candleSeries.setMarkers(markers);
 
