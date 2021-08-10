@@ -11,9 +11,6 @@ from src.bitmex_stub import BitMexStub
 from src.binance_futures_stub import BinanceFuturesStub
 from src.bitmex_backtest import BitMexBackTest
 from src.binance_futures_backtest import BinanceFuturesBackTest
-from datetime import datetime, timezone
-from time import sleep
-import time
 
 
 class Bot:

@@ -9,22 +9,20 @@ import time
 import numpy
 from hyperopt import hp
 
-from src import highest, lowest, avg_price, typ_price, atr, MAX, sma, bbands, macd, adx, sar, cci, rsi, crossover, crossunder, last, rci, double_ema, ema, triple_ema, wma, \
-    ssma, hull, logger, notify
+from src import highest, lowest, avg_price, typ_price, atr, MAX, sma, bbands, macd, adx, sar, cci, rsi, crossover, crossunder, last, \
+    rci, double_ema, ema, triple_ema, wma, ssma, hull, logger, notify
 from src.bitmex import BitMex
 from src.binance_futures import BinanceFutures
 from src.bitmex_stub import BitMexStub
 from src.binance_futures_stub import BinanceFuturesStub
 from src.bot import Bot
-
-
-# Channel breakout strategy
 from src.gmail_sub import GmailSub
 
 
+# Channel breakout strategy
 class Doten(Bot):
     def __init__(self):
-        Bot.__init__(self, '2h')
+        Bot.__init__(self, ['2h'])
 
     def options(self):
         return {
@@ -45,7 +43,7 @@ class Doten(Bot):
 # SMA CrossOver
 class SMA(Bot):
     def __init__(self):
-        Bot.__init__(self, '2h')
+        Bot.__init__(self, ['2h'])
 
     def options(self):
         return {
@@ -70,7 +68,7 @@ class SMA(Bot):
 # Rci
 class Rci(Bot):
     def __init__(self):
-        Bot.__init__(self, '5m')
+        Bot.__init__(self, ['5m'])
 
     def options(self):
         return {
@@ -110,7 +108,7 @@ class OCC(Bot):
     eval_time = None
 
     def __init__(self):
-        Bot.__init__(self, '1m')
+        Bot.__init__(self, ['1m'])
 
     def ohlcv_len(self):
         return 15 * 30
@@ -170,12 +168,13 @@ class OCC(Bot):
 
         self.eval_time = source.iloc[-1].name
 
+
 # TradingView
 class TV(Bot):
     subscriber = None
 
     def __init__(self):
-        Bot.__init__(self, '1m')
+        Bot.__init__(self, ['1m'])
 
         user_id = os.environ.get("GMAIL_ADDRESS")
         if user_id is None:
@@ -236,11 +235,11 @@ class TV(Bot):
     def stop(self):
         self.subscriber.stop()
 
-# candle tester
 
+# Candle tester
 class CandleTester(Bot):
     def __init__(self):
-        Bot.__init__(self, '1m')
+        Bot.__init__(self, ['1m'])
 
     # this is for parameter optimization in hyperopt mode
     def options(self):
@@ -251,10 +250,28 @@ class CandleTester(Bot):
         logger.info(f"high: {high[-1]}")
         logger.info(f"low: {low[-1]}")
         logger.info(f"close: {close[-1]}")
+        logger.info(f"volume: {volume[-1]}")        
+
+
+# Candle tester for multiple timeframes
+class CandleTesterMult(Bot):
+    def __init__(self):
+        Bot.__init__(self, ['3m', '5m', '45m', '2h'])
+
+    # this is for parameter optimization in hyperopt mode
+    def options(self):
+        return {}
+
+    def strategy(self, action, open, close, high, low, volume):
+        logger.info(f"timeframe: {action}")
+        logger.info(f"open: {open[-1]}")
+        logger.info(f"high: {high[-1]}")
+        logger.info(f"low: {low[-1]}")
+        logger.info(f"close: {close[-1]}")
         logger.info(f"volume: {volume[-1]}")
 
-# sample strategy
 
+# sample strategy
 class Sample(Bot):
     # set variables
     long_entry_signal_history = []
@@ -262,7 +279,7 @@ class Sample(Bot):
 
     def __init__(self): 
         # set time frame here       
-        Bot.__init__(self, '1m')
+        Bot.__init__(self, {'1m'})
         
     def options(self):
         return {}
@@ -329,4 +346,3 @@ class Sample(Bot):
         # log history entry signals
         logger.info(f"long_entry_hist: {self.long_entry_signal_history}")
         logger.info(f"short_entry_hist: {self.short_entry_signal_history}")
-

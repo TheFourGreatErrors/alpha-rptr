@@ -2,7 +2,7 @@
 
 import json
 import math
-import os
+#import os
 import traceback
 from datetime import datetime, timezone
 import time
@@ -18,7 +18,7 @@ from src.config import config as conf
 from src.bitmex_websocket import BitMexWs
 
 
-# Class for production transaction
+# Orderbook class
 from src.orderbook import OrderBook
 
 
@@ -586,13 +586,11 @@ class BitMex:
             logger.info(f"Take profit by stop profit: {self.get_exit_order()['profit']}")
             self.close_all()
 
-       # simple TP implementation
-
+    # simple TP implementation
     def eval_sltp(self):
         """
         evaluate simple profit target and stop loss
         """
-
         pos_size = self.get_position_size()
         # sl_order = self.get_open_order('SL')
         # if pos_size == 0 and sl_order is not None:

@@ -135,7 +135,6 @@ class BitMexBackTest(BitMexStub):
         """
         evaluate simple profit target and stop loss        
         """
-
         pos_size = self.get_position_size()
         if pos_size == 0:
             return
@@ -147,13 +146,9 @@ class BitMexBackTest(BitMexStub):
 
         avg_entry = self.get_position_avg_price() 
         
-        #sl        
-
+        #sl   
         sl_percent_long = self.get_sltp_values()['stop_long']
-        sl_percent_short = self.get_sltp_values()['stop_short']
-        
-        # if (self.isLongEntry[-1] == True and self.isLongEntry[-2] == False if True else False) or (self.isShortEntry[-1] == True and self.isShortEntry[-2] == False if True else False):
-        #     return
+        sl_percent_short = self.get_sltp_values()['stop_short']       
 
         # sl execution logic
         if sl_percent_long > 0:
@@ -175,6 +170,10 @@ class BitMexBackTest(BitMexStub):
         #         return
         #     if self.isLongEntry[-2] or self.isShortEntry[-2] == True:
         #         return
+
+        if (self.isLongEntry[-1] == True and self.isLongEntry[-2] == False and self.get_sltp_values()['eval_tp_next_candle']) or \
+            (self.isShortEntry[-1] == True and self.isShortEntry[-2] == False and self.get_sltp_values()['eval_tp_next_candle']):
+            return
 
         # tp execution logic                
         if tp_percent_long > 0:
@@ -263,7 +262,7 @@ class BitMexBackTest(BitMexStub):
                 left_time = start_time
                 right_time = left_time + delta(allowed_range[bin_size][0]) * 99
             else:
-                left_time = source.iloc[-1].name + + delta(allowed_range[bin_size][0]) * allowed_range[bin_size][2]
+                left_time = source.iloc[-1].name + delta(allowed_range[bin_size][0]) * allowed_range[bin_size][2]
                 right_time = left_time + delta(allowed_range[bin_size][0]) * 99
 
             if right_time > end_time:

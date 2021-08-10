@@ -9,6 +9,8 @@ class BinanceFuturesStub(BinanceFutures):
     pair = 'BTCUSDT'
     # Positions in USDT?
     qty_in_usdt = False
+    # Minute granularity
+    minute_granularity = False
     # Default Balance (1000 USDT)
     balance = 1000
     # Default Leverage
@@ -54,7 +56,6 @@ class BinanceFuturesStub(BinanceFutures):
 
         self.order_log = open("orders.csv", "w")
         self.order_log.write("time,type,price,quantity,av_price,position,pnl,balance,drawdown\n") #header
-
         
     def get_lot(self):
         """
@@ -189,7 +190,6 @@ class BinanceFuturesStub(BinanceFutures):
         :param when: Do you want to execute the order or not - True for live trading
         :return:
         """       
-
         # if self.get_margin()['excessMargin'] <= 0 or qty <= 0:
         #     return
         if qty <= 0:
@@ -280,7 +280,9 @@ class BinanceFuturesStub(BinanceFutures):
             self.drawdown = (self.balance_ath - self.balance) / self.balance_ath * 100
 
             # self.order_log.write("time,type,price,quantity,av_price,position,pnl,balance,drawdown\n") #header
-            self.order_log.write(f"{self.timestamp},{'BUY' if long else 'SELL'},{price:.2f},{-self.position_size if abs(next_qty) else order_qty:.2f},{self.position_avg_price:.2f},{0 if abs(next_qty) else self.position_size+order_qty:.2f},{profit:.2f},{self.get_balance():.2f},{self.drawdown:.2f}\n")
+            self.order_log.write(f"{self.timestamp},{'BUY' if long else 'SELL'},{price:.2f},{-self.position_size if abs(next_qty) else order_qty:.2f}, \
+                {self.position_avg_price:.2f},{0 if abs(next_qty) else self.position_size+order_qty:.2f}, \
+                {profit:.2f},{self.get_balance():.2f},{self.drawdown:.2f}\n")
             self.order_log.flush()
 
             if self.enable_trade_log:
@@ -318,7 +320,8 @@ class BinanceFuturesStub(BinanceFutures):
             logger.info(f"**********{next_qty}") 
 
             # self.order_log.write("time,type,price,quantity,av_price,position,pnl,balance,drawdown\n") #header
-            self.order_log.write(f"{self.timestamp},{'BUY' if long else 'SELL'},{price:.2f},{next_qty:.2f},{self.position_avg_price:.2f},{self.position_size:.2f},{'-'},{self.get_balance():.2f},{self.drawdown:.2f}\n")
+            self.order_log.write(f"{self.timestamp},{'BUY' if long else 'SELL'},{price:.2f},{next_qty:.2f},{self.position_avg_price:.2f},{self.position_size:.2f}, \
+                {'-'},{self.get_balance():.2f},{self.drawdown:.2f}\n")
             self.order_log.flush()
 
             self.set_trail_price(price)
@@ -383,8 +386,7 @@ class BinanceFuturesStub(BinanceFutures):
 
         avg_entry = self.get_position_avg_price() 
         
-        #sl        
-
+        #sl   
         sl_percent_long = self.get_sltp_values()['stop_long']
         sl_percent_short = self.get_sltp_values()['stop_short']         
 
@@ -434,7 +436,7 @@ class BinanceFuturesStub(BinanceFutures):
         Register function of strategy.
         :param strategy:
         """
-        def __override_strategy(open, close, high, low, volume):
+        def __override_strategy(action, open, close, high, low, volume):
             new_open_orders = []
 
             self.OHLC = {
@@ -478,7 +480,6 @@ class BinanceFuturesStub(BinanceFutures):
             self.open_orders = new_open_orders
             self.eval_exit()
             self.eval_sltp()
-            strategy(open, close, high, low, volume)
-            
+            strategy(action, open, close, high, low, volume)            
 
         BinanceFutures.on_update(self, bin_size, __override_strategy)

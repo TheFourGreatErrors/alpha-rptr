@@ -1,5 +1,27 @@
 #!/usr/bin/env python
 
+# MIT License
+
+# Copyright (c) 2017 sammchardy
+
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+
 from urllib.parse import urlparse
 import time, hashlib, hmac
 import requests
@@ -13,6 +35,7 @@ class Client(object):
     MARGIN_API_URL = 'https://api.binance.{}/sapi'
     WEBSITE_URL = 'https://www.binance.{}'
     FUTURES_URL = 'https://fapi.binance.{}/fapi'
+    FUTURES_TESTNET_URL = 'https://testnet.binancefuture.{}/fapi'
     PUBLIC_API_VERSION = 'v1'
     PRIVATE_API_VERSION = 'v3'
     WITHDRAW_API_VERSION = 'v3'
@@ -76,7 +99,7 @@ class Client(object):
     AGG_BUYER_MAKES = 'm'
     AGG_BEST_MATCH = 'M'
 
-    def __init__(self, api_key=None, api_secret=None, requests_params=None, tld='com'):
+    def __init__(self, api_key=None, api_secret=None, testnet=False, requests_params=None, tld='com'):
         """Binance API Client constructor
         :param api_key: Api Key
         :type api_key: str.
@@ -90,8 +113,10 @@ class Client(object):
         self.WITHDRAW_API_URL = self.WITHDRAW_API_URL.format(tld)
         self.MARGIN_API_URL = self.MARGIN_API_URL.format(tld)
         self.WEBSITE_URL = self.WEBSITE_URL.format(tld)
-        self.FUTURES_URL = self.FUTURES_URL.format(tld)
-
+        if testnet == True:
+             self.FUTURES_URL = self.FUTURES_TESTNET_URL.format(tld)            
+        else:
+            self.FUTURES_URL = self.FUTURES_URL.format(tld)
         self.API_KEY = api_key
         self.API_SECRET = api_secret
         self.session = self._init_session()

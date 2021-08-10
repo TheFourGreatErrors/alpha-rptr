@@ -4,7 +4,7 @@
 
 Trading system for automated algorithmic trading on Binance Futures and BitMEX.  
 
-Author is not responsible for any damage caused by this software. Be careful and test your strategy using very small sizes for some time to make sure it does what you expect it to do. 
+The author is not responsible for any damage caused by this software. Be careful and test your strategy using very small sizes for some time to make sure it does what you expect it to do. 
 
 ## Features
 
@@ -14,9 +14,9 @@ Author is not responsible for any damage caused by this software. Be careful and
 - all types of orders supported including majority of parameters/combinations - if you miss any, you can request
 - Supports custom strategies
 - Backtesting
-- Testnet only for BitMEX (todo Binance Futures testnet)
-- Stub trading 
-- TA-lib indicators, you can request an indicator as well if its missing
+- Testnet only for BitMEX and Binance Futures
+- Stub trading (paper trading)
+- TA-lib indicators, you can request an indicator if its missing
 - Very easy strategy implementation, should be easy enough to migrate most pine script(tradingview) strategies - see Sample strategy
 
 ## Implemented reference strategies
@@ -68,12 +68,16 @@ config = {
                     "binanceaccount1":{"API_KEY": "", "SECRET_KEY": ""},
                     "binanceaccount2": {"API_KEY": "", "SECRET_KEY": ""}
                     },
+    "binance_test_keys": {
+                    "binancetest1": {"API_KEY": "", "SECRET_KEY": ""},
+                    "binancetest2": {"API_KEY": "", "SECRET_KEY": ""}
+                    },
     "bitmex_keys": {
                     "bitmexaccount1":{"API_KEY": "", "SECRET_KEY": ""},
                     "bitmexaccount2": {"API_KEY": "", "SECRET_KEY": ""}
                     },
     "bitmex_test_keys": {
-                    "bitmextest1":{"API_KEY": "", "SECRET_KEY": ""},
+                    "bitmextest1": {"API_KEY": "", "SECRET_KEY": ""},
                     "bitmextest2": {"API_KEY": "", "SECRET_KEY": ""}
                     },
     "line_apikey": {"API_KEY": ""}                       
@@ -105,7 +109,7 @@ $ python main.py --account binanceaccount1 --exchange binance --pair BTCUSDT --s
 
 ### 2. Demo Trade Mode
 
-It is possible to trade on BitMEX [testnet](https://testnet.bitmex.com/). (todo Binance Futures testnet)
+It is possible to trade on BitMEX [testnet](https://testnet.bitmex.com/) and Binance Futures [testnet](https://testnet.binancefuture.com/en/futures/BTCUSDT)
 
 ```bash
 $ python main.py --demo --account bitmexaccount1 --exchange bitmex --pair XBTUSD --strategy Sample
@@ -144,7 +148,7 @@ class Sample(Bot):
 
     def __init__(self): 
         # set time frame here       
-        Bot.__init__(self, '1m')
+        Bot.__init__(self, {'1m'})
         
     # this for parameter optimization in hyperopt mode - see other reference strategies  
     def options(self):
@@ -152,9 +156,10 @@ class Sample(Bot):
 
     def strategy(self, open, close, high, low, volume):
         
-        # get lot or set your own value which will be used to size orders 
+        # get lot or set your own value which will be used to size orders
+        # don't forget to round
         # careful default lot is about 20x your account size !!!
-        lot = self.exchange.get_lot()
+        lot = round(self.exchange.get_lot(), 3)
 
         # indicator lengths
         fast_len = self.input('fast_len', int, 6)
@@ -170,7 +175,7 @@ class Sample(Bot):
 
         # setting a simple stop loss and profit target in % using built-in simple profit take and stop loss implementation 
         # which is placing the sl and tp automatically after entering a position
-        self.exchange.sltp(profit_long=1.25, profit_short=1.25, stop_long=1, stop_short=1.1, round_decimals=0)
+        self.exchange.sltp(profit_long=1.25, profit_short=1.25, stop_long=1, stop_short=1.1, round_decimals=3)
 
         # example of calculation of stop loss price 0.8% round on 2 decimals hardcoded inside this class
         # sl_long = round(close[-1] - close[-1]*0.8/100, 2)
@@ -235,4 +240,5 @@ https://discord.gg/ah3MGeN
 if you find this software useful and want to support the development, please feel free to donate.
 
 BTC address: 
+
 ETH address: 

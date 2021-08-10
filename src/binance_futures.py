@@ -1,28 +1,22 @@
 # coding: UTF-8
 
-import json
+#import json
 import math
-import os
+#import os
 import traceback
 from datetime import datetime, timezone
 import time
-#import threading
 
 import pandas as pd
 from bravado.exception import HTTPNotFound
 from pytz import UTC
 
-from src import logger, allowed_range, to_data_frame, \
-    resample, delta, FatalError, notify, ord_suffix
+from src import logger, allowed_range, allowed_range_minute_granularity, \
+    find_timeframe_string, to_data_frame, resample, delta, FatalError, notify, ord_suffix
 from src import retry_binance_futures as retry
 from src.config import config as conf
-
 from src.binance_futures_api import Client
 from src.binance_futures_websocket import BinanceFuturesWs
-
-
-# Class for production transaction
-from src.orderbook import OrderBook
 
 
 class BinanceFutures:
@@ -32,6 +26,10 @@ class BinanceFutures:
     pair = 'BTCUSDT'
     # wallet
     wallet = None
+    # Use minute granularity?
+    minute_granularity = False
+    # Sort timeframe in when multiple timeframes
+    timeframes_sorted = True # True for higher first, False for lower first and None when off
     # Price
     market_price = 0
     # Order update
@@ -49,8 +47,8 @@ class BinanceFutures:
     # Account information
     account_information = None
     # Time Frame
-    bin_size = '1h'   
-    # Binance futures client
+    bin_size = '1h'    
+    # Binance futures client     
     client = None
     # Is bot running
     is_running = True
@@ -63,7 +61,9 @@ class BinanceFutures:
     # OHLCV length
     ohlcv_len = 100
     # OHLCV data
-    data = None    
+    timeframe_data = None    
+    # Timeframe data info like partial candle data values, last candle values, last action etc.
+    timeframe_info = {}
     # Profit target long and short for a simple limit exit strategy
     sltp_values = {
                     'profit_long': 0,
@@ -104,10 +104,10 @@ class BinanceFutures:
         """
         if self.client is not None:
             return        
-        api_key = conf['binance_keys'][self.account]['API_KEY']        
-        api_secret = conf['binance_keys'][self.account]['SECRET_KEY']
+        api_key = conf['binance_test_keys'][self.account]['API_KEY'] if self.demo else conf['binance_keys'][self.account]['API_KEY']        
+        api_secret = conf['binance_test_keys'][self.account]['SECRET_KEY'] if self.demo else conf['binance_keys'][self.account]['SECRET_KEY']
         
-        self.client = Client(api_key=api_key, api_secret=api_secret)
+        self.client = Client(api_key=api_key, api_secret=api_secret, testnet=self.demo)
         
     def now_time(self):
         """
@@ -217,9 +217,7 @@ class BinanceFutures:
         
         if position['symbol'] == self.pair:            
             return float(position['positionAmt'])
-        else: return 0
-
-        
+        else: return 0        
 
     def get_position_avg_price(self):
         """
@@ -298,7 +296,6 @@ class BinanceFutures:
             logger.info(f"Closed {self.pair} position")
         else:
             logger.info(f"Failed to close all {self.pair} position, still {position_size} amount remaining")
-
 
     def cancel(self, id):
         """
@@ -562,7 +559,6 @@ class BinanceFutures:
 
         self.order(id, long, ord_qty, limit, stop, post_only, reduce_only, trailing_stop, activationPrice, when)
 
-
     def get_open_order(self, id):
         """
         Get open order by id
@@ -683,7 +679,6 @@ class BinanceFutures:
             self.close_all()
 
     # simple TP implementation
-
     def eval_sltp(self):
         """
         evaluate simple profit target and stop loss
@@ -820,80 +815,106 @@ class BinanceFutures:
         """
         Recalculate and obtain different time frame data
         """        
-        return resample(self.data, bin_size)[:-1]
+        return resample(self.data, bin_size)[:-1]    
 
     def __update_ohlcv(self, action, new_data):
-
+        """
+        get and update OHLCV data and execute the strategy
+        """        
         # Binance can output wierd timestamps - Eg. 2021-05-25 16:04:59.999000+00:00
         # We need to round up to the nearest second for further processing
-        new_data = new_data.rename(index={new_data.iloc[0].name: new_data.iloc[0].name.ceil(freq='1T')})
+        new_data = new_data.rename(index={new_data.iloc[0].name: new_data.iloc[0].name.ceil(freq='1T')})               
 
-        """
-        get OHLCV data and execute the strategy
-        """        
-        if self.data is None:
-            end_time = datetime.now(timezone.utc)
-            start_time = end_time - self.ohlcv_len * delta(self.bin_size)
-            #logger.info(f"start time fetch ohlcv: {start_time}")
-            #logger.info(f"end time fetch ohlcv: {end_time}")
-            self.data = self.fetch_ohlcv(self.bin_size, start_time, end_time)
-            
-            # The last candle is an incomplete candle with timestamp
-            # in future
-            if(self.data.iloc[-1].name > end_time):
-                last_candle = self.data.iloc[-1].values # Store last candle
-                self.data = self.data[:-1] # exclude last candle
-                self.data.loc[end_time.replace(microsecond=0)] = last_candle #set last candle to end_time
+        if self.timeframe_data is None:
+            self.timeframe_data = {}
+            for t in self.timeframe:
+                bin_size = t
+                end_time = datetime.now(timezone.utc)
+                start_time = end_time - self.ohlcv_len * delta(bin_size)
+                self.timeframe_data[bin_size] = self.fetch_ohlcv(bin_size, start_time, end_time)
+                self.timeframe_info[bin_size] = {
+                                                    "allowed_range": allowed_range_minute_granularity[t][0] if self.minute_granularity else allowed_range[t][0], 
+                                                    "ohlcv": self.timeframe_data[t][:-1], # Dataframe with closed candles                                                   
+                                                    "last_action_time": None,#self.timeframe_data[bin_size].iloc[-1].name, 
+                                                    "last_candle": self.timeframe_data[bin_size].iloc[-2].values,  # Store last complete candle
+                                                    "partial_candle": self.timeframe_data[bin_size].iloc[-1].values  # Store incomplete candle
+                                                }
+                # The last candle is an incomplete candle with timestamp in future                
+                if self.timeframe_data[bin_size].iloc[-1].name > end_time:
+                    last_candle = self.timeframe_data[t].iloc[-1].values # Store last candle
+                    self.timeframe_data[bin_size] = self.timeframe_data[t][:-1] # Exclude last candle
+                    self.timeframe_data[bin_size].loc[end_time.replace(microsecond=0)] = last_candle #set last candle to end_time
 
-            logger.info(f"Initial Buffer Fill - Last Candle: {self.data.iloc[-1].name}")
-                
-        else:
-            #replace latest candle if timestamp is same or append
-            if(self.data.iloc[-1].name == new_data.iloc[0].name):
-                self.data = pd.concat([self.data[:-1], new_data])
+                logger.info(f"Initial Buffer Fill - Last Candle: {self.timeframe_data[bin_size].iloc[-1].name}")   
+        #logger.info(f"{self.timeframe_data}") 
+
+        timeframes_to_update = []
+
+        for t in self.timeframe_info:            
+            if self.timeframe_info[t]["allowed_range"] == action:
+                # append minute count of a timeframe when sorting when sorting is need otherwise just add a string timeframe
+                timeframes_to_update.append(allowed_range_minute_granularity[t][3]) if self.timeframes_sorted != None else timeframes_to_update.append(t)  
+
+        # Sorting timeframes that will be updated
+        if self.timeframes_sorted == True:
+            timeframes_to_update.sort(reverse=True)
+        if self.timeframes_sorted == False:
+            timeframes_to_update.sort(reverse=False)
+
+        logger.info(f"timefeames to update: {timeframes_to_update}")        
+
+        for t in timeframes_to_update:
+            # Find timeframe string based on its minute count value
+            if self.timeframes_sorted != None:             
+                t = find_timeframe_string(t)               
+                    
+            # replace latest candle if timestamp is same or append
+            if self.timeframe_data[t].iloc[-1].name == new_data.iloc[0].name:
+                self.timeframe_data[t] = pd.concat([self.timeframe_data[t][:-1], new_data])
             else:
-                self.data = pd.concat([self.data, new_data])        
+                self.timeframe_data[t] = pd.concat([self.timeframe_data[t], new_data])      
 
-        # exclude current candle data 
-        re_sample_data = resample(self.data, self.bin_size)[:-1]
+            # exclude current candle data and store partial candle data
+            re_sample_data = resample(self.timeframe_data[t], t, minute_granularity=True if self.minute_granularity else False)
+            self.timeframe_info[t]['partial_candle'] = re_sample_data.iloc[-1].values # store partial candle data
+            re_sample_data = resample(self.timeframe_data[t], t, minute_granularity=True if self.minute_granularity else False)[:-1] # exclude current candle data
 
-        # logger.info(f"{self.last_action_time} : {self.data.iloc[-1].name} : {re_sample_data.iloc[-1].name}")  
+            logger.info(f"{self.timeframe_info[t]['last_action_time']} : {self.timeframe_data[t].iloc[-1].name} : {re_sample_data.iloc[-1].name}")  
 
-        if self.last_action_time is not None and \
-                self.last_action_time == re_sample_data.iloc[-1].name:
-            return
+            if self.timeframe_info[t]["last_action_time"] is not None and \
+                self.timeframe_info[t]["last_action_time"] == re_sample_data.iloc[-1].name:
+                continue
 
-        # The last candle in the buffer needs to be preserved 
-        # while resetting the buffer as it may be incomlete
-        # or contains latest data from WS
-        self.data = pd.concat([re_sample_data.iloc[-1 * self.ohlcv_len:, :], self.data.iloc[[-1]]]) 
-        #logger.info(f"Buffer Right Edge: {self.data.iloc[-1]}")
+            # The last candle in the buffer needs to be preserved 
+            # while resetting the buffer as it may be incomlete
+            # or contains latest data from WS
+            self.timeframe_data[t] = pd.concat([re_sample_data.iloc[-1 * self.ohlcv_len:, :], self.timeframe_data[t].iloc[[-1]]]) 
+            #store ohlcv dataframe to timeframe_info dictionary
+            self.timeframe_info[t]["ohlcv"] = re_sample_data
+            #logger.info(f"Buffer Right Edge: {self.data.iloc[-1]}")
+            
+            open = re_sample_data['open'].values
+            close = re_sample_data['close'].values
+            high = re_sample_data['high'].values
+            low = re_sample_data['low'].values
+            volume = re_sample_data['volume'].values 
+                                    
+            try:
+                if self.strategy is not None:   
+                    self.timestamp = re_sample_data.iloc[-1].name.isoformat()           
+                    self.strategy(t, open, close, high, low, volume)              
+                self.timeframe_info[t]['last_action_time'] = re_sample_data.iloc[-1].name
+            except FatalError as e:
+                # Fatal error
+                logger.error(f"Fatal error. {e}")
+                logger.error(traceback.format_exc())
 
-        open = re_sample_data['open'].values
-        close = re_sample_data['close'].values
-        high = re_sample_data['high'].values
-        low = re_sample_data['low'].values
-        volume = re_sample_data['volume'].values        
-
-        try:
-            if self.strategy is not None:   
-                self.timestamp = re_sample_data.iloc[-1].name.isoformat()           
-                self.strategy(open, close, high, low, volume)                
-            self.last_action_time = re_sample_data.iloc[-1].name
-        except FatalError as e:
-            # Fatal error
-            logger.error(f"Fatal error. {e}")
-            logger.error(traceback.format_exc())
-
-            notify(f"Fatal error occurred. Stopping Bot. {e}")
-            notify(traceback.format_exc())
-            self.stop()
-        except Exception as e:
-            logger.error(f"An error occurred. {e}")
-            logger.error(traceback.format_exc())
-
-            notify(f"An error occurred. {e}")
-            notify(traceback.format_exc())
+                notify(f"Fatal error occurred. Stopping Bot. {e}")
+                notify(traceback.format_exc())
+                self.stop()
+            except Exception as e:
+                logger.error(f"An error occurred. {e}")
+                logger.error(traceback.format_exc())    
    
     def __on_update_instrument(self, action, instrument):
         """
@@ -966,7 +987,7 @@ class BinanceFutures:
             return         
             
         # Was the position size changed?
-        is_update_pos_size = self.get_position_size != float(position[0]['pa'])        
+        is_update_pos_size = self.get_position_size() != float(position[0]['pa'])        
 
         # Reset trail to current price if position size changes
         if is_update_pos_size and float(position[0]['pa']) != 0:
@@ -1025,21 +1046,29 @@ class BinanceFutures:
         bind functions with webosocket data streams        
         :param strategy:
         """        
-        logger.info(f"pair: {self.pair}")
+        logger.info(f"pair: {self.pair}")  
+        logger.info(f"timeframes: {bin_size}")      
         self.bin_size = bin_size
-        self.strategy = strategy
+        self.strategy = strategy        
+        self.timeframe = bin_size       
+
         if self.is_running:
             self.ws = BinanceFuturesWs(account=self.account, pair=self.pair, test=self.demo)
-            self.ws.bind(allowed_range[bin_size][0], self.__update_ohlcv)
+                        
+            if len(self.timeframe) > 0:
+                for t in self.timeframe:                                        
+                    self.ws.bind(allowed_range_minute_granularity[t][0] if self.minute_granularity else allowed_range[t][0] \
+                        , self.__update_ohlcv)
+                   
             self.ws.bind('instrument', self.__on_update_instrument)
             self.ws.bind('wallet', self.__on_update_wallet)
             self.ws.bind('position', self.__on_update_position)
             self.ws.bind('order', self.__on_update_order)
             self.ws.bind('margin', self.__on_update_margin)
-            self.ws.bind('IndividualSymbolBookTickerStreams', self.__on_update_bookticker)
+            self.ws.bind('IndividualSymbolBookTickerStreams', self.__on_update_bookticker)            
             #todo orderbook
-            #self.ob = OrderBook(self.ws)
-        logger.info(f" on_update(self, bin_size, strategy)")
+            #self.ob = OrderBook(self.ws)            
+        logger.info(f" on_update(self, bin_size, strategy)")       
 
     def stop(self):
         """
