@@ -29,7 +29,7 @@ class Doten(Bot):
             'length': hp.randint('length', 1, 30, 1),
         }
 
-    def strategy(self, open, close, high, low, volume):
+    def strategy(self, action, open, close, high, low, volume):
         lot = self.exchange.get_lot()
         length = self.input('length', int, 9)
         up = last(highest(high, length))
@@ -51,7 +51,7 @@ class SMA(Bot):
             'slow_len': hp.quniform('slow_len', 1, 30, 1),
         }
 
-    def strategy(self, open, close, high, low, volume):
+    def strategy(self, action, open, close, high, low, volume):
         lot = self.exchange.get_lot()
         fast_len = self.input('fast_len', int, 9)
         slow_len = self.input('slow_len', int, 16)
@@ -77,7 +77,7 @@ class Rci(Bot):
             'rcv_long_len': hp.quniform('rcv_long_len', 10, 20, 1),
         }
 
-    def strategy(self, open, close, high, low, volume):
+    def strategy(self, action, open, close, high, low, volume):
         lot = self.exchange.get_lot()
 
         itv_s = self.input('rcv_short_len', int, 5)
@@ -122,7 +122,7 @@ class OCC(Bot):
             'div_threshold': hp.quniform('div_threshold', 1, 6, 0.1),
         }
 
-    def strategy(self, open, close, high, low, volume):
+    def strategy(self, action, open, close, high, low, volume):
         lot = self.exchange.get_lot()
 
         variant_type = self.input(defval=5, title="variant_type", type=int)
@@ -245,7 +245,7 @@ class CandleTester(Bot):
     def options(self):
         return {}
 
-    def strategy(self, open, close, high, low, volume):
+    def strategy(self, action, open, close, high, low, volume):
         logger.info(f"open: {open[-1]}")
         logger.info(f"high: {high[-1]}")
         logger.info(f"low: {low[-1]}")
@@ -279,12 +279,12 @@ class Sample(Bot):
 
     def __init__(self): 
         # set time frame here       
-        Bot.__init__(self, {'1m'})
+        Bot.__init__(self, ['1m'])
         
     def options(self):
         return {}
 
-    def strategy(self, open, close, high, low, volume):
+    def strategy(self, action, open, close, high, low, volume):
         
         # get lot or set your own value which will be used to size orders 
         # careful default lot is about 20x your account size !!!
