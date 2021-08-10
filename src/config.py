@@ -8,11 +8,11 @@ config = {
                     "binancetest2": {"API_KEY": "", "SECRET_KEY": ""}
                     },
     "bitmex_keys": {
-                    "bitmexaccount1": {"API_KEY": "ZRzQ3nrDnvNAHRgZMnMsmNqK", "SECRET_KEY": "ineDw5Hbhc9dYaNK4KwwmKPYqeJpjRHK-TqUdR5o3L8Vl-g7"},
+                    "bitmexaccount1": {"API_KEY": "", "SECRET_KEY": ""},
                     "bitmexaccount2": {"API_KEY": "", "SECRET_KEY": ""}
                     },
     "bitmex_test_keys": {
-                    "bitmextest1": {"API_KEY": "uNBX__sKVBI4drLu8wXDrKk8", "SECRET_KEY": "B4ZQapvXhjc4_Ug1J2LJimOfGZRd-xxjJ4hTQbakzom2Gntf"},
+                    "bitmextest1": {"API_KEY": "", "SECRET_KEY": ""},
                     "bitmextest2": {"API_KEY": "", "SECRET_KEY": ""}
                     },
     "line_apikey": {"API_KEY": ""}                       
