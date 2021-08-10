@@ -166,7 +166,7 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
             
             # action is either the(only) key of self.timeframe_info dictionary, which is a single timeframe string
             # or "1m" when minute granularity is needed - multiple timeframes or self.minute_granularity = True
-            action = "1m" if (self.minute_granularity or len(self.timeframe_info) > 1) else self.timeframe[0]#list(self.timeframe_info.keys())[0]
+            action = "1m" if (self.minute_granularity or len(self.timeframe_info) > 1) else self.bin_size[0]#list(self.timeframe_info.keys())[0]
             
             timeframes_to_update = []
 
