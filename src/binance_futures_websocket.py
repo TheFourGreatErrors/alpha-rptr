@@ -27,43 +27,27 @@ def get_listenkey(api_key, api_secret, testnet):
     return listenKey
 
 
-def generate_signature(secret, verb, url, nonce, data):
-    """Generate a request signature compatible with BitMEX."""
-    # Parse the url so we can remove the base and extract just the path.
-    parsedURL = urllib.parse.urlparse(url)
-    path = parsedURL.path
-    if parsedURL.query:
-        path = path + '?' + parsedURL.query
+class BinanceFuturesWs:    
 
-    # print "Computing HMAC: %s" % verb + path + str(nonce) + data
-    message = (verb + path + str(nonce) + data).encode('utf-8')
-
-    signature = hmac.new(secret.encode('utf-8'), message, digestmod=hashlib.sha256).hexdigest()
-    return signature
-
-
-class BinanceFuturesWs:
-    # Account
-    account = ''
-    #Pair
-    pair= 'BTCUSDT'
-    # testnet
-    testnet = False
-    # condition that the bot runs on.
-    is_running = True
-    # Notification destination listener
-    handlers = {}
-    listenKey = None
-    
     def __init__(self, account, pair, test=False):
         """
         constructor
         """
+        # Account
         self.account = account
+        # Pair
         self.pair = pair.lower()
+        # testnet
         self.testnet = test
+        # condition that the bot runs on.
+        self.is_running = True
+        # Notification destination listener
+        self.handlers = {}
+        # listen key
+        self.listenKey = None
+        # API keys
         self.api_key = conf['binance_test_keys'][self.account]['API_KEY'] if self.testnet else conf['binance_keys'][self.account]['API_KEY']
-        self.api_secret = conf['binance_test_keys'][self.account]['SECRET_KEY'] if self.testnet else conf['binance_keys'][self.account]['SECRET_KEY']
+        self.api_secret = conf['binance_test_keys'][self.account]['SECRET_KEY'] if self.testnet else conf['binance_keys'][self.account]['SECRET_KEY']        
         if test:
             domain = 'stream.binancefuture.com'
         else:

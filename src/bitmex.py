@@ -11,8 +11,8 @@ import pandas as pd
 from bravado.exception import HTTPNotFound
 from pytz import UTC
 
-from src import logger, retry, allowed_range, to_data_frame, \
-    resample, delta, FatalError, notify, ord_suffix
+from src import logger, retry, allowed_range, allowed_range_minute_granularity, find_timeframe_string, \
+    to_data_frame, resample, delta, FatalError, notify, ord_suffix
 from src.bitmex_api import bitmex_api
 from src.config import config as conf
 from src.bitmex_websocket import BitMexWs
@@ -22,53 +22,17 @@ from src.bitmex_websocket import BitMexWs
 from src.orderbook import OrderBook
 
 
-class BitMex:
-    # Account
-    account = ''
-    # Pair
-    pair = 'XBTUSD'
-    # Wallet
-    wallet = None
-    # Price
-    market_price = 0
-    # Position
-    position = None
-    # Margin
-    margin = None
-    # Time Frame
-    bin_size = '1h'
-    # Client for private API
-    private_client = None
-    # Client for public API
-    public_client = None
-    # Is bot running
-    is_running = True
-    # Bar crawler
-    crawler = None
-    # Strategy
-    strategy = None
+class BitMex:      
+    # Use minute granularity?
+    minute_granularity = False
+    # Sort timeframe in when multiple timeframes
+    timeframes_sorted = True # True for higher first, False for lower first and None when off      
     # Enable log output
     enable_trade_log = True
     # OHLCV length
-    ohlcv_len = 100
-    # OHLCV data
-    data = None
-    # Profit target long and short for a simple limit exit strategy
-    sltp_values = {
-                    'profit_long': 0,
-                    'profit_short': 0,
-                    'stop_long': 0,
-                    'stop_short': 0,
-                    'eval_tp_next_candle': False
-                    }        
+    ohlcv_len = 100    
     # Round decimals
     round_decimals = 0
-    # Profit, Loss and Trail Offset
-    exit_order = {'profit': 0, 'loss': 0, 'trail_offset': 0}
-    # Trailing Stop
-    trail_price = 0
-    # Last strategy execution time
-    last_action_time = None
 
     def __init__(self, account, pair, demo=False, threading=True):
         """
@@ -78,10 +42,50 @@ class BitMex:
         :param demo:
         :param run:
         """
+        # Account
         self.account = account
+        # Pair
         self.pair = pair
+        # Use testnet?
         self.demo = demo
+        # Is bot running
         self.is_running = threading
+        # Wallet
+        self.wallet = None
+         # Price
+        self.market_price = 0
+        # Position
+        self.position = None
+        # Margin
+        self.margin = None
+        # Time Frame
+        self.bin_size = '1h'
+        # Client for private API
+        self.private_client = None
+        # Client for public API
+        self.public_client = None
+        # Bar crawler
+        self.crawler = None
+        # Strategy
+        self.strategy = None
+        # OHLCV data
+        self.timeframe_data = None
+        # Timeframe data info like partial candle data values, last candle values, last action etc.
+        self.timeframe_info = {}
+        # Profit target long and short for a simple limit exit strategy
+        self.sltp_values = {
+                        'profit_long': 0,
+                        'profit_short': 0,
+                        'stop_long': 0,
+                        'stop_short': 0,
+                        'eval_tp_next_candle': False
+                        }         
+        # Profit, Loss and Trail Offset
+        self.exit_order = {'profit': 0, 'loss': 0, 'trail_offset': 0}
+        # Trailing Stop
+        self.trail_price = 0
+        # Last strategy execution time
+        self.last_action_time = None
         
     def __init_client(self):
         """
@@ -586,7 +590,7 @@ class BitMex:
             logger.info(f"Take profit by stop profit: {self.get_exit_order()['profit']}")
             self.close_all()
 
-    # simple TP implementation
+    # Simple take profit and stop loss implementation
     def eval_sltp(self):
         """
         evaluate simple profit target and stop loss
@@ -598,6 +602,7 @@ class BitMex:
         #     return
         if pos_size == 0:
             return
+            
         # tp
         tp_order = self.get_open_order('TP')   
         
@@ -682,10 +687,10 @@ class BitMex:
         while True:
             source = retry(lambda: self.public_client.Trade.Trade_getBucketed(symbol=self.pair, binSize=fetch_bin_size,
                                                                               startTime=left_time, endTime=right_time,
-                                                                              count=500, partial=True).result())
+                                                                              count=500, partial=False).result())
             if len(source) == 0:
                 break
-            logger.info(f"fetching OHLCV data")
+            logger.info(f"fetching OHLCV data - {left_time}") 
             source = to_data_frame(source)
             data = pd.concat([data, source])
 
@@ -702,7 +707,7 @@ class BitMex:
         """        
         return resample(self.data, bin_size)[:-1]
 
-    def __update_ohlcv(self, action, new_data):
+    def update_ohlcv(self, action, new_data):
         """
         get OHLCV data and execute the strategy
         """        
@@ -754,6 +759,109 @@ class BitMex:
 
             notify(f"An error occurred. {e}")
             notify(traceback.format_exc())
+    
+    def __update_ohlcv(self, action, new_data):
+        """
+        get and update OHLCV data and execute the strategy
+        """           
+        if self.timeframe_data is None:
+            self.timeframe_data = {}
+            for t in self.bin_size:
+                bin_size = t
+                end_time = datetime.now(timezone.utc)
+                start_time = end_time - self.ohlcv_len * delta(bin_size)
+                self.timeframe_data[bin_size] = self.fetch_ohlcv(bin_size, start_time, end_time)
+                self.timeframe_info[bin_size] = {
+                                                    "allowed_range": allowed_range_minute_granularity[t][0] if self.minute_granularity else allowed_range[t][0], 
+                                                    "ohlcv": self.timeframe_data[t][:-1], # Dataframe with closed candles                                                   
+                                                    "last_action_time": None,#self.timeframe_data[bin_size].iloc[-1].name, # Last strategy execution time
+                                                    "last_candle": self.timeframe_data[bin_size].iloc[-2].values,  # Store last complete candle
+                                                    "partial_candle": self.timeframe_data[bin_size].iloc[-1].values  # Store incomplete candle
+                                                }
+                # The last candle is an incomplete candle with timestamp in future                
+                if self.timeframe_data[bin_size].iloc[-1].name > end_time:
+                    last_candle = self.timeframe_data[t].iloc[-1].values # Store last candle
+                    self.timeframe_data[bin_size] = self.timeframe_data[t][:-1] # Exclude last candle
+                    self.timeframe_data[bin_size].loc[end_time.replace(microsecond=0)] = last_candle #set last candle to end_time
+                #d1 = self.timeframe_data[bin_size]
+                # if len(d1) > 0:
+                #     d2 = self.fetch_ohlcv(allowed_range[bin_size][0],
+                #                         d1.iloc[-1].name + delta(allowed_range[bin_size][0]), end_time)
+
+                #     self.timeframe_data[bin_size] = pd.concat([d1, d2])               
+                # else:
+                #     self.timeframe_data[bin_size] = d1                
+
+                logger.info(f"Initial Buffer Fill - Last Candle: {self.timeframe_data[bin_size].iloc[-1].name}")   
+        #logger.info(f"{self.timeframe_data}") 
+
+        timeframes_to_update = []
+
+        for t in self.timeframe_info:            
+            if self.timeframe_info[t]["allowed_range"] == action:
+                # append minute count of a timeframe when sorting when sorting is need otherwise just add a string timeframe
+                timeframes_to_update.append(allowed_range_minute_granularity[t][3]) if self.timeframes_sorted != None else timeframes_to_update.append(t)  
+
+        # Sorting timeframes that will be updated
+        if self.timeframes_sorted == True:
+            timeframes_to_update.sort(reverse=True)
+        if self.timeframes_sorted == False:
+            timeframes_to_update.sort(reverse=False)
+
+        logger.info(f"timefeames to update: {timeframes_to_update}")        
+
+        for t in timeframes_to_update:
+            # Find timeframe string based on its minute count value
+            if self.timeframes_sorted != None:             
+                t = find_timeframe_string(t)               
+                    
+            # replace latest candle if timestamp is same or append
+            if self.timeframe_data[t].iloc[-1].name == new_data.iloc[0].name:
+                self.timeframe_data[t] = pd.concat([self.timeframe_data[t][:-1], new_data])
+            else:
+                self.timeframe_data[t] = pd.concat([self.timeframe_data[t], new_data])      
+
+            # exclude current candle data and store partial candle data
+            re_sample_data = resample(self.timeframe_data[t], t, minute_granularity=True if self.minute_granularity else False)
+            self.timeframe_info[t]['partial_candle'] = re_sample_data.iloc[-1].values # store partial candle data
+            re_sample_data = resample(self.timeframe_data[t], t, minute_granularity=True if self.minute_granularity else False)[:-1] # exclude current candle data
+
+            logger.info(f"{self.timeframe_info[t]['last_action_time']} : {self.timeframe_data[t].iloc[-1].name} : {re_sample_data.iloc[-1].name}")  
+
+            if self.timeframe_info[t]["last_action_time"] is not None and \
+                self.timeframe_info[t]["last_action_time"] == re_sample_data.iloc[-1].name:
+                continue
+
+            # The last candle in the buffer needs to be preserved 
+            # while resetting the buffer as it may be incomlete
+            # or contains latest data from WS
+            self.timeframe_data[t] = pd.concat([re_sample_data.iloc[-1 * self.ohlcv_len:, :], self.timeframe_data[t].iloc[[-1]]]) 
+            #store ohlcv dataframe to timeframe_info dictionary
+            self.timeframe_info[t]["ohlcv"] = re_sample_data
+            #logger.info(f"Buffer Right Edge: {self.data.iloc[-1]}")
+            
+            open = re_sample_data['open'].values
+            close = re_sample_data['close'].values
+            high = re_sample_data['high'].values
+            low = re_sample_data['low'].values
+            volume = re_sample_data['volume'].values 
+                                        
+            try:
+                if self.strategy is not None:   
+                    self.timestamp = re_sample_data.iloc[-1].name.isoformat()           
+                    self.strategy(t, open, close, high, low, volume)              
+                self.timeframe_info[t]['last_action_time'] = re_sample_data.iloc[-1].name
+            except FatalError as e:
+                # Fatal error
+                logger.error(f"Fatal error. {e}")
+                logger.error(traceback.format_exc())
+
+                notify(f"Fatal error occurred. Stopping Bot. {e}")
+                notify(traceback.format_exc())
+                self.stop()
+            except Exception as e:
+                logger.error(f"An error occurred. {e}")
+                logger.error(traceback.format_exc())    
         
     def __on_update_instrument(self, action, instrument):
         """
@@ -817,11 +925,18 @@ class BitMex:
         bind functions with webosocket data streams        
         :param strategy: strategy
         """       
+        logger.info(f"pair: {self.pair}")  
+        logger.info(f"timeframes: {bin_size}")  
         self.bin_size = bin_size
-        self.strategy = strategy
+        self.strategy = strategy       
+
         if self.is_running:
             self.ws = BitMexWs(account=self.account, pair=self.pair, test=self.demo)
-            self.ws.bind(allowed_range[bin_size][0], self.__update_ohlcv)
+            #self.ws.bind(allowed_range[bin_size][0], self.update_ohlcv)
+            if len(self.bin_size) > 0:
+                for t in self.bin_size:                                        
+                    self.ws.bind(allowed_range_minute_granularity[t][0] if self.minute_granularity else allowed_range[t][0] \
+                        , self.__update_ohlcv)
             self.ws.bind('instrument', self.__on_update_instrument)
             self.ws.bind('wallet', self.__on_update_wallet)
             self.ws.bind('position', self.__on_update_position)
@@ -832,8 +947,9 @@ class BitMex:
         """
         Stop the crawler
         """
-        self.is_running = False
-        self.ws.close()
+        if self.is_running:
+            self.is_running = False
+            self.ws.close()
 
     def show_result(self):
         """

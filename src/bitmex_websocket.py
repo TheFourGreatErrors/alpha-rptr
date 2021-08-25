@@ -17,6 +17,7 @@ from src.config import config as conf
 
 def generate_nonce():
     return int(round(time.time() * 1000))
+    
 
 def generate_signature(secret, verb, url, nonce, data):
     """Generate a request signature compatible with BitMEX."""
@@ -33,25 +34,23 @@ def generate_signature(secret, verb, url, nonce, data):
     return signature
 
 
-class BitMexWs:
-    # Account
-    account = ''
-    # Pair
-    pair = 'XBTUSD'
-    # testnet    
-    testnet = False
-    # condition that the bot runs on.
-    is_running = True
-    # Notification destination listener
-    handlers = {}
-    
+class BitMexWs:        
+
     def __init__(self, account, pair, test=False):
         """
         constructor
         """
+        # Account
         self.account = account
+        # Pair
         self.pair = pair
+        # condition that the bot runs on.
+        self.is_running = True
+        # testnet   
         self.testnet = test
+        # Notification destination listener
+        self.handlers = {}
+
         if test:
             domain = 'testnet.bitmex.com'
         else:
@@ -134,8 +133,9 @@ class BitMexWs:
                         "low" : data[0]['close'],
                         "close" : data[0]['close'],
                         "volume": 0
-                    })                    
-                    self.__emit(table, action, to_data_frame(new_data))                 
+                    })                                 
+                    self.__emit(table, table[-2:], to_data_frame(new_data))    
+
                 elif table.startswith("instrument"):
                     self.__emit(table, action, data[0])
 

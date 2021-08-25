@@ -4,44 +4,16 @@ from src import logger
 from src.binance_futures import BinanceFutures
 
 # stub trading
-class BinanceFuturesStub(BinanceFutures):
-    # Pair
-    pair = 'BTCUSDT'
+class BinanceFuturesStub(BinanceFutures):   
     # Positions in USDT?
     qty_in_usdt = False
     # Minute granularity
     minute_granularity = False
-    # Default Balance (1000 USDT)
+    # Enable log output
+    enable_trade_log = True 
+    # Default Balance (1000 USDT)    
     balance = 1000
     # Default Leverage
-    leverage = 1
-    # Current Pos Size
-    position_size = 0
-    # Current AVG Price
-    position_avg_price = 0
-    # Current Order Count
-    order_count = 0
-    # Current Winning Count
-    win_count = 0
-    # Current Lose Count
-    lose_count = 0
-    # Win Profit
-    win_profit = 0
-    # Lose Loss
-    lose_loss = 0
-    #Drawdown from peak
-    drawdown = 0
-    # Max Loss Rate
-    max_draw_down = 0
-    # max drawdown for the session
-    max_draw_down_session = 0
-    # max drawdown session %
-    max_draw_down_session_perc = 0
-    # orders
-    open_orders = []
-
-    isLongEntry = [False, False]
-    isShortEntry = [False,False]
 
     def __init__(self, account, pair, threading=True):
         """
@@ -49,10 +21,39 @@ class BinanceFuturesStub(BinanceFutures):
         :account:
         :pair:
         :param threading:
-        """
-        self.pair = pair
+        """       
         BinanceFutures.__init__(self, account, pair, threading=threading)
+        # Pair
+        self.pair = pair
+        # Balance all time high
         self.balance_ath = self.balance
+        # Current Pos Size
+        self.position_size = 0
+        # Current AVG Price
+        self.position_avg_price = 0
+        # Current Order Count
+        self.order_count = 0
+        # Current Winning Count
+        self.win_count = 0
+        # Current Lose Count
+        self.lose_count = 0
+        # Win Profit
+        self.win_profit = 0
+        # Lose Loss
+        self.lose_loss = 0
+        #Drawdown from peak
+        self.drawdown = 0
+        # Max Loss Rate
+        self.max_draw_down = 0
+        # max drawdown for the session
+        self.max_draw_down_session = 0
+        # max drawdown session %
+        self.max_draw_down_session_perc = 0
+        # orders
+        self.open_orders = []
+        # Warmup long and short entry lists for tp_next_candle option for sltp()
+        self.isLongEntry = [False, False]
+        self.isShortEntry = [False,False]        
 
         self.order_log = open("orders.csv", "w")
         self.order_log.write("time,type,price,quantity,av_price,position,pnl,balance,drawdown\n") #header
@@ -309,7 +310,8 @@ class BinanceFuturesStub(BinanceFutures):
                 logger.info(f"TRADE COUNT   : {self.order_count}")
                 logger.info(f"ID            : {id}")
                 logger.info(f"POSITION SIZE : {order_qty if next_qty * self.position_size > 0 else next_qty}")
-                logger.info(f"**************************************")               
+                logger.info(f"**************************************")   
+
             if long and 0 < self.position_size < next_qty:
                 self.position_avg_price = (self.position_avg_price * self.position_size + price * qty) /  next_qty 
             elif not long and 0 > self.position_size > next_qty:

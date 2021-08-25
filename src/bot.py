@@ -24,15 +24,15 @@ class Bot:
     bin_size = '1h'
     # Pair
     pair = 'BTCUSDT'
-    # periods
+    # Periods
     periods = 20
-    # run on test net?
+    # Run on test net?
     test_net = False
     # Back test?
     back_test = False
-    # Stub Test?
+    # Stub Test(paper trading)?
     stub_test = False
-    # parameter search?
+    # Parameter optimization?
     hyperopt = False
 
     def __init__(self, bin_size):
@@ -45,7 +45,7 @@ class Bot:
 
     def options(self):
         """
-        Function to obtain value for searching for a parameter.
+        Function to get values for parameter optimization
         """
         pass
 
@@ -70,7 +70,7 @@ class Bot:
 
     def strategy(self, open, close, high, low, volume):
         """
-        Strategy function, when creating a bot please inherit this and implement this fn. 
+        Strategy function, when creating a bot please inherit and implement this fn. 
         :param open: open price
         :param close: close price
         :param high: high price

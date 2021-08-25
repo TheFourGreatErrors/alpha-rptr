@@ -7,50 +7,26 @@ import dateutil.parser
 
 import pandas as pd
 
-from src import find_timeframe_string, logger, allowed_range, allowed_range_minute_granularity, retry, delta, load_data, resample, \
+from src import logger, allowed_range, allowed_range_minute_granularity, retry, delta, load_data, resample, \
     find_timeframe_string
 from src.binance_futures_stub import BinanceFuturesStub
 
 OHLC_DIRNAME = os.path.join(os.path.dirname(__file__), "../ohlc/{}/{}")
 OHLC_FILENAME = os.path.join(os.path.dirname(__file__), "../ohlc/{}/{}/data.csv")
 
-class BinanceFuturesBackTest(BinanceFuturesStub):
-    # Pair
-    pair = 'BTCUSDT'
-    # Market price
-    market_price = 0
+class BinanceFuturesBackTest(BinanceFuturesStub):   
     # Update Data before Backtest
     update_data = True
     # Minute granularity
     minute_granularity = False
     # Check candles
     check_candles_flag = True
-    # Warmup timeframe - used for loading warmup candles for indicators when minute granularity is need
-    warmup_tf = None # highest tf, if None its going to find it automatically based on highest tf and ohlcv_len
-    # OHLCV
-    df_ohlcv = None
-    # Current time axis
-    index = None
-    # Current time
-    time = None
-    # Order count
-    order_count = 0
-    # Buy signal history
-    buy_signals = []
-    # Sell signal history
-    sell_signals = []
-    # EXIT history
-    close_signals = []
-    # Balance history
-    balance_history = []
+    # Enable log output
+    enable_trade_log = True
     # Start balance
     start_balance = 0
-    # Drawdown history
-    draw_down_history = []
-    # Plot data
-    plot_data = {}
-    # Resample data
-    resample_data = {}
+    # Warmup timeframe - used for loading warmup candles for indicators when minute granularity is need
+    warmup_tf = None # highest tf, if None its going to find it automatically based on highest tf and ohlcv_len
 
     def __init__(self, account, pair):
         """
@@ -59,10 +35,35 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
         :pair:
         :param periods:
         """
+        BinanceFuturesStub.__init__(self, account, pair=pair, threading=False)
+        # Pair
         self.pair = pair
-        BinanceFuturesStub.__init__(self, account, pair=self.pair, threading=False)
-        self.enable_trade_log = True
+        # Market price
+        self.market_price = 0         
+        # Balance
         self.start_balance = self.get_balance()
+        # OHLCV
+        self.df_ohlcv = None
+        # Current time axis
+        self.index = None
+        # Current time
+        self.time = None
+        # Order count
+        self.order_count = 0
+        # Buy signal history
+        self.buy_signals = []
+        # Sell signal history
+        self.sell_signals = []
+        # EXIT history
+        self.close_signals = []
+        # Balance history
+        self.balance_history = []        
+        # Drawdown history
+        self.draw_down_history = []
+        # Plot data
+        self.plot_data = {}
+        # Resample data
+        self.resample_data = {}
 
     def get_market_price(self):
         """
@@ -166,7 +167,7 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
             
             # action is either the(only) key of self.timeframe_info dictionary, which is a single timeframe string
             # or "1m" when minute granularity is needed - multiple timeframes or self.minute_granularity = True
-            action = "1m" if (self.minute_granularity or len(self.timeframe_info) > 1) else self.bin_size[0]#list(self.timeframe_info.keys())[0]
+            action = "1m" if (self.minute_granularity or len(self.timeframe_info) > 1) else self.bin_size[0]
             
             timeframes_to_update = []
 
@@ -235,7 +236,8 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
                     self.index = index    
 
                 #self.eval_sltp()
-                self.strategy(t, open, close, high, low, volume)                   
+                self.strategy(t, open, close, high, low, volume)      
+                self.timeframe_info[t]['last_action_time'] = re_sample_data.iloc[-1].name             
 
                 self.balance_history.append((self.get_balance() - self.start_balance)) #/ 100000000 * self.get_market_price())
                 #self.eval_exit()
@@ -261,22 +263,21 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
         if bin_size not in self.resample_data:
             self.resample_data[bin_size] = resample(self.df_ohlcv, bin_size)
         return self.resample_data[bin_size][:self.data.iloc[-1].name].iloc[-1 * self.ohlcv_len:, :]
-
+ 
     def check_candles(self, df):
-
+        """
+        Check for missing candles
+        """
         logger.info("-------")
         logger.info(f"Checking Candles:")
         logger.info("-------")
-
         logger.info(f"Start: {df.iloc[0][0]}")
         logger.info(f"End: {df.iloc[-1][0]}")
-
         logger.info("-------")
 
         diff = (dateutil.parser.isoparse(df.iloc[1][0])-dateutil.parser.isoparse(df.iloc[0][0])).total_seconds()
 
         logger.info(f"Interval: {diff}s")
-
         logger.info("-------")
 
         count = 0
@@ -284,14 +285,11 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
         prev_current_date = None
 
         for index in range(0, rows-1):
-
             current_date = dateutil.parser.isoparse(df.iloc[index][0])
             next_date = dateutil.parser.isoparse(df.iloc[index+1][0])
 
-            diff2 = (next_date-current_date).total_seconds()               
-
+            diff2 = (next_date-current_date).total_seconds()
             if diff2 != diff:
-
                 count += abs((diff2-diff)/diff)
                 
                 # logger.info(current_date)
@@ -303,8 +301,7 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
 
                 # logger.info("------------")
 
-                prev_current_date = current_date  
-
+                prev_current_date = current_date 
             elif diff2 <= 0:
                 logger.info(f"Duplicate Candle: {current_date}")
 
@@ -331,14 +328,16 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
             #self.timeframe = bin_size.add('1m')  # add 1m timeframe to the set (sets wont allow duplicates) in case we need minute granularity 
             bin_size = '1m'
             minute_gran = True                              
+        else:
+            bin_size = bin_size[0]                                
 
         while True:
             if left_time is None:
                 left_time = start_time
-                right_time = left_time + delta(allowed_range[bin_size][0], minute_granularity=True if minute_gran else False) * 99
+                right_time = left_time + delta(allowed_range[bin_size][0]) * 99
             else:
-                left_time = source.iloc[-1].name # + delta(allowed_range[bin_size][0]) * allowed_range[bin_size][2]
-                right_time = left_time + delta(allowed_range[bin_size][0], minute_granularity=True if minute_gran else False) * 99
+                left_time = source.iloc[-1].name + delta(allowed_range[bin_size][0]) * allowed_range[bin_size][2]
+                right_time = left_time + delta(allowed_range[bin_size][0]) * 99
 
             if right_time > end_time:
                 right_time = end_time
@@ -351,11 +350,10 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
      
             data = pd.concat([data, source])   
 
-
             if is_last_fetch:
                 return data
 
-            #time.sleep(0.25)
+            time.sleep(0.25)
 
     def __load_ohlcv(self, bin_size):
         """

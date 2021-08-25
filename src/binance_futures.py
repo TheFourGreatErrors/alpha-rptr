@@ -19,71 +19,19 @@ from src.binance_futures_api import Client
 from src.binance_futures_websocket import BinanceFuturesWs
 
 
-class BinanceFutures:
-    # Account
-    account = ''
-    # Pair
-    pair = 'BTCUSDT'
-    # wallet
-    wallet = None
+class BinanceFutures:       
     # Use minute granularity?
     minute_granularity = False
     # Sort timeframe in when multiple timeframes
-    timeframes_sorted = True # True for higher first, False for lower first and None when off
-    # Price
-    market_price = 0
-    # Order update
-    order_update = None
-    # Order Update Log
-    order_update_log = True
-    # Position
-    position = None
-    # Position size
-    position_size = None
-    # Entry price
-    entry_price = None
-    # Margin
-    margin = None
-    # Account information
-    account_information = None
-    # Time Frame
-    bin_size = '1h'    
-    # Binance futures client     
-    client = None
-    # Is bot running
-    is_running = True
-    # Bar crawler
-    crawler = None
-    # Strategy
-    strategy = None
+    timeframes_sorted = True # True for higher first, False for lower first and None when off 
     # Enable log output
-    enable_trade_log = True
+    enable_trade_log = True   
+    # Order Update Log
+    order_update_log = True  
     # OHLCV length
-    ohlcv_len = 100
-    # OHLCV data
-    timeframe_data = None    
-    # Timeframe data info like partial candle data values, last candle values, last action etc.
-    timeframe_info = {}
-    # Profit target long and short for a simple limit exit strategy
-    sltp_values = {
-                    'profit_long': 0,
-                    'profit_short': 0,
-                    'stop_long': 0,
-                    'stop_short': 0,
-                    'eval_tp_next_candle': False
-                    }         
+    ohlcv_len = 100    
     # Round decimals
-    round_decimals = 2
-    # Profit, Loss and Trail Offset
-    exit_order = {'profit': 0, 'loss': 0, 'trail_offset': 0}
-    # Trailing Stop
-    trail_price = 0
-    # Last strategy execution time
-    last_action_time = None
-    # best bid price
-    best_bid_price = None
-    # best ask price
-    best_ask_price = None 
+    round_decimals = 2   
 
     def __init__(self, account, pair, demo=False, threading=True):
         """
@@ -93,10 +41,58 @@ class BinanceFutures:
         :param demo:
         :param run:
         """
+        # Account
         self.account = account
+        # Pair
         self.pair = pair
+        # Use testnet?
         self.demo = demo
+        # Is bot running?
         self.is_running = threading
+        # wallet
+        self.wallet = None
+        # Position
+        self.position = None
+        # Position size
+        self.position_size = None
+        # Entry price
+        self.entry_price = None
+        # Margin
+        self.margin = None
+        # Account information
+        self.account_information = None
+        # Timeframe
+        self.bin_size = '1h' 
+        # Binance futures client     
+        self.client = None
+        # Price
+        self.market_price = 0
+        # Order update
+        self.order_update = None
+        # Bar crawler
+        self.crawler = None
+        # Strategy
+        self.strategy = None
+        # OHLCV data
+        self.timeframe_data = None    
+        # Timeframe data info like partial candle data values, last candle values, last action etc.
+        self.timeframe_info = {}
+        # Profit target long and short for a simple limit exit strategy
+        self.sltp_values = {
+                        'profit_long': 0,
+                        'profit_short': 0,
+                        'stop_long': 0,
+                        'stop_short': 0,
+                        'eval_tp_next_candle': False
+                        }         
+         # Profit, Loss and Trail Offset
+        self.exit_order = {'profit': 0, 'loss': 0, 'trail_offset': 0}
+        # Trailing Stop
+        self.trail_price = 0       
+        # best bid price
+        self.best_bid_price = None
+        # best ask price
+        self.best_ask_price = None 
         
     def __init_client(self):
         """
@@ -678,7 +674,7 @@ class BinanceFutures:
             logger.info(f"Take profit by stop profit: {self.get_exit_order()['profit']}")
             self.close_all()
 
-    # simple TP implementation
+    # Simple take profit and stop loss implementation
     def eval_sltp(self):
         """
         evaluate simple profit target and stop loss
@@ -687,6 +683,7 @@ class BinanceFutures:
         pos_size = float(self.get_position()['positionAmt'])
         if pos_size == 0:
             return
+            
         # tp
         tp_order = self.get_open_order('TP')   
         
@@ -827,7 +824,7 @@ class BinanceFutures:
 
         if self.timeframe_data is None:
             self.timeframe_data = {}
-            for t in self.timeframe:
+            for t in self.bin_size:
                 bin_size = t
                 end_time = datetime.now(timezone.utc)
                 start_time = end_time - self.ohlcv_len * delta(bin_size)
@@ -835,7 +832,7 @@ class BinanceFutures:
                 self.timeframe_info[bin_size] = {
                                                     "allowed_range": allowed_range_minute_granularity[t][0] if self.minute_granularity else allowed_range[t][0], 
                                                     "ohlcv": self.timeframe_data[t][:-1], # Dataframe with closed candles                                                   
-                                                    "last_action_time": None,#self.timeframe_data[bin_size].iloc[-1].name, 
+                                                    "last_action_time": None,#self.timeframe_data[bin_size].iloc[-1].name, # Last strategy execution time
                                                     "last_candle": self.timeframe_data[bin_size].iloc[-2].values,  # Store last complete candle
                                                     "partial_candle": self.timeframe_data[bin_size].iloc[-1].values  # Store incomplete candle
                                                 }
@@ -861,7 +858,7 @@ class BinanceFutures:
         if self.timeframes_sorted == False:
             timeframes_to_update.sort(reverse=False)
 
-        logger.info(f"timefeames to update: {timeframes_to_update}")        
+        #logger.info(f"timefeames to update: {timeframes_to_update}")        
 
         for t in timeframes_to_update:
             # Find timeframe string based on its minute count value
@@ -879,7 +876,7 @@ class BinanceFutures:
             self.timeframe_info[t]['partial_candle'] = re_sample_data.iloc[-1].values # store partial candle data
             re_sample_data = resample(self.timeframe_data[t], t, minute_granularity=True if self.minute_granularity else False)[:-1] # exclude current candle data
 
-            logger.info(f"{self.timeframe_info[t]['last_action_time']} : {self.timeframe_data[t].iloc[-1].name} : {re_sample_data.iloc[-1].name}")  
+            #logger.info(f"{self.timeframe_info[t]['last_action_time']} : {self.timeframe_data[t].iloc[-1].name} : {re_sample_data.iloc[-1].name}")  
 
             if self.timeframe_info[t]["last_action_time"] is not None and \
                 self.timeframe_info[t]["last_action_time"] == re_sample_data.iloc[-1].name:
@@ -1049,17 +1046,14 @@ class BinanceFutures:
         logger.info(f"pair: {self.pair}")  
         logger.info(f"timeframes: {bin_size}")      
         self.bin_size = bin_size
-        self.strategy = strategy        
-        self.timeframe = bin_size       
+        self.strategy = strategy             
 
         if self.is_running:
-            self.ws = BinanceFuturesWs(account=self.account, pair=self.pair, test=self.demo)
-                        
-            if len(self.timeframe) > 0:
-                for t in self.timeframe:                                        
+            self.ws = BinanceFuturesWs(account=self.account, pair=self.pair, test=self.demo)                        
+            if len(self.bin_size) > 0:
+                for t in self.bin_size:                                        
                     self.ws.bind(allowed_range_minute_granularity[t][0] if self.minute_granularity else allowed_range[t][0] \
-                        , self.__update_ohlcv)
-                   
+                        , self.__update_ohlcv)                   
             self.ws.bind('instrument', self.__on_update_instrument)
             self.ws.bind('wallet', self.__on_update_wallet)
             self.ws.bind('position', self.__on_update_position)

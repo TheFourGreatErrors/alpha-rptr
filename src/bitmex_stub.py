@@ -4,35 +4,15 @@ from src import logger
 from src.bitmex import BitMex
 
 # stub trading
-class BitMexStub(BitMex):
-    # Pair
-    pair = 'XBTUSD'
+class BitMexStub(BitMex): 
+    # Minute granularity
+    minute_granularity = False
+    # Enable log output
+    enable_trade_log = True   
     # Default Balance (0.1BTC)
     balance = 0.1 * 100000000
     # Default Leverage
-    leverage = 1
-    # Current Pos Size
-    position_size = 0
-    # Current AVG Price
-    position_avg_price = 0
-    # Current Order Count
-    order_count = 0
-    # Current Winning Count
-    win_count = 0
-    # Current Lose Count
-    lose_count = 0
-    # Win Profit
-    win_profit = 0
-    # Lose Loss
-    lose_loss = 0
-    # Max Loss Rate
-    max_draw_down = 0
-    # max drawdown for the session
-    max_draw_down_session = 0
-    # max drawdown session %
-    max_draw_down_session_perc = 0
-    # orders
-    open_orders = []
+    leverage = 1    
 
     def __init__(self, account, pair, threading=True):
         """
@@ -40,10 +20,42 @@ class BitMexStub(BitMex):
         :account:
         :pair:
         :param threading:
-        """
+        """        
+        BitMex.__init__(self, account, pair, threading=threading)        
+        # Pair
         self.pair = pair
-        BitMex.__init__(self, account, pair, threading=threading)
+        # Balance all time high
         self.balance_ath = self.balance
+        # Current Pos Size
+        self.position_size = 0
+        # Current AVG Price
+        self.position_avg_price = 0
+        # Current Order Count
+        self.order_count = 0
+        # Current Winning Count
+        self.win_count = 0
+        # Current Lose Count
+        self.lose_count = 0
+        # Win Profit
+        self.win_profit = 0
+        # Lose Loss
+        self.lose_loss = 0
+        #Drawdown from peak
+        self.drawdown = 0
+        # Max Loss Rate
+        self.max_draw_down = 0
+        # max drawdown for the session
+        self.max_draw_down_session = 0
+        # max drawdown session %
+        self.max_draw_down_session_perc = 0
+        # orders
+        self.open_orders = []
+        # Warmup long and short entry lists for tp_next_candle option for sltp()
+        self.isLongEntry = [False, False]
+        self.isShortEntry = [False,False]        
+
+        self.order_log = open("orders.csv", "w")
+        self.order_log.write("time,type,price,quantity,av_price,position,pnl,balance,drawdown\n") #header
 
     def get_lot(self):
         """
@@ -252,10 +264,18 @@ class BitMexStub(BitMex):
                 else:
                     if self.max_draw_down_session < self.balance_ath - self.balance:
                         self.max_draw_down_session = self.balance_ath - self.balance 
-                        self.max_draw_down_session_perc = (self.balance_ath - self.balance) / self.balance_ath * 100                         
+                        self.max_draw_down_session_perc = (self.balance_ath - self.balance) / self.balance_ath * 100  
+
+            self.drawdown = (self.balance_ath - self.balance) / self.balance_ath * 100
+            # self.order_log.write("time,type,price,quantity,av_price,position,pnl,balance,drawdown\n") #header
+            self.order_log.write(f"{self.timestamp},{'BUY' if long else 'SELL'},{price:.2f},{-self.position_size if abs(next_qty) else order_qty:.2f}, \
+                {self.position_avg_price:.2f},{0 if abs(next_qty) else self.position_size+order_qty:.2f}, \
+                {profit:.2f},{self.get_balance():.2f},{self.drawdown:.2f}\n")
+            self.order_log.flush()                                      
 
             if self.enable_trade_log:
                 logger.info(f"========= Close Position =============")
+                logger.info(f"TIME          : {self.timestamp}")
                 logger.info(f"TRADE COUNT   : {self.order_count}")
                 logger.info(f"POSITION SIZE : {self.position_size}")
                 logger.info(f"ENTRY PRICE   : {self.position_avg_price}")
@@ -272,21 +292,26 @@ class BitMexStub(BitMex):
         if next_qty != 0:
             if self.enable_trade_log:
                 logger.info(f"********* Create Position ************")
-                logger.info(f"TIME          : {self.now_time()}")
+                logger.info(f"TIME          : {self.timestamp}")
                 logger.info(f"PRICE         : {price}")
                 logger.info(f"TRADE COUNT   : {self.order_count}")
                 logger.info(f"ID            : {id}")
                 logger.info(f"POSITION SIZE : {qty}")
-                logger.info(f"**************************************")               
-            if long and self.position_size < next_qty:
+                logger.info(f"**************************************")        
+                       
+            if long and 0 < self.position_size < next_qty:
                 self.position_avg_price = (self.position_avg_price * self.position_size + price * qty) /  next_qty 
-            elif not long and self.position_size > next_qty:
+            elif not long and 0 > self.position_size > next_qty:
                 self.position_avg_price = (self.position_avg_price * self.position_size - price * qty) /  next_qty
             else:
                  self.position_avg_price = price
             self.position_size = next_qty
             logger.info(f"**********{next_qty}") 
-              
+
+            # self.order_log.write("time,type,price,quantity,av_price,position,pnl,balance,drawdown\n") #header
+            self.order_log.write(f"{self.timestamp},{'BUY' if long else 'SELL'},{price:.2f},{next_qty:.2f},{self.position_avg_price:.2f},{self.position_size:.2f}, \
+                {'-'},{self.get_balance():.2f},{self.drawdown:.2f}\n")
+            self.order_log.flush()
            
             self.set_trail_price(price)
         else:
@@ -333,14 +358,82 @@ class BitMexStub(BitMex):
                 0 < self.get_exit_order()['profit'] < abs(unrealised_pnl):
             logger.info(f"Take profit by stop profit: {self.get_exit_order()['profit']}")
             self.close_all()
+    
+    def eval_sltp(self):
+        """
+        evaluate simple profit target and stop loss        
+        """
+
+        pos_size = self.get_position_size()
+        if pos_size == 0:
+            return
+
+        best_bid = self.market_price
+        best_ask = self.market_price        
+        tp_percent_long = self.get_sltp_values()['profit_long']
+        tp_percent_short = self.get_sltp_values()['profit_short']   
+
+        avg_entry = self.get_position_avg_price() 
+        
+        #sl   
+        sl_percent_long = self.get_sltp_values()['stop_long']
+        sl_percent_short = self.get_sltp_values()['stop_short']         
+
+        # sl execution logic
+        if sl_percent_long > 0:
+            if pos_size > 0:
+                sl_price_long = round(avg_entry - (avg_entry*sl_percent_long), self.round_decimals)
+                if self.OHLC['low'][-1] <= sl_price_long:               
+                    self.close_all_at_price(sl_price_long)
+        if sl_percent_short > 0:
+            if pos_size < 0:
+                sl_price_short = round(avg_entry + (avg_entry*sl_percent_short), self.round_decimals)
+                if self.OHLC['high'][-1] >= sl_price_short:                 
+                    self.close_all_at_price(sl_price_short)  
+        # tp       
+        # if self.get_sltp_values()['eval_tp_next_candle']:
+        #     if (self.isLongEntry[-1] == True and self.isLongEntry[-2] == False if True else False) or (self.isShortEntry[-1] == True and self.isShortEntry[-2] == False if True else False):
+        #         return
+        # if self.get_sltp_values()['eval_tp_next_candle']:
+        #     if self.isLongEntry[-1] or self.isShortEntry[-1] == True:
+        #         return
+        #     if self.isLongEntry[-2] or self.isShortEntry[-2] == True:
+        #         return
+        
+        if (self.isLongEntry[-1] == True and self.isLongEntry[-2] == False and self.get_sltp_values()['eval_tp_next_candle']) or \
+            (self.isShortEntry[-1] == True and self.isShortEntry[-2] == False and self.get_sltp_values()['eval_tp_next_candle']):
+            return
+        
+        # tp execution logic                
+        if tp_percent_long > 0:
+            if pos_size > 0:                
+                tp_price_long = round(avg_entry +(avg_entry*tp_percent_long), self.round_decimals) 
+                if tp_price_long <= best_ask and self.get_sltp_values()['eval_tp_next_candle'] == True:
+                    tp_price_long = best_ask
+                if self.OHLC['high'][-1] >= tp_price_long:               
+                    self.close_all_at_price(tp_price_long)
+        if tp_percent_short > 0:
+            if pos_size < 0:                
+                tp_price_short = round(avg_entry -(avg_entry*tp_percent_short), self.round_decimals)
+                if tp_price_short >= best_bid and self.get_sltp_values()['eval_tp_next_candle'] == True:
+                    tp_price_short = best_bid
+                if self.OHLC['low'][-1] <= tp_price_short:               
+                    self.close_all_at_price(tp_price_short)
 
     def on_update(self, bin_size, strategy):
         """
         Register function of strategy.
         :param strategy:
         """
-        def __override_strategy(open, close, high, low, volume):
+        def __override_strategy(action, open, close, high, low, volume):
             new_open_orders = []
+
+            self.OHLC = {
+                        'open': open,
+                        'high': high,
+                        'low': low,
+                        'close': close
+                        }
 
             if self.get_position_size() > 0 and low[-1] > self.get_trail_price():
                 self.set_trail_price(low[-1])
@@ -374,7 +467,8 @@ class BitMexStub(BitMex):
                 new_open_orders.append(order)
 
             self.open_orders = new_open_orders
-            strategy(open, close, high, low, volume)
             self.eval_exit()
+            self.eval_sltp()
+            strategy(action, open, close, high, low, volume)   
 
         BitMex.on_update(self, bin_size, __override_strategy)
