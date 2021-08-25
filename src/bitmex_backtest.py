@@ -164,7 +164,7 @@ class BitMexBackTest(BitMexStub):
             for t in self.bin_size:            
                 self.timeframe_data[t] = resample(self.df_ohlcv.iloc[:self.warmup_len], t, minute_granularity=self.minute_granularity)
                 self.timeframe_info[t] = {
-                                            "allowed_range": allowed_range_minute_granularity[t][0] if self.minute_granularity else allowed_range[t][0],
+                                            "allowed_range": allowed_range_minute_granularity[t][0] if self.minute_granularity else self.bin_size[0], #allowed_range[t][0],
                                             "ohlcv": self.timeframe_data[t][:-1], # Dataframe with closed candles
                                             "last_action_time": None,#self.timeframe_data[bin_size].iloc[-1].name,
                                             "last_candle": None,#self.timeframe_data[bin_size].iloc[-2].values,
