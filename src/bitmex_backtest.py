@@ -1,6 +1,6 @@
 # coding: UTF-8
 
-import os
+import os, tempfile
 import time
 from datetime import timedelta, datetime, timezone
 import dateutil.parser
@@ -463,6 +463,11 @@ class BitMexBackTest(BitMexStub):
         """
         Display results
         """
+        DATA_FILENAME = OHLC_FILENAME.format(self.pair, self.bin_size)
+        self.symlink(DATA_FILENAME, 'html/data/data.csv', overwrite=True)
+        ORDERS_FILENAME = os.path.join(os.path.dirname(__file__), "../orders.csv")
+        self.symlink(ORDERS_FILENAME, 'html/data/orders.csv', overwrite=True)
+
         logger.info(f"============== Result ================")
         logger.info(f"TRADE COUNT         : {self.order_count}")
         logger.info(f"BALANCE             : {self.get_balance()}")
