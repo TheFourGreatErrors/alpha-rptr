@@ -705,60 +705,7 @@ class BitMex:
         """
         Recalculate and obtain different time frame data
         """        
-        return resample(self.data, bin_size)[:-1]
-
-    def update_ohlcv(self, action, new_data):
-        """
-        get OHLCV data and execute the strategy
-        """        
-        if self.data is None:
-            end_time = datetime.now(timezone.utc)
-            start_time = end_time - self.ohlcv_len * delta(self.bin_size)
-            d1 = self.fetch_ohlcv(self.bin_size, start_time, end_time)
-            if len(d1) > 0:
-                d2 = self.fetch_ohlcv(allowed_range[self.bin_size][0],
-                                      d1.iloc[-1].name + delta(allowed_range[self.bin_size][0]), end_time)
-
-                self.data = pd.concat([d1, d2])               
-            else:
-                self.data = d1                
-        else:
-            self.data = pd.concat([self.data, new_data])            
-
-        # exclude current candle data 
-        re_sample_data = resample(self.data, self.bin_size)[:-1]
-        
-        if self.data.iloc[-1].name == re_sample_data.iloc[-1].name:
-            self.data = re_sample_data.iloc[-1 * self.ohlcv_len:, :]
-
-        if self.last_action_time is not None and \
-                self.last_action_time == re_sample_data.iloc[-1].name:
-            return
-
-        open = re_sample_data['open'].values
-        close = re_sample_data['close'].values
-        high = re_sample_data['high'].values
-        low = re_sample_data['low'].values
-        volume = re_sample_data['volume'].values
-
-        try:
-            if self.strategy is not None:                
-                self.strategy(open, close, high, low, volume)                
-            self.last_action_time = re_sample_data.iloc[-1].name
-        except FatalError as e:
-            # Fatal Error
-            logger.error(f"Fatal error. {e}")
-            logger.error(traceback.format_exc())
-
-            notify(f"Fatal error occurred. Stopping Bot. {e}")
-            notify(traceback.format_exc())
-            self.stop()
-        except Exception as e:
-            logger.error(f"An error occurred. {e}")
-            logger.error(traceback.format_exc())
-
-            notify(f"An error occurred. {e}")
-            notify(traceback.format_exc())
+        return resample(self.data, bin_size)[:-1]   
     
     def __update_ohlcv(self, action, new_data):
         """
@@ -824,7 +771,7 @@ class BitMex:
             # exclude current candle data and store partial candle data
             re_sample_data = resample(self.timeframe_data[t], t, minute_granularity=True if self.minute_granularity else False)
             self.timeframe_info[t]['partial_candle'] = re_sample_data.iloc[-1].values # store partial candle data
-            re_sample_data = resample(self.timeframe_data[t], t, minute_granularity=True if self.minute_granularity else False)[:-1] # exclude current candle data
+            re_sample_data =re_sample_data[:-1] # exclude current candle data
 
             logger.info(f"{self.timeframe_info[t]['last_action_time']} : {self.timeframe_data[t].iloc[-1].name} : {re_sample_data.iloc[-1].name}")  
 

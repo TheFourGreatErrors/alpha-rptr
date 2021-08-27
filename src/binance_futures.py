@@ -874,7 +874,7 @@ class BinanceFutures:
             # exclude current candle data and store partial candle data
             re_sample_data = resample(self.timeframe_data[t], t, minute_granularity=True if self.minute_granularity else False)
             self.timeframe_info[t]['partial_candle'] = re_sample_data.iloc[-1].values # store partial candle data
-            re_sample_data = resample(self.timeframe_data[t], t, minute_granularity=True if self.minute_granularity else False)[:-1] # exclude current candle data
+            re_sample_data =re_sample_data[:-1] # exclude current candle data
 
             #logger.info(f"{self.timeframe_info[t]['last_action_time']} : {self.timeframe_data[t].iloc[-1].name} : {re_sample_data.iloc[-1].name}")  
 
