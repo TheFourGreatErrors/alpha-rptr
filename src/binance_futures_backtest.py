@@ -337,7 +337,7 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
                 left_time = start_time
                 right_time = left_time + delta(allowed_range[bin_size][0]) * 99
             else:
-                left_time = source.iloc[-1].name + delta(allowed_range[bin_size][0]) * allowed_range[bin_size][2]
+                left_time = source.iloc[-1].name #+ delta(allowed_range[bin_size][0]) * allowed_range[bin_size][2]
                 right_time = left_time + delta(allowed_range[bin_size][0]) * 99
 
             if right_time > end_time:
