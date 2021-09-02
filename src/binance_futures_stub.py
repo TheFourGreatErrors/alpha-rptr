@@ -14,6 +14,7 @@ class BinanceFuturesStub(BinanceFutures):
     # Default Balance (1000 USDT)    
     balance = 1000
     # Default Leverage
+    leverage = 1 
 
     def __init__(self, account, pair, threading=True):
         """
