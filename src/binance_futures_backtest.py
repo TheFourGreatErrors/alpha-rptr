@@ -164,7 +164,7 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
             self.data = self.df_ohlcv.iloc[i:i + self.warmup_len, :]
             index = self.data.iloc[-1].name
             self.timestamp = self.data.iloc[-1][0]
-            new_data = self.data.iloc[:-1]              
+            new_data = self.data.iloc[-1:]              
             
             # action is either the(only) key of self.timeframe_info dictionary, which is a single timeframe string
             # or "1m" when minute granularity is needed - multiple timeframes or self.minute_granularity = True
@@ -234,13 +234,14 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
                                 'close': close
                                 }
             
-                    self.index = index    
+                    self.index = index
+                    self.balance_history.append((self.get_balance() - self.start_balance) / 100000000 * self.get_market_price())    
 
                 #self.eval_sltp()
                 self.strategy(t, open, close, high, low, volume)      
                 self.timeframe_info[t]['last_action_time'] = re_sample_data.iloc[-1].name             
 
-                self.balance_history.append((self.get_balance() - self.start_balance)) #/ 100000000 * self.get_market_price())
+                #self.balance_history.append((self.get_balance() - self.start_balance)) #/ 100000000 * self.get_market_price())
                 #self.eval_exit()
                 #self.eval_sltp()
 
