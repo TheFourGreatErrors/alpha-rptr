@@ -147,6 +147,8 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
             for t in self.bin_size:            
                 self.timeframe_data[t] = resample(self.df_ohlcv.iloc[:self.warmup_len], t, minute_granularity=self.minute_granularity) if self.minute_granularity \
                     else self.df_ohlcv.iloc[:self.warmup_len] # if a single timeframe is used without minute_granularity it already resampled the data after downloading it 
+                #Set the last resampled candle timestamp to last candle timestamp
+                self.timeframe_data[t] = self.timeframe_data[t].rename(index={self.timeframe_data[t].iloc[-1].name : self.df_ohlcv.iloc[self.warmup_len-1].name})                    
                 self.timeframe_info[t] = {
                                             "allowed_range": allowed_range_minute_granularity[t][0] if self.minute_granularity else self.bin_size[0], #allowed_range[t][0],
                                             "ohlcv": self.timeframe_data[t][:-1], # Dataframe with closed candles
@@ -163,8 +165,7 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
         for i in range(len(self.df_ohlcv) - self.warmup_len):
             self.data = self.df_ohlcv.iloc[i:i + self.warmup_len, :]
             index = self.data.iloc[-1].name
-            self.timestamp = self.data.iloc[-1][0]
-            new_data = self.data.iloc[:-1]              
+            new_data = self.data.iloc[-1:]              
             
             # action is either the(only) key of self.timeframe_info dictionary, which is a single timeframe string
             # or "1m" when minute granularity is needed - multiple timeframes or self.minute_granularity = True
@@ -190,10 +191,8 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
                 if self.timeframes_sorted != None:             
                     t = find_timeframe_string(t)                
                 
-                # replace latest candle if timestamp is same or append               
-                if self.timeframe_data[t].iloc[-1].name == new_data.iloc[0].name:
-                    self.timeframe_data[t] = pd.concat([self.timeframe_data[t][:-1], new_data])
-                else:
+                # Append the latest candle if new              
+                if self.timeframe_data[t].iloc[-1].name != new_data.iloc[0].name:
                     self.timeframe_data[t] = pd.concat([self.timeframe_data[t], new_data])      
 
                 # exclude current candle data and store partial candle data                
@@ -237,6 +236,7 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
                     self.index = index    
 
                 #self.eval_sltp()
+                self.timestamp = re_sample_data.iloc[-1].name.isoformat().replace("T"," ")
                 self.strategy(t, open, close, high, low, volume)      
                 self.timeframe_info[t]['last_action_time'] = re_sample_data.iloc[-1].name             
 
