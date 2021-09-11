@@ -233,14 +233,15 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
                                 'close': close
                                 }
             
-                    self.index = index    
+                    self.index = index
+                    self.balance_history.append((self.get_balance() - self.start_balance) / 100000000 * self.get_market_price())    
 
                 #self.eval_sltp()
                 self.timestamp = re_sample_data.iloc[-1].name.isoformat().replace("T"," ")
                 self.strategy(t, open, close, high, low, volume)      
                 self.timeframe_info[t]['last_action_time'] = re_sample_data.iloc[-1].name             
 
-                self.balance_history.append((self.get_balance() - self.start_balance)) #/ 100000000 * self.get_market_price())
+                #self.balance_history.append((self.get_balance() - self.start_balance)) #/ 100000000 * self.get_market_price())
                 #self.eval_exit()
                 #self.eval_sltp()
 
