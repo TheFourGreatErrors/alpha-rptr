@@ -257,20 +257,30 @@ class CandleTester(Bot):
 # Candle tester for multiple timeframes
 class CandleTesterMult(Bot):
     def __init__(self):
-        Bot.__init__(self, ['3m', '5m', '45m', '2h'])
+        Bot.__init__(self, ['5m', '15m', '4h', '1d'])
+
+        self.ohlcv = {}
+
+        for i in self.bin_size:
+            self.ohlcv[i] = open(f"ohlcv_{i}.csv", "w")
+            self.ohlcv[i].write("time,open,high,low,close,volume\n") #header
 
     # this is for parameter optimization in hyperopt mode
     def options(self):
         return {}
 
     def strategy(self, action, open, close, high, low, volume):
-        logger.info(f"timeframe: {action}")
+        logger.info(f"---------------------------")
+        logger.info(f"Action: {action}")
+        logger.info(f"---------------------------")
+        logger.info(f"time: {self.exchange.timestamp}")
         logger.info(f"open: {open[-1]}")
         logger.info(f"high: {high[-1]}")
         logger.info(f"low: {low[-1]}")
         logger.info(f"close: {close[-1]}")
-        logger.info(f"volume: {volume[-1]}")
-
+        logger.info(f"volume: {volume[-1]}") 
+        logger.info(f"---------------------------")
+        self.ohlcv[action].write(f"{self.exchange.timestamp},{open[-1]},{high[-1]},{low[-1]},{close[-1]},{volume[-1]}\n")
 
 # sample strategy
 class Sample(Bot):
