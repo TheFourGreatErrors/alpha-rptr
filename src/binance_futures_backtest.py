@@ -163,7 +163,7 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
             self.draw_down_history.append(self. max_draw_down_session_perc)
 
         for i in range(len(self.df_ohlcv) - self.warmup_len):
-            self.data = self.df_ohlcv.iloc[i:i + self.warmup_len, :]
+            self.data = self.df_ohlcv.iloc[i:i + self.warmup_len + 1, :]
             index = self.data.iloc[-1].name
             new_data = self.data.iloc[-1:]              
             
@@ -184,7 +184,7 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
             if self.timeframes_sorted == False:
                 timeframes_to_update.sort(reverse=False)
             
-            logger.info(f"timefeames to update: {timeframes_to_update}")        
+            # logger.info(f"timefeames to update: {timeframes_to_update}")        
 
             for t in timeframes_to_update:
                 # Find timeframe string based on its minute count value
@@ -200,7 +200,7 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
                     else self.timeframe_data[t] # if a single timeframe is used without minute_granularity it already resampled the data after downloading it 
                 self.timeframe_info[t]['partial_candle'] = re_sample_data.iloc[-1].values # store partial candle data
                 re_sample_data = re_sample_data[:-1] # exclude current candle data
-                logger.info(f"{self.timeframe_info[t]['last_action_time']} : {self.timeframe_data[t].iloc[-1].name} : {re_sample_data.iloc[-1].name}")  
+                # logger.info(f"{self.timeframe_info[t]['last_action_time']} : {self.timeframe_data[t].iloc[-1].name} : {re_sample_data.iloc[-1].name}")  
 
                 if self.timeframe_info[t]["last_action_time"] is not None and \
                     self.timeframe_info[t]["last_action_time"] == re_sample_data.iloc[-1].name:
