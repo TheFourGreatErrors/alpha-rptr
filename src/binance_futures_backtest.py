@@ -196,7 +196,7 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
                     self.timeframe_data[t] = pd.concat([self.timeframe_data[t], new_data])      
 
                 # exclude current candle data and store partial candle data                
-                re_sample_data = resample(self.timeframe_data[t], t, minute_granularity=True if self.minute_granularity else False) if self.minute_granularity \
+                re_sample_data = resample(self.timeframe_data[t], t, minute_granularity=True if self.minute_granularity else False) if self.minute_granularity and t != '1m' \
                     else self.timeframe_data[t] # if a single timeframe is used without minute_granularity it already resampled the data after downloading it 
                 self.timeframe_info[t]['partial_candle'] = re_sample_data.iloc[-1].values # store partial candle data
                 re_sample_data = re_sample_data[:-1] # exclude current candle data
