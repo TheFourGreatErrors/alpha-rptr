@@ -1050,9 +1050,14 @@ class BinanceFutures:
 
         if self.is_running:
             self.ws = BinanceFuturesWs(account=self.account, pair=self.pair, test=self.demo)                        
-            if len(self.bin_size) > 0:
-                for t in self.bin_size:                                        
-                    self.ws.bind(allowed_range_minute_granularity[t][0] if self.minute_granularity else allowed_range[t][0] \
+
+            if len(self.bin_size) > 1:   
+                self.minute_granularity=True  
+
+            if self.minute_granularity==True and '1m' not in self.bin_size:
+                self.bin_size.append('1m')                                   
+            
+            self.ws.bind('1m' if self.minute_granularity else allowed_range[bin_size[0]][0] \
                         , self.__update_ohlcv)                   
             self.ws.bind('instrument', self.__on_update_instrument)
             self.ws.bind('wallet', self.__on_update_wallet)
