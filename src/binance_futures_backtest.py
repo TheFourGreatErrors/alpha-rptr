@@ -152,7 +152,8 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
                 self.timeframe_info[t] = {
                                             "allowed_range": allowed_range_minute_granularity[t][0] if self.minute_granularity else self.bin_size[0], #allowed_range[t][0],
                                             "ohlcv": self.timeframe_data[t][:-1], # Dataframe with closed candles,
-                                            "last_action_index": math.ceil(self.warmup_len / allowed_range_minute_granularity[t][3])
+                                            "last_action_index": math.ceil(self.warmup_len / allowed_range_minute_granularity[t][3]) if self.minute_granularity \
+                                                else self.warmup_len
                                         }                     
 
         #logger.info(f"timeframe info: {self.timeframe_info}")
