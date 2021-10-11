@@ -257,7 +257,7 @@ class CandleTester(Bot):
 # Candle tester for multiple timeframes
 class CandleTesterMult(Bot):
     def __init__(self):
-        Bot.__init__(self, ['5m', '15m', '4h', '1d'])
+        Bot.__init__(self, ['5m', '15m', '4h'])
 
         self.ohlcv = {}
 
@@ -270,6 +270,10 @@ class CandleTesterMult(Bot):
         return {}
 
     def strategy(self, action, open, close, high, low, volume):
+
+        if action not in ['5m', '15m', '4h']:
+            return
+
         logger.info(f"---------------------------")
         logger.info(f"Action: {action}")
         logger.info(f"---------------------------")
