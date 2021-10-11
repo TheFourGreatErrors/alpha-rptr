@@ -42,7 +42,7 @@ class Doten(Bot):
         self.exchange.entry("Short", False, round(lot / 2), stop=dn)
 
 
-# SMA CrossOver
+# SMA CrossOver with Callbacks
 class SMA(Bot):
     def __init__(self):
         Bot.__init__(self, '2h')
@@ -61,10 +61,17 @@ class SMA(Bot):
         slow_sma = sma(close, slow_len)
         golden_cross = crossover(fast_sma, slow_sma)
         dead_cross = crossunder(fast_sma, slow_sma)
+
+        def entry_callback(avg_price=close[-1]):
+            long = True if self.exchange.get_position_size() > 0 else False
+            logger.info(f"{'Long' if long else 'Short'} Entry Order Successful")
+
         if golden_cross:
-            self.exchange.entry("Long", True, lot)
+            self.exchange.entry("Long", True, lot, \
+                round_decimals=3, callback=entry_callback)
         if dead_cross:
-            self.exchange.entry("Short", False, lot)
+            self.exchange.entry("Short", False, lot, \
+                round_decimals=3, callback=entry_callback)
 
 
 # Rci
