@@ -38,7 +38,7 @@ class FatalError(Exception):
     pass
 
 def ord_suffix():
-    return "_" + base64.b64encode(uuid.uuid4().bytes).decode('utf-8').rstrip('=\n')
+    return "_" + uuid.uuid4().hex[:15]
 
 def load_data(file):
     """

@@ -56,7 +56,7 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
         """
         self.pair = pair
         BinanceFuturesStub.__init__(self, account, pair=self.pair, threading=False)
-        self.enable_trade_log = False
+        self.enable_trade_log = True
         self.start_balance = self.get_balance()
 
     def get_market_price(self):
@@ -73,7 +73,7 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
         """
         return self.time    
     
-    def entry(self, id, long, qty, limit=0, stop=0, post_only=False, when=True, round_decimals=3):
+    def entry(self, id, long, qty, limit=0, stop=0, post_only=False, when=True, round_decimals=3, callback=None):
         """
         places an entry order, works equivalent to tradingview pine script implementation
         https://jp.tradingview.com/study-script-reference/#fun_strategy{dot}entry
@@ -84,11 +84,13 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
         :param stop: Stop limit
         :param post_only: Post only        
         :param when: Do you want to execute the order or not - True for live trading
+        :round_decimals: Round qty to decimals
+        :callback
         :return:
         """
-        BinanceFuturesStub.entry(self, id, long, qty, limit, stop, post_only, when, round_decimals)
+        BinanceFuturesStub.entry(self, id, long, qty, limit, stop, post_only, when, round_decimals, callback)
 
-    def commit(self, id, long, qty, price, need_commission=False):
+    def commit(self, id, long, qty, price, need_commission=False, callback=None):
         """
         Commit
         :param id: order
@@ -96,31 +98,32 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
         :param qty: quantity
         :param price: price
         :param need_commission: use commision or not?
+        :param callback
         """
-        BinanceFuturesStub.commit(self, id, long, qty, price, need_commission)
+        BinanceFuturesStub.commit(self, id, long, qty, price, need_commission, callback)
 
         if long:
             self.buy_signals.append(self.index)
         else:
             self.sell_signals.append(self.index)
 
-    def close_all(self):
+    def close_all(self, callback=None):
         """
         Close all positions
         """
         if self.get_position_size() == 0:
             return 
-        BinanceFuturesStub.close_all(self)
+        BinanceFuturesStub.close_all(self, callback)
         self.close_signals.append(self.index)
     
-    def close_all_at_price(self, price):
+    def close_all_at_price(self, price, callback=None):
         """
         close the current position at price, for backtesting purposes its important to have a function that closes at given price
         :param price: price
         """
         if self.get_position_size() == 0:
             return 
-        BinanceFuturesStub.close_all_at_price(self, price)
+        BinanceFuturesStub.close_all_at_price(self, price, callback)
         self.close_signals.append(self.index)        
 
     def __crawler_run(self):
