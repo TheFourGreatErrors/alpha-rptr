@@ -293,7 +293,7 @@ class BinanceFuturesStub(BinanceFutures):
 
         if (self.get_position_size() > 0 >= order_qty) or (self.get_position_size() < 0 < order_qty):
 
-            closing_qty = order_qty if abs(order_qty) < abs(self.get_position_size()) else self.get_position_size()
+            closing_qty = -order_qty if abs(order_qty) < abs(self.get_position_size()) else self.get_position_size()
 
             if self.get_position_avg_price() == price:
                 close_rate = -commission
