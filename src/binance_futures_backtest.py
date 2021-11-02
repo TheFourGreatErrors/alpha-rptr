@@ -4,6 +4,7 @@ import os, tempfile
 import time
 from datetime import timedelta, datetime, timezone
 import dateutil.parser
+import math
 
 import pandas as pd
 
@@ -145,14 +146,14 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
         if self.timeframe_data is None: 
             self.timeframe_data = {}          
             for t in self.bin_size:            
-                self.timeframe_data[t] = resample(self.df_ohlcv.iloc[:self.warmup_len], t, minute_granularity=self.minute_granularity) if self.minute_granularity \
-                    else self.df_ohlcv.iloc[:self.warmup_len] # if a single timeframe is used without minute_granularity it already resampled the data after downloading it 
+                self.timeframe_data[t] = resample(self.df_ohlcv, t, minute_granularity=self.minute_granularity) if self.minute_granularity \
+                    else self.df_ohlcv # if a single timeframe is used without minute_granularity it already resampled the data after downloading it 
+
                 self.timeframe_info[t] = {
                                             "allowed_range": allowed_range_minute_granularity[t][0] if self.minute_granularity else self.bin_size[0], #allowed_range[t][0],
-                                            "ohlcv": self.timeframe_data[t][:-1], # Dataframe with closed candles
-                                            "last_action_time": None,#self.timeframe_data[bin_size].iloc[-1].name,
-                                            "last_candle": None,#self.timeframe_data[bin_size].iloc[-2].values,
-                                            "partial_candle": None#self.timeframe_data[bin_size].iloc[-1].values  # Store last incomplete candle
+                                            "ohlcv": self.timeframe_data[t][:-1], # Dataframe with closed candles,
+                                            "last_action_index": math.ceil(self.warmup_len / allowed_range_minute_granularity[t][3]) if self.minute_granularity \
+                                                else self.warmup_len
                                         }                     
 
         #logger.info(f"timeframe info: {self.timeframe_info}")
@@ -161,65 +162,47 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
             self.draw_down_history.append(self. max_draw_down_session_perc)
 
         for i in range(len(self.df_ohlcv) - self.warmup_len):
-            self.data = self.df_ohlcv.iloc[i:i + self.warmup_len, :]
+            self.data = self.df_ohlcv.iloc[i:i + self.warmup_len + 1, :]
             index = self.data.iloc[-1].name
-            self.timestamp = self.data.iloc[-1][0]
             new_data = self.data.iloc[-1:]              
             
             # action is either the(only) key of self.timeframe_info dictionary, which is a single timeframe string
             # or "1m" when minute granularity is needed - multiple timeframes or self.minute_granularity = True
             action = "1m" if (self.minute_granularity or len(self.timeframe_info) > 1) else self.bin_size[0]
             
-            timeframes_to_update = []
+            timeframes_to_process = []
 
             for t in self.timeframe_info:            
                 if self.timeframe_info[t]["allowed_range"] == action:
                     # append minute count of a timeframe when sorting when sorting is need otherwise just add a string timeframe
-                    timeframes_to_update.append(allowed_range_minute_granularity[t][3]) if self.timeframes_sorted != None else timeframes_to_update.append(t)  
+                    timeframes_to_process.append(allowed_range_minute_granularity[t][3]) if self.timeframes_sorted != None else timeframes_to_process.append(t)  
 
             # Sorting timeframes that will be updated
             if self.timeframes_sorted == True:
-                timeframes_to_update.sort(reverse=True)
+                timeframes_to_process.sort(reverse=True)
             if self.timeframes_sorted == False:
-                timeframes_to_update.sort(reverse=False)
+                timeframes_to_process.sort(reverse=False)
             
-            logger.info(f"timefeames to update: {timeframes_to_update}")        
+            # logger.info(f"timefeames to update: {timeframes_to_update}")        
 
-            for t in timeframes_to_update:
+            for t in timeframes_to_process:
                 # Find timeframe string based on its minute count value
                 if self.timeframes_sorted != None:             
-                    t = find_timeframe_string(t)                
+                    t = find_timeframe_string(t)  
+
+                last_action_index = self.timeframe_info[t]["last_action_index"]              
                 
-                # replace latest candle if timestamp is same or append               
-                if self.timeframe_data[t].iloc[-1].name == new_data.iloc[0].name:
-                    self.timeframe_data[t] = pd.concat([self.timeframe_data[t][:-1], new_data])
-                else:
-                    self.timeframe_data[t] = pd.concat([self.timeframe_data[t], new_data])      
+                # Append the latest candle if new              
+                if self.timeframe_data[t].iloc[last_action_index].name != new_data.iloc[0].name:
+                    continue     
 
-                # exclude current candle data and store partial candle data                
-                re_sample_data = resample(self.timeframe_data[t], t, minute_granularity=True if self.minute_granularity else False) if self.minute_granularity \
-                    else self.timeframe_data[t] # if a single timeframe is used without minute_granularity it already resampled the data after downloading it 
-                self.timeframe_info[t]['partial_candle'] = re_sample_data.iloc[-1].values # store partial candle data
-                re_sample_data = re_sample_data[:-1] # exclude current candle data
-                logger.info(f"{self.timeframe_info[t]['last_action_time']} : {self.timeframe_data[t].iloc[-1].name} : {re_sample_data.iloc[-1].name}")  
-
-                if self.timeframe_info[t]["last_action_time"] is not None and \
-                    self.timeframe_info[t]["last_action_time"] == re_sample_data.iloc[-1].name:
-                    continue
-
-                # The last candle in the buffer needs to be preserved 
-                # while resetting the buffer as it may be incomlete
-                # or contains latest data from WS
-                self.timeframe_data[t] = pd.concat([re_sample_data.iloc[-1 * self.ohlcv_len:, :], self.timeframe_data[t].iloc[[-1]]]) 
-                #store ohlcv dataframe to timeframe_info dictionary
-                self.timeframe_info[t]["ohlcv"] = re_sample_data
-                #logger.info(f"Buffer Right Edge: {self.timeframe_data[t].iloc[-1]}")
+                tf_ohlcv_data = self.timeframe_data[t].iloc[last_action_index-self.ohlcv_len : last_action_index+1]
                 
-                close = re_sample_data['close'].values
-                open = re_sample_data['open'].values
-                high = re_sample_data['high'].values
-                low = re_sample_data['low'].values
-                volume = re_sample_data['volume'].values
+                close = tf_ohlcv_data['close'].values
+                open = tf_ohlcv_data['open'].values
+                high = tf_ohlcv_data['high'].values
+                low = tf_ohlcv_data['low'].values
+                volume = tf_ohlcv_data['volume'].values
 
                 if (t == "1m" and self.minute_granularity) or self.minute_granularity != True:
                     if self.get_position_size() > 0 and low[-1] > self.get_trail_price():
@@ -238,8 +221,9 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
                     self.balance_history.append((self.get_balance() - self.start_balance) / 100000000 * self.get_market_price())    
 
                 #self.eval_sltp()
+                self.timestamp = tf_ohlcv_data.iloc[-1].name.isoformat().replace("T"," ")
                 self.strategy(t, open, close, high, low, volume)      
-                self.timeframe_info[t]['last_action_time'] = re_sample_data.iloc[-1].name             
+                self.timeframe_info[t]['last_action_index'] += 1           
 
                 #self.balance_history.append((self.get_balance() - self.start_balance)) #/ 100000000 * self.get_market_price())
                 #self.eval_exit()
