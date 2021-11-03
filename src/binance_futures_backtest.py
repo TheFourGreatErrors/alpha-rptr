@@ -218,7 +218,7 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
                                 }
             
                     self.index = index
-                    self.balance_history.append((self.get_balance() - self.start_balance) / 100000000 * self.get_market_price())    
+                    self.balance_history.append((self.get_balance() - self.start_balance)) #/ 100000000 * self.get_market_price())    
 
                 #self.eval_sltp()
                 self.timestamp = tf_ohlcv_data.iloc[-1].name.isoformat().replace("T"," ")
