@@ -109,7 +109,7 @@ class BinanceFuturesWs:
         def loop_function():
             while self.is_running:
                 client.stream_keepalive()
-                time.sleep(3480)
+                time.sleep(1920)
         timer = threading.Timer(10, loop_function)
         timer.daemon = True
         if listenKey is not None:  
