@@ -7,6 +7,7 @@ import threading
 import time
 import traceback
 import urllib
+import requests
 
 import websocket
 from datetime import datetime
@@ -55,6 +56,8 @@ class BinanceFuturesWs:
     # Notification destination listener
     handlers = {}
     listenKey = None
+    # Last Heartbeat
+    last_heartbeat = 0
     
     def __init__(self, account, pair, test=False):
         """
@@ -124,6 +127,13 @@ class BinanceFuturesWs:
                         self.listenKey = listenKey
                         self.ws.close()
 
+                    # Send a heartbeat to Healthchecks.io
+                    try:
+                        requests.get(conf['healthchecks.io'][self.account]['listenkey_heartbeat'])
+                        #logger.info("Listen Key Heart Beat sent!") 
+                    except Exception as e:
+                        pass
+
                     time.sleep(600)
                 except Exception as e:
                     logger.error(f"Keep Alive Error - {str(e)}")
@@ -169,6 +179,15 @@ class BinanceFuturesWs:
                 datas = obj['data']                
                 
                 if e.startswith("kline"):
+                    current_minute = datetime.now().time().minute
+                    if self.last_heartbeat != current_minute:
+                        # Send a heartbeat to Healthchecks.io
+                        try:
+                            requests.get(conf['healthchecks.io'][self.account]['websocket_heartbeat'])
+                            #logger.info("WS Heart Beat sent!") 
+                            self.last_heartbeat = current_minute
+                        except Exception as e:
+                            pass
                     data = [{
                         "timestamp" : datas['k']['T'],
                         "high" : float(datas['k']['h']),

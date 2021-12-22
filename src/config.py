@@ -11,5 +11,11 @@ config = {
                     "bitmextest1":{"API_KEY": "", "SECRET_KEY": ""},
                     "bitmextest2": {"API_KEY": "", "SECRET_KEY": ""}
                     },
-    "line_apikey": {"API_KEY": ""}                       
+    "line_apikey": {"API_KEY": ""},
+    "healthchecks.io": {
+                    "binanceaccount1": {
+                        "websocket_heartbeat": "",
+                        "listenkey_heartbeat": ""
+                    }
+    }                       
 }
