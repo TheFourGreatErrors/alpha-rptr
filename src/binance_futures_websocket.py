@@ -48,6 +48,8 @@ class BinanceFuturesWs:
     pair= 'BTCUSDT'
     # testnet
     testnet = False
+    #domain
+    domain = None
     # condition that the bot runs on.
     is_running = True
     # Notification destination listener
@@ -62,11 +64,11 @@ class BinanceFuturesWs:
         self.pair = pair.lower()
         self.testnet = test
         if test:
-            domain = 'testnet.bitmex.com'
+            self.domain = 'testnet.binancefuture.com'
         else:
-            domain = 'fstream.binance.com'
+            self.domain = 'fstream.binance.com'
         self.__get_auth_user_data_streams()
-        self.endpoint = 'wss://' + domain + '/stream?streams=' + self.listenKey + '/' + self.pair + '@ticker/' + self.pair + '@kline_1m/' \
+        self.endpoint = 'wss://' + self.domain + '/stream?streams=' + self.listenKey + '/' + self.pair + '@ticker/' + self.pair + '@kline_1m/' \
                         + self.pair + '@kline_5m/' + self.pair + '@kline_30m/' \
                         + self.pair + '@kline_1h/'  + self.pair + '@kline_1d/' + self.pair + '@kline_1w/' \
                         + self.pair + '@depth20@100ms/' + self.pair + '@bookTicker'
@@ -96,8 +98,7 @@ class BinanceFuturesWs:
         """
         start the websocket.
         """
-        while self.is_running:
-            self.ws.run_forever()
+        self.ws.run_forever()
     
     def __keep_alive_user_datastream(self, listenKey):
         """
@@ -108,8 +109,29 @@ class BinanceFuturesWs:
         client = Client(api_key, api_secret)
         def loop_function():
             while self.is_running:
-                client.stream_keepalive()
-                time.sleep(3480)
+                try:
+                    # retries 10 times over 486secs
+                    # before raising error/exception
+                    # check binance_futures_api.py line 113
+                    # for implementation details
+
+                    #client.stream_keepalive()
+                    listenKey = client.stream_get_listen_key() 
+
+                    if self.listenKey != listenKey:
+                        logger.info("listenKey Changed!")
+                        notify("listenKey Changed!")
+                        self.listenKey = listenKey
+                        self.ws.close()
+
+                    time.sleep(600)
+                except Exception as e:
+                    logger.error(f"Keep Alive Error - {str(e)}")
+                    #logger.error(traceback.format_exc())
+
+                    notify(f"Keep Alive Error - {str(e)}")
+                    #notify(traceback.format_exc())
+
         timer = threading.Timer(10, loop_function)
         timer.daemon = True
         if listenKey is not None:  
@@ -124,11 +146,11 @@ class BinanceFuturesWs:
         :param ws:
         :param message:
         """
-        logger.error(message)
-        logger.error(traceback.format_exc())
+        logger.error(f"WebSocket On Error: {message}")
+        #logger.error(traceback.format_exc())
 
-        notify(f"Error occurred. {message}")
-        notify(traceback.format_exc())
+        notify(f"WebSocket On Error: {message}")
+        #notify(traceback.format_exc())
 
     def __on_message(self, ws, message):
         """
@@ -175,7 +197,7 @@ class BinanceFuturesWs:
                     self.__emit('close', action, datas)                    
                     self.__get_auth_user_data_streams()
                     logger.info(f"listenKeyExpired!!!")
-                    #self.__on_close(ws)
+                    self.ws.close()
 
             elif not 'e' in obj['data']:
                 e = 'IndividualSymbolBookTickerStreams'
@@ -206,9 +228,15 @@ class BinanceFuturesWs:
             self.handlers['close']()
 
         if self.is_running:
-            logger.info("Websocket restart")
-            notify(f"Websocket restart")
+            logger.info(f"Websocket On Close: Restart")
+            notify(f"Websocket On Close: Restart")
 
+            time.sleep(60)
+            self.endpoint = 'wss://' + self.domain + '/stream?streams=' + self.listenKey + '/' + self.pair + '@ticker/' + self.pair + '@kline_1m/' \
+                    + self.pair + '@kline_5m/' + self.pair + '@kline_30m/' \
+                    + self.pair + '@kline_1h/'  + self.pair + '@kline_1d/' + self.pair + '@kline_1w/' \
+                    + self.pair + '@depth20@100ms/' + self.pair + '@bookTicker'
+        
             self.ws = websocket.WebSocketApp(self.endpoint,
                                  on_message=self.__on_message,
                                  on_error=self.__on_error,
