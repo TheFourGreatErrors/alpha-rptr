@@ -30,6 +30,8 @@ class BinanceFutures:
     account = ''
     # Pair
     pair = 'BTCUSDT'
+    # Positions in USDT?
+    qty_in_usdt = False
     # wallet
     wallet = None
     # Price
@@ -164,6 +166,18 @@ class BinanceFutures:
             return float(balances[0]["balance"])
         else: return None
 
+    def get_available_balance(self):
+        """
+        get balance
+        :return:
+        """
+        self.__init_client()
+        ret = self.get_margin()
+
+        if len(ret) > 0:
+            balances = [p for p in ret if p["asset"] == "USDT"]            
+            return float(balances[0]["availableBalance"])
+        else: return None
 
     def get_margin(self):
         """
