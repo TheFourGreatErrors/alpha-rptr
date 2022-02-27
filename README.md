@@ -14,7 +14,7 @@ The author is not responsible for any damage caused by this software. Be careful
 - all types of orders supported including majority of parameters/combinations - if you miss any, you can request
 - Supports custom strategies
 - Backtesting
-- Testnet only for BitMEX and Binance Futures
+- Testnet for BitMEX and Binance Futures
 - Stub trading (paper trading)
 - TA-lib indicators, you can request an indicator if its missing
 - Very easy strategy implementation, should be easy enough to migrate most pine script(tradingview) strategies - see Sample strategy
@@ -26,6 +26,8 @@ The author is not responsible for any damage caused by this software. Be careful
 3. RCI
 4. Open Close Cross Strategy
 5. Trading View Strategy (implemented but not supported in the current implementation via gmail) - maybe in the future todo tradingview webhooks implementation, until then this project is recommended for tradingview webhooks trading: https://github.com/CryptoMF/frostybot
+
+It is not recommended to use these strategies live as they are here mostly for reference.
 
 ## Requirements
 
@@ -73,7 +75,7 @@ config = {
                     "binancetest2": {"API_KEY": "", "SECRET_KEY": ""}
                     },
     "bitmex_keys": {
-                    "bitmexaccount1":{"API_KEY": "", "SECRET_KEY": ""},
+                    "bitmexaccount1": {"API_KEY": "", "SECRET_KEY": ""},
                     "bitmexaccount2": {"API_KEY": "", "SECRET_KEY": ""}
                     },
     "bitmex_test_keys": {
@@ -155,16 +157,21 @@ class Sample(Bot):
         # this is your strategy function
         # use action argument for mutli timeframe implementation, since a timeframe string will be passed as `action`        
         # get lot or set your own value which will be used to size orders 
-        # don't forget to round
-        # careful default lot is about 20x your account size !!!
-        lot = round(self.exchange.get_lot(), 3)
+        # don't forget to round properly
+        # careful default lot is about 20x your account size !!! (binance futures)
+        lot = round(self.exchange.get_lot() / 20, 3)
+
+        # Example of a callback function, which we can utilize for order execution etc.
+        def entry_callback(avg_price=close[-1]):
+            long = True if self.exchange.get_position_size() > 0 else False
+            logger.info(f"{'Long' if long else 'Short'} Entry Order Successful")
 
         # if you are using minute granularity or multiple timeframes its important to use `action` as its going pass a timeframe string
         # this way you can separate functionality and use proper ohlcv timeframe data that get passed each time
-        if action is '1m':
-            #if you use minute_granularity you can make use of 1m timeframe various operations
+        if action == '1m':
+            #if you use minute_granularity you can make use of 1m timeframe for various operations
             pass
-        if action is '15m':
+        if action == '15m':
             # indicator lengths
             fast_len = self.input('fast_len', int, 6)
             slow_len = self.input('slow_len', int, 18)
@@ -188,13 +195,13 @@ class Sample(Bot):
             # order execution logic
             if long_entry_condition:
                 # entry - True means long for every other order other than entry use self.exchange.order() function
-                self.exchange.entry("Long", True, lot/20)
+                self.exchange.entry("Long", True, lot, callback=entry_callback)
                 # stop loss hardcoded inside this class
                 #self.exchange.order("SLLong", False, lot/20, stop=sl_long, reduce_only=True, when=False)
                 
             if short_entry_condition:
                 # entry - False means short for every other order other than entry use self.exchange.order() function
-                self.exchange.entry("Short", False, lot/20)
+                self.exchange.entry("Short", False, lot, callback=entry_callback)
                 # stop loss hardcoded inside this class
                 # self.exchange.order("SLShort", True, lot/20, stop=sl_short, reduce_only=True, when=False)
             
@@ -211,13 +218,7 @@ class Sample(Bot):
             logger.info(f"high: {high[-1]}")
             logger.info(f"low: {low[-1]}")
             logger.info(f"close: {close[-1]}")
-            logger.info(f"volume: {volume[-1]}")
-            #second last candle OHLCV values
-            logger.info(f"second last open: {open[-2]}")
-            logger.info(f"second last high: {high[-2]}")
-            logger.info(f"second last low: {low[-2]}")
-            logger.info(f"second last close: {close[-2]}")
-            logger.info(f"second last volume: {volume[-2]}")
+            logger.info(f"volume: {volume[-1]}")            
             # log history entry signals
             #logger.info(f"long_entry_signal_history: {self.long_entry_signal_history}")
             #logger.info(f"short_entry_signal_history: {self.short_entry_signal_history}")
@@ -243,6 +244,22 @@ https://discord.gg/ah3MGeN
 
 if you find this software useful and want to support the development, please feel free to donate.
 
-BTC address: 
+BTC address: 3MJsicsG6C4L7iZyVhEpVsBeEMUxLF3Qq2
 
-ETH address: 
+ETH address: 0x24291B6F1e3e42D73280Dac54d7251482f5d4D99
+
+DOGE adderess: DLWdyMihy6WTvUkdhiQm7HPCTais5QFRJQ
+
+BNB address: bnb1kfmd03rzr7xekrrdmca92qyasv3kx2vfn7tzk6
+
+Tether(BSC): 0x24291B6F1e3e42D73280Dac54d7251482f5d4D99
+
+USDC(BSC): 0x24291B6F1e3e42D73280Dac54d7251482f5d4D99
+
+SOL address: HARKcAFct9tc3L4E7vt2sDb2jkqBfZz1aaaPFBck5s6T
+
+LTC address: LZo5Q7pabhYt5Zhpt9HC3eHDG3W5nZqGhU
+
+XRP address: rLMGyMAhrDDAh3de2yhzDFwidbPPE7ifkt
+
+MATIC address: 0x24291B6F1e3e42D73280Dac54d7251482f5d4D99

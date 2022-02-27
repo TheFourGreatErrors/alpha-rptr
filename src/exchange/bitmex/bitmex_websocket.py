@@ -57,7 +57,7 @@ class BitMexWs:
             domain = 'www.bitmex.com'
         self.endpoint = 'wss://' + domain + '/realtime?subscribe=tradeBin1m:' + self.pair + ',' \
                         'tradeBin5m:' + self.pair + ',tradeBin1h:' + self.pair + ',tradeBin1d:' + self.pair + ',instrument:' + self.pair + ',' \
-                        'margin,position:' + self.pair + ',wallet,orderBookL2:' + self.pair 
+                        'margin,position,order,execution:' + self.pair + ',wallet,orderBookL2:' + self.pair #+ ',order:' + self.pair + ',execution:' + self.pair 
         self.ws = websocket.WebSocketApp(self.endpoint,
                              on_message=self.__on_message,
                              on_error=self.__on_error,
@@ -116,7 +116,7 @@ class BitMexWs:
             if 'table' in obj:
                 if len(obj['data']) <= 0:
                     return
-
+                
                 table = obj['table']
                 action = obj['action']
                 data = obj['data']
@@ -145,10 +145,16 @@ class BitMexWs:
                 elif table.startswith("position"):
                     self.__emit(table, action, data[0])
 
+                elif table == "order":
+                    self.__emit(table, action, data[0])
+
+                elif table.startswith("execution"):
+                    self.__emit(table, action, data[0])
+
                 elif table.startswith("wallet"):
                     self.__emit(table, action, data[0])
 
-                elif table.startswith("orderBookL2"):
+                elif table.startswith("orderBookL2"):                          
                     self.__emit(table, action, data)
 
         except Exception as e:
@@ -210,9 +216,13 @@ class BitMexWs:
             self.handlers['margin'] = func
         if key == 'position':
             self.handlers['position'] = func
+        if key == 'order':
+            self.handlers['order'] = func
+        if key == 'execution':
+            self.handlers['execution'] = func
         if key == 'wallet':
             self.handlers['wallet'] = func
-        if key == 'orderBookL2':
+        if key == 'orderBookL2':            
             self.handlers['orderBookL2'] = func
 
     def close(self):

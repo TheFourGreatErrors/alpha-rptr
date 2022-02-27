@@ -9,12 +9,13 @@ import time
 import numpy
 from hyperopt import hp
 
-from src import highest, lowest, avg_price, typ_price, atr, MAX, sma, bbands, macd, adx, sar, cci, rsi, crossover, crossunder, last, \
-    rci, double_ema, ema, triple_ema, wma, ssma, hull, logger, notify
-from src.bitmex import BitMex
-from src.binance_futures import BinanceFutures
-from src.bitmex_stub import BitMexStub
-from src.binance_futures_stub import BinanceFuturesStub
+from src import logger, notify
+from src.indicators import highest, lowest, med_price, avg_price, typ_price, atr, MAX, sma, bbands, macd, adx, sar, cci, rsi, crossover, crossunder, \
+    last, rci, double_ema, ema, triple_ema, wma, ssma, hull, supertrend, rsx, donchian
+from src.exchange.bitmex.bitmex import BitMex
+from src.exchange.binance_futures.binance_futures import BinanceFutures
+from src.exchange.bitmex.bitmex_stub import BitMexStub
+from src.exchange.binance_futures.binance_futures_stub import BinanceFuturesStub
 from src.bot import Bot
 from src.gmail_sub import GmailSub
 
@@ -30,17 +31,18 @@ class Doten(Bot):
         }
 
     def strategy(self, action, open, close, high, low, volume):
-        lot = self.exchange.get_lot()
-        length = self.input('length', int, 9)
-        up = last(highest(high, length))
-        dn = last(lowest(low, length))
-        self.exchange.plot('up', up, 'b')
-        self.exchange.plot('dn', dn, 'r')
-        self.exchange.entry("Long", True, round(lot / 2), stop=up)
-        self.exchange.entry("Short", False, round(lot / 2), stop=dn)
+        if action == '2h':
+            lot = self.exchange.get_lot()
+            length = self.input('length', int, 9)
+            up = last(highest(high, length))
+            dn = last(lowest(low, length))
+            self.exchange.plot('up', up, 'b')
+            self.exchange.plot('dn', dn, 'r')
+            self.exchange.entry("Long", True, round(lot / 20), stop=up)
+            self.exchange.entry("Short", False, round(lot / 20), stop=dn)
 
 
-# SMA CrossOver
+# SMA CrossOver with Callbacks
 class SMA(Bot):
     def __init__(self):
         Bot.__init__(self, ['2h'])
@@ -51,7 +53,7 @@ class SMA(Bot):
             'slow_len': hp.quniform('slow_len', 1, 30, 1),
         }
 
-    def strategy(self, open, close, high, low, volume):
+    def strategy(self, action, open, close, high, low, volume):
         lot = self.exchange.get_lot()
         fast_len = self.input('fast_len', int, 9)
         slow_len = self.input('slow_len', int, 16)
@@ -59,10 +61,17 @@ class SMA(Bot):
         slow_sma = sma(close, slow_len)
         golden_cross = crossover(fast_sma, slow_sma)
         dead_cross = crossunder(fast_sma, slow_sma)
+
+        def entry_callback(avg_price=close[-1]):
+            long = True if self.exchange.get_position_size() > 0 else False
+            logger.info(f"{'Long' if long else 'Short'} Entry Order Successful")
+
         if golden_cross:
-            self.exchange.entry("Long", True, lot)
+            self.exchange.entry("Long", True, lot, \
+                round_decimals=3, callback=entry_callback)
         if dead_cross:
-            self.exchange.entry("Short", False, lot)
+            self.exchange.entry("Short", False, lot, \
+                round_decimals=3, callback=entry_callback)
 
 
 # Rci
@@ -251,7 +260,7 @@ class CandleTester(Bot):
         logger.info(f"high: {high[-1]}")
         logger.info(f"low: {low[-1]}")
         logger.info(f"close: {close[-1]}")
-        logger.info(f"volume: {volume[-1]}")        
+        logger.info(f"volume: {volume[-1]}")          
 
 
 # Candle tester for multiple timeframes
@@ -286,6 +295,7 @@ class CandleTesterMult(Bot):
         logger.info(f"---------------------------")
         self.ohlcv[action].write(f"{self.exchange.timestamp},{open[-1]},{high[-1]},{low[-1]},{close[-1]},{volume[-1]}\n")
 
+
 # sample strategy
 class Sample(Bot):
     def __init__(self): 
@@ -302,16 +312,21 @@ class Sample(Bot):
         # this is your strategy function
         # use action argument for mutli timeframe implementation, since a timeframe string will be passed as `action`        
         # get lot or set your own value which will be used to size orders 
-        # don't forget to round
+        # don't forget to round properly
         # careful default lot is about 20x your account size !!!
-        lot = round(self.exchange.get_lot(), 3)
+        lot = round(self.exchange.get_lot() / 20, 3)
+
+        # Example of a callback function, which we can utilize for order execution etc.
+        def entry_callback(avg_price=close[-1]):
+            long = True if self.exchange.get_position_size() > 0 else False
+            logger.info(f"{'Long' if long else 'Short'} Entry Order Successful")
 
         # if you are using minute granularity or multiple timeframes its important to use `action` as its going pass a timeframe string
         # this way you can separate functionality and use proper ohlcv timeframe data that get passed each time
-        if action is '1m':
-            #if you use minute_granularity you can make use of 1m timeframe various operations
+        if action == '1m':
+            #if you use minute_granularity you can make use of 1m timeframe for various operations
             pass
-        if action is '15m':
+        if action == '15m':
             # indicator lengths
             fast_len = self.input('fast_len', int, 6)
             slow_len = self.input('slow_len', int, 18)
@@ -335,13 +350,13 @@ class Sample(Bot):
             # order execution logic
             if long_entry_condition:
                 # entry - True means long for every other order other than entry use self.exchange.order() function
-                self.exchange.entry("Long", True, lot/20)
+                self.exchange.entry("Long", True, lot, callback=entry_callback)
                 # stop loss hardcoded inside this class
                 #self.exchange.order("SLLong", False, lot/20, stop=sl_long, reduce_only=True, when=False)
                 
             if short_entry_condition:
                 # entry - False means short for every other order other than entry use self.exchange.order() function
-                self.exchange.entry("Short", False, lot/20)
+                self.exchange.entry("Short", False, lot, callback=entry_callback)
                 # stop loss hardcoded inside this class
                 # self.exchange.order("SLShort", True, lot/20, stop=sl_short, reduce_only=True, when=False)
             
@@ -358,13 +373,7 @@ class Sample(Bot):
             logger.info(f"high: {high[-1]}")
             logger.info(f"low: {low[-1]}")
             logger.info(f"close: {close[-1]}")
-            logger.info(f"volume: {volume[-1]}")
-            #second last candle OHLCV values
-            logger.info(f"second last open: {open[-2]}")
-            logger.info(f"second last high: {high[-2]}")
-            logger.info(f"second last low: {low[-2]}")
-            logger.info(f"second last close: {close[-2]}")
-            logger.info(f"second last volume: {volume[-2]}")
+            logger.info(f"volume: {volume[-1]}")            
             # log history entry signals
             #logger.info(f"long_entry_signal_history: {self.long_entry_signal_history}")
             #logger.info(f"short_entry_signal_history: {self.short_entry_signal_history}")

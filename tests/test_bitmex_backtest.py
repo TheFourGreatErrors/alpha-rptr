@@ -6,7 +6,7 @@ import tempfile
 import unittest
 
 from src import load_data
-from src.bitmex_backtest import BitMexBackTest
+from src.exchange.bitmex.bitmex_backtest import BitMexBackTest
 
 
 class TestBitMexBackTest(unittest.TestCase):
