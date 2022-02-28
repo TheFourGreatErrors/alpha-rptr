@@ -4,7 +4,7 @@ import unittest
 from datetime import datetime, timezone, timedelta
 
 from src import delta, allowed_range
-from src.bitmex import BitMex
+from src.exchange.bitmex.bitmex import BitMex
 
 
 class TestBitMex(unittest.TestCase):

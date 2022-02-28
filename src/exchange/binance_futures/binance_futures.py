@@ -1,102 +1,39 @@
 # coding: UTF-8
 
-import json
+#import json
 import math
-import os
+#import os
 import traceback
 from datetime import datetime, timezone
 import time
-#import threading
 
 import pandas as pd
 from bravado.exception import HTTPNotFound
 from pytz import UTC
 
-from src import logger, allowed_range, to_data_frame, \
-    resample, delta, FatalError, notify, ord_suffix
+from src import logger, allowed_range, allowed_range_minute_granularity, \
+    find_timeframe_string, to_data_frame, resample, delta, FatalError, notify, ord_suffix
 from src import retry_binance_futures as retry
 from src.config import config as conf
-
-from src.binance_futures_api import Client
-from src.binance_futures_websocket import BinanceFuturesWs
-
-
-# Class for production transaction
-from src.orderbook import OrderBook
+from src.exchange.binance_futures.binance_futures_api import Client
+from src.exchange.binance_futures.binance_futures_websocket import BinanceFuturesWs
 
 
-class BinanceFutures:
-    # Account
-    account = ''
-    # Pair
-    pair = 'BTCUSDT'
-    # wallet
-    wallet = None
-    # Price
-    market_price = 0
-    # Order update
-    order_update = None
-    # Order Update Log
-    order_update_log = True
-    # Position
-    position = None
-    # Position size
-    position_size = None
-    # Entry price
-    entry_price = None
-    # Margin
-    margin = None
-    # Account information
-    account_information = None
-    # Time Frame
-    bin_size = '1h'   
-    # Binance futures client
-    client = None
-    # Is bot running
-    is_running = True
-    # Bar crawler
-    crawler = None
-    # Strategy
-    strategy = None
+class BinanceFutures:   
+    # Positions in USDT?
+    qty_in_usdt = False    
+    # Use minute granularity?
+    minute_granularity = False
+    # Sort timeframes when multiple timeframes 
+    timeframes_sorted = True # True for higher first, False for lower first and None when off 
     # Enable log output
-    enable_trade_log = True
+    enable_trade_log = True   
+    # Order Update Log
+    order_update_log = True  
     # OHLCV length
-    ohlcv_len = 100
-    # OHLCV data
-    data = None    
-    # Profit target long and short for a simple limit exit strategy
-    sltp_values = {
-                    'profit_long': 0,
-                    'profit_short': 0,
-                    'stop_long': 0,
-                    'stop_short': 0,
-                    'eval_tp_next_candle': False,
-                    'profit_long_callback': None,
-                    'profit_short_callback': None,
-                    'stop_long_callback': None,
-                    'stop_short_callback': None
-                }         
+    ohlcv_len = 100    
     # Round decimals
-    round_decimals = 2
-    # Profit, Loss and Trail Offset
-    exit_order = {
-                    'profit': 0, 
-                    'loss': 0, 
-                    'trail_offset': 0, 
-                    'profit_callback': None,
-                    'loss_callback': None,
-                    'trail_callbak': None
-                }
-    # Trailing Stop
-    trail_price = 0
-    # Last strategy execution time
-    last_action_time = None
-    # best bid price
-    best_bid_price = None
-    # best ask price
-    best_ask_price = None 
-    # order callbacks
-    callbacks = {}
+    round_decimals = 2   
 
     def __init__(self, account, pair, demo=False, threading=True):
         """
@@ -106,10 +43,71 @@ class BinanceFutures:
         :param demo:
         :param run:
         """
+        # Account
         self.account = account
+        # Pair
         self.pair = pair
+        # Use testnet?
         self.demo = demo
+        # Is bot running?
         self.is_running = threading
+        # wallet
+        self.wallet = None
+        # Position
+        self.position = None
+        # Position size
+        self.position_size = None
+        # Entry price
+        self.entry_price = None
+        # Margin
+        self.margin = None
+        # Account information
+        self.account_information = None
+        # Timeframe
+        self.bin_size = ['1h'] 
+        # Binance futures client     
+        self.client = None
+        # Price
+        self.market_price = 0
+        # Order update
+        self.order_update = None
+        # Bar crawler
+        self.crawler = None
+        # Strategy
+        self.strategy = None
+        # OHLCV data
+        self.timeframe_data = None    
+        # Timeframe data info like partial candle data values, last candle values, last action etc.
+        self.timeframe_info = {}
+        # Profit target long and short for a simple limit exit strategy
+        self.sltp_values = {
+                        'profit_long': 0,
+                        'profit_short': 0,
+                        'stop_long': 0,
+                        'stop_short': 0,
+                        'eval_tp_next_candle': False,
+                        'profit_long_callback': None,
+                        'profit_short_callback': None,
+                        'stop_long_callback': None,
+                        'stop_short_callback': None
+                        }         
+         # Profit, Loss and Trail Offset
+        self.exit_order = {
+                        'profit': 0, 
+                        'loss': 0, 
+                        'trail_offset': 0, 
+                        'profit_callback': None,
+                        'loss_callback': None,
+                        'trail_callbak': None
+                        }
+        # Trailing Stop
+        self.trail_price = 0   
+        # Order callbacks
+        self.callbacks = {}    
+        # best bid price
+        self.best_bid_price = None
+        # best ask price
+        self.best_ask_price = None 
         
     def __init_client(self):
         """
@@ -117,10 +115,10 @@ class BinanceFutures:
         """
         if self.client is not None:
             return        
-        api_key = conf['binance_keys'][self.account]['API_KEY']        
-        api_secret = conf['binance_keys'][self.account]['SECRET_KEY']
+        api_key = conf['binance_test_keys'][self.account]['API_KEY'] if self.demo else conf['binance_keys'][self.account]['API_KEY']        
+        api_secret = conf['binance_test_keys'][self.account]['SECRET_KEY'] if self.demo else conf['binance_keys'][self.account]['SECRET_KEY']
         
-        self.client = Client(api_key=api_key, api_secret=api_secret)
+        self.client = Client(api_key=api_key, api_secret=api_secret, testnet=self.demo)
         
     def now_time(self):
         """
@@ -137,7 +135,7 @@ class BinanceFutures:
 
     def lot_leverage(self):
         """
-        get leverage for lot calculation
+        get leverage
         :return:  
         """         
         return 20
@@ -164,6 +162,18 @@ class BinanceFutures:
             return float(balances[0]["balance"])
         else: return None
 
+    def get_available_balance(self):
+        """
+        get available balance
+        :return:
+        """
+        self.__init_client()
+        ret = self.get_margin()
+
+        if len(ret) > 0:
+            balances = [p for p in ret if p["asset"] == "USDT"]            
+            return float(balances[0]["availableBalance"])
+        else: return None
 
     def get_margin(self):
         """
@@ -230,9 +240,7 @@ class BinanceFutures:
         
         if position['symbol'] == self.pair:            
             return float(position['positionAmt'])
-        else: return 0
-
-        
+        else: return 0        
 
     def get_position_avg_price(self):
         """
@@ -283,7 +291,7 @@ class BinanceFutures:
         get commission
         :return:
         """
-        return 0.04 / 100
+        return 0.08 / 100 # 2*0.04 fee
 
     def cancel_all(self):
         """
@@ -313,7 +321,6 @@ class BinanceFutures:
         else:
             logger.info(f"Failed to close all {self.pair} position, still {position_size} amount remaining")
 
-
     def cancel(self, id):
         """
         cancel a specific order by id
@@ -340,7 +347,7 @@ class BinanceFutures:
         """
         create an order
         """
-        #removes "+" from order suffix, because of the new regular expression rule for newClientOrderId updated as ^[\.A-Z\:/a-z0-9_-]{1,36}$ (2021-01-26)
+        #removes "+" from order suffix, because of the new regular expression rule for newClientOrderId updated as ^[\.A-Z\:/a-z0-9_-]{1,36}$ (2021-01-26)       
         ord_id = ord_id.replace("+", "k") 
         
         if  trailing_stop > 0 and activationPrice > 0:
@@ -382,7 +389,7 @@ class BinanceFutures:
                                                               side=side, quantity=ord_qty, stopPrice=stop,
                                                               reduceOnly="true"))        
         elif stop > 0:
-            ord_type = "STOP"
+            ord_type = "STOP_MARKET"
             retry(lambda: self.client.futures_create_order(symbol=self.pair, type=ord_type, newClientOrderId=ord_id,
                                                               side=side, quantity=ord_qty, stopPrice=stop))        
         elif post_only: # limit order with post only
@@ -480,46 +487,6 @@ class BinanceFutures:
 
         self.order(id, long, ord_qty, limit, stop, post_only, reduce_only, trailing_stop, activationPrice, when, callback)
 
-    def order(self, id, long, qty, limit=0, stop=0, post_only=False, reduce_only=False, trailing_stop=0, activationPrice=0, when=True, callback=None):
-        """
-        places an order, works as equivalent to tradingview pine script implementation
-        https://www.tradingview.com/pine-script-reference/#fun_strategy{dot}order
-        :param id: Order id
-        :param long: Long or Short
-        :param qty: Quantity
-        :param limit: Limit price
-        :param stop: Stop limit
-        :param post_only: Post only 
-        :param reduce_only: Reduce Only means that your existing position cannot be increased only reduced by this order
-        :param trailing_stop: Binance futures built in implementation of trailing stop in %
-        :param activationPrice: price that triggers Binance futures built in trailing stop      
-        :param when: Do you want to execute the order or not - True for live trading
-        :return:
-        """
-        self.__init_client()
-
-        # if self.get_margin()['excessMargin'] <= 0 or qty <= 0:
-        #     return
-
-        if not when:
-            return
-
-        side = "BUY" if long else "SELL"
-        ord_qty = qty
-        logger.info(f"ord_qty: {ord_qty}")
-
-        order = self.get_open_order(id)
-        ord_id = id + ord_suffix() #if order is None else order["clientOrderId"]
-
-        self.callbacks[ord_id] = callback
-
-        if order is None:
-            self.__new_order(ord_id, side, ord_qty, limit, stop, post_only, reduce_only, trailing_stop, activationPrice)
-        else:
-            self.__new_order(ord_id, side, ord_qty, limit, stop, post_only, reduce_only, trailing_stop, activationPrice)
-            #self.__amend_order(ord_id, side, ord_qty, limit, stop, post_only)
-            return
-
     def entry_pyramiding(self, id, long, qty, limit=0, stop=0, trailValue= 0, post_only=False, reduce_only=False, cancel_all=False, pyramiding=2, when=True, round_decimals=3, callback=None):
         """
         places an entry order, works as equivalent to tradingview pine script implementation with pyramiding
@@ -579,6 +546,45 @@ class BinanceFutures:
 
         self.order(id, long, ord_qty, limit, stop, post_only, reduce_only, trailing_stop, activationPrice, when, callback)
 
+    def order(self, id, long, qty, limit=0, stop=0, post_only=False, reduce_only=False, trailing_stop=0, activationPrice=0, when=True, callback=None):
+        """
+        places an order, works as equivalent to tradingview pine script implementation
+        https://www.tradingview.com/pine-script-reference/#fun_strategy{dot}order
+        :param id: Order id
+        :param long: Long or Short
+        :param qty: Quantity
+        :param limit: Limit price
+        :param stop: Stop limit
+        :param post_only: Post only 
+        :param reduce_only: Reduce Only means that your existing position cannot be increased only reduced by this order
+        :param trailing_stop: Binance futures built in implementation of trailing stop in %
+        :param activationPrice: price that triggers Binance futures built in trailing stop      
+        :param when: Do you want to execute the order or not - True for live trading
+        :return:
+        """
+        self.__init_client()
+
+        # if self.get_margin()['excessMargin'] <= 0 or qty <= 0:
+        #     return
+
+        if not when:
+            return
+
+        side = "BUY" if long else "SELL"
+        ord_qty = qty
+        logger.info(f"ord_qty: {ord_qty}")
+
+        order = self.get_open_order(id)
+        ord_id = id + ord_suffix() #if order is None else order["clientOrderId"]
+
+        self.callbacks[ord_id] = callback
+
+        if order is None:
+            self.__new_order(ord_id, side, ord_qty, limit, stop, post_only, reduce_only, trailing_stop, activationPrice)
+        else:
+            self.__new_order(ord_id, side, ord_qty, limit, stop, post_only, reduce_only, trailing_stop, activationPrice)
+            #self.__amend_order(ord_id, side, ord_qty, limit, stop, post_only)
+            return    
 
     def get_open_order(self, id):
         """
@@ -612,7 +618,7 @@ class BinanceFutures:
     
     def get_all_open_orders(self):
         """
-        Get all open orders for this pair
+        Get all open orders - returns default for this pair
         :param id: Order id
         :return:
         """
@@ -628,25 +634,19 @@ class BinanceFutures:
         orderbook_ticker = retry(lambda: self.client.futures_orderbook_ticker(symbol=self.pair))
         return orderbook_ticker
 
-    def exit(self, profit=0, loss=0, trail_offset=0, profit_callback=None, loss_callback=None, trail_callback=None):
+    def exit(self, profit=0, loss=0, trail_offset=0):
         """
         profit taking and stop loss and trailing, if both stop loss and trailing offset are set trailing_offset takes precedence
         :param profit: Profit (specified in ticks)
         :param loss: Stop loss (specified in ticks)
         :param trail_offset: Trailing stop price (specified in ticks)
         """
-        self.exit_order = {
-                            'profit': profit, 
-                            'loss': loss, 
-                            'trail_offset': trail_offset, 
-                            'profit_callback': profit_callback,
-                            'loss_callback': loss_callback,
-                            'trail_callback': trail_callback
-                            }
+        self.exit_order = {'profit': profit, 'loss': loss, 'trail_offset': trail_offset}
 
-    def sltp(self, profit_long=0, profit_short=0, stop_long=0, stop_short=0, eval_tp_next_candle=False, round_decimals=2, profit_long_callback=None, profit_short_callback=None, stop_long_callback=None, stop_short_callback=None):
+    def sltp(self, profit_long=0, profit_short=0, stop_long=0, stop_short=0, eval_tp_next_candle=False, round_decimals=2,
+                    profit_long_callback=None, profit_short_callback=None, stop_long_callback=None, stop_short_callback=None):
         """
-        simple profit target triggered upon entering a position
+        Simple take profit and stop loss implementation, which sends a reduce only stop loss order upon entering a position.
         :param profit_long: profit target value in % for longs
         :param profit_short: profit target value in % for shorts
         :param stop_long: stop loss value for long position in %
@@ -692,34 +692,38 @@ class BinanceFutures:
             if self.get_position_size() > 0 and \
                     self.get_market_price() - self.get_exit_order()['trail_offset'] < self.get_trail_price():
                 logger.info(f"Loss cut by trailing stop: {self.get_exit_order()['trail_offset']}")
+                self.close_all()
                 self.close_all(self.get_exit_order()['trail_callback'])
             elif self.get_position_size() < 0 and \
                     self.get_market_price() + self.get_exit_order()['trail_offset'] > self.get_trail_price():
                 logger.info(f"Loss cut by trailing stop: {self.get_exit_order()['trail_offset']}")
+                self.close_all()
                 self.close_all(self.get_exit_order()['trail_callback'])
 
         #stop loss
         if unrealised_pnl < 0 and \
                 0 < self.get_exit_order()['loss'] < abs(unrealised_pnl):
             logger.info(f"Loss cut by stop loss: {self.get_exit_order()['loss']}")
+            self.close_all()
             self.close_all(self.get_exit_order()['loss_callback'])
 
         # profit take
         if unrealised_pnl > 0 and \
                 0 < self.get_exit_order()['profit'] < abs(unrealised_pnl):
             logger.info(f"Take profit by stop profit: {self.get_exit_order()['profit']}")
+            self.close_all()
             self.close_all(self.get_exit_order()['profit_callback'])
-
-    # simple TP implementation
-
+    
     def eval_sltp(self):
         """
-        evaluate simple profit target and stop loss
+        Simple take profit and stop loss implementation, which sends a reduce only stop loss order upon entering a position.
+        - requires setting values with sltp() prior
         """
 
         pos_size = float(self.get_position()['positionAmt'])
         if pos_size == 0:
             return
+            
         # tp
         tp_order = self.get_open_order('TP')   
         
@@ -789,7 +793,7 @@ class BinanceFutures:
                     time.sleep(2)
                     self.order("SL", True, abs(pos_size), stop=sl_price_short, reduce_only=True, callback=self.get_sltp_values()['stop_short_callback']) 
                 else:  
-                    self.order("SL", True, abs(pos_size), stop=sl_price_short, reduce_only=True, callback=self.get_sltp_values()['stop_short_callback'])                         
+                    self.order("SL", True, abs(pos_size), stop=sl_price_short, reduce_only=True, callback=self.get_sltp_values()['stop_short_callback'])                       
         
     def fetch_ohlcv(self, bin_size, start_time, end_time):
         """
@@ -848,80 +852,106 @@ class BinanceFutures:
         """
         Recalculate and obtain different time frame data
         """        
-        return resample(self.data, bin_size)[:-1]
+        return resample(self.data, bin_size)[:-1]    
 
     def __update_ohlcv(self, action, new_data):
-
+        """
+        get and update OHLCV data and execute the strategy
+        """        
         # Binance can output wierd timestamps - Eg. 2021-05-25 16:04:59.999000+00:00
         # We need to round up to the nearest second for further processing
-        new_data = new_data.rename(index={new_data.iloc[0].name: new_data.iloc[0].name.ceil(freq='1T')})
+        new_data = new_data.rename(index={new_data.iloc[0].name: new_data.iloc[0].name.ceil(freq='1T')})               
 
-        """
-        get OHLCV data and execute the strategy
-        """        
-        if self.data is None:
-            end_time = datetime.now(timezone.utc)
-            start_time = end_time - self.ohlcv_len * delta(self.bin_size)
-            #logger.info(f"start time fetch ohlcv: {start_time}")
-            #logger.info(f"end time fetch ohlcv: {end_time}")
-            self.data = self.fetch_ohlcv(self.bin_size, start_time, end_time)
-            
-            # The last candle is an incomplete candle with timestamp
-            # in future
-            if(self.data.iloc[-1].name > end_time):
-                last_candle = self.data.iloc[-1].values # Store last candle
-                self.data = self.data[:-1] # exclude last candle
-                self.data.loc[end_time.replace(microsecond=0)] = last_candle #set last candle to end_time
+        if self.timeframe_data is None:
+            self.timeframe_data = {}
+            for t in self.bin_size:
+                bin_size = t
+                end_time = datetime.now(timezone.utc)
+                start_time = end_time - self.ohlcv_len * delta(bin_size)
+                self.timeframe_data[bin_size] = self.fetch_ohlcv(bin_size, start_time, end_time)
+                self.timeframe_info[bin_size] = {
+                                                    "allowed_range": allowed_range_minute_granularity[t][0] if self.minute_granularity else allowed_range[t][0], 
+                                                    "ohlcv": self.timeframe_data[t][:-1], # Dataframe with closed candles                                                   
+                                                    "last_action_time": None,#self.timeframe_data[bin_size].iloc[-1].name, # Last strategy execution time
+                                                    "last_candle": self.timeframe_data[bin_size].iloc[-2].values,  # Store last complete candle
+                                                    "partial_candle": self.timeframe_data[bin_size].iloc[-1].values  # Store incomplete candle
+                                                }
+                # The last candle is an incomplete candle with timestamp in future                
+                if self.timeframe_data[bin_size].iloc[-1].name > end_time:
+                    last_candle = self.timeframe_data[t].iloc[-1].values # Store last candle
+                    self.timeframe_data[bin_size] = self.timeframe_data[t][:-1] # Exclude last candle
+                    self.timeframe_data[bin_size].loc[end_time.replace(microsecond=0)] = last_candle #set last candle to end_time
 
-            logger.info(f"Initial Buffer Fill - Last Candle: {self.data.iloc[-1].name}")
-                
-        else:
-            #replace latest candle if timestamp is same or append
-            if(self.data.iloc[-1].name == new_data.iloc[0].name):
-                self.data = pd.concat([self.data[:-1], new_data])
+                logger.info(f"Initial Buffer Fill - Last Candle: {self.timeframe_data[bin_size].iloc[-1].name}")   
+        #logger.info(f"{self.timeframe_data}") 
+
+        timeframes_to_update = []
+
+        for t in self.timeframe_info:            
+            if self.timeframe_info[t]["allowed_range"] == action:
+                # append minute count of a timeframe when sorting when sorting is need otherwise just add a string timeframe
+                timeframes_to_update.append(allowed_range_minute_granularity[t][3]) if self.timeframes_sorted != None else timeframes_to_update.append(t)  
+
+        # Sorting timeframes that will be updated
+        if self.timeframes_sorted == True:
+            timeframes_to_update.sort(reverse=True)
+        if self.timeframes_sorted == False:
+            timeframes_to_update.sort(reverse=False)
+
+        #logger.info(f"timefeames to update: {timeframes_to_update}")        
+
+        for t in timeframes_to_update:
+            # Find timeframe string based on its minute count value
+            if self.timeframes_sorted != None:             
+                t = find_timeframe_string(t)               
+                    
+            # replace latest candle if timestamp is same or append
+            if self.timeframe_data[t].iloc[-1].name == new_data.iloc[0].name:
+                self.timeframe_data[t] = pd.concat([self.timeframe_data[t][:-1], new_data])
             else:
-                self.data = pd.concat([self.data, new_data])        
+                self.timeframe_data[t] = pd.concat([self.timeframe_data[t], new_data])      
 
-        # exclude current candle data 
-        re_sample_data = resample(self.data, self.bin_size)[:-1]
+            # exclude current candle data and store partial candle data
+            re_sample_data = resample(self.timeframe_data[t], t, minute_granularity=True if self.minute_granularity else False)
+            self.timeframe_info[t]['partial_candle'] = re_sample_data.iloc[-1].values # store partial candle data
+            re_sample_data =re_sample_data[:-1] # exclude current candle data
 
-        # logger.info(f"{self.last_action_time} : {self.data.iloc[-1].name} : {re_sample_data.iloc[-1].name}")  
+            #logger.info(f"{self.timeframe_info[t]['last_action_time']} : {self.timeframe_data[t].iloc[-1].name} : {re_sample_data.iloc[-1].name}")  
 
-        if self.last_action_time is not None and \
-                self.last_action_time == re_sample_data.iloc[-1].name:
-            return
+            if self.timeframe_info[t]["last_action_time"] is not None and \
+                self.timeframe_info[t]["last_action_time"] == re_sample_data.iloc[-1].name:
+                continue
 
-        # The last candle in the buffer needs to be preserved 
-        # while resetting the buffer as it may be incomlete
-        # or contains latest data from WS
-        self.data = pd.concat([re_sample_data.iloc[-1 * self.ohlcv_len:, :], self.data.iloc[[-1]]]) 
-        #logger.info(f"Buffer Right Edge: {self.data.iloc[-1]}")
+            # The last candle in the buffer needs to be preserved 
+            # while resetting the buffer as it may be incomlete
+            # or contains latest data from WS
+            self.timeframe_data[t] = pd.concat([re_sample_data.iloc[-1 * self.ohlcv_len:, :], self.timeframe_data[t].iloc[[-1]]]) 
+            #store ohlcv dataframe to timeframe_info dictionary
+            self.timeframe_info[t]["ohlcv"] = re_sample_data
+            #logger.info(f"Buffer Right Edge: {self.data.iloc[-1]}")
+            
+            open = re_sample_data['open'].values
+            close = re_sample_data['close'].values
+            high = re_sample_data['high'].values
+            low = re_sample_data['low'].values
+            volume = re_sample_data['volume'].values 
+                                    
+            try:
+                if self.strategy is not None:   
+                    self.timestamp = re_sample_data.iloc[-1].name.isoformat()           
+                    self.strategy(t, open, close, high, low, volume)              
+                self.timeframe_info[t]['last_action_time'] = re_sample_data.iloc[-1].name
+            except FatalError as e:
+                # Fatal error
+                logger.error(f"Fatal error. {e}")
+                logger.error(traceback.format_exc())
 
-        open = re_sample_data['open'].values
-        close = re_sample_data['close'].values
-        high = re_sample_data['high'].values
-        low = re_sample_data['low'].values
-        volume = re_sample_data['volume'].values        
-
-        try:
-            if self.strategy is not None:   
-                self.timestamp = re_sample_data.iloc[-1].name.isoformat()           
-                self.strategy(open, close, high, low, volume)                
-            self.last_action_time = re_sample_data.iloc[-1].name
-        except FatalError as e:
-            # Fatal error
-            logger.error(f"Fatal error. {e}")
-            logger.error(traceback.format_exc())
-
-            notify(f"Fatal error occurred. Stopping Bot. {e}")
-            notify(traceback.format_exc())
-            self.stop()
-        except Exception as e:
-            logger.error(f"An error occurred. {e}")
-            logger.error(traceback.format_exc())
-
-            notify(f"An error occurred. {e}")
-            notify(traceback.format_exc())
+                notify(f"Fatal error occurred. Stopping Bot. {e}")
+                notify(traceback.format_exc())
+                self.stop()
+            except Exception as e:
+                logger.error(f"An error occurred. {e}")
+                logger.error(traceback.format_exc())    
    
     def __on_update_instrument(self, action, instrument):
         """
@@ -999,7 +1029,7 @@ class BinanceFutures:
             return         
             
         # Was the position size changed?
-        is_update_pos_size = self.get_position_size != float(position[0]['pa'])        
+        is_update_pos_size = self.get_position_size() != float(position[0]['pa'])        
 
         # Reset trail to current price if position size changes
         if is_update_pos_size and float(position[0]['pa']) != 0:
@@ -1010,10 +1040,10 @@ class BinanceFutures:
                         f"Price: {self.position[0]['entryPrice']} => {position[0]['ep']}\n"
                         f"Qty: {self.position[0]['positionAmt']} => {position[0]['pa']}\n"
                         f"Balance: {self.get_balance()} USDT")
-        #     notify(f"Updated Position\n"
-        #            f"Price: {self.position[0]['entryPrice']} => {position[0]['ep']}\n"
-        #            f"Qty: {self.position[0]['positionAmt']} => {position[0]['pa']}\n"
-        #            f"Balance: {self.get_balance()} USDT")
+            notify(f"Updated Position\n"
+                   f"Price: {self.position[0]['entryPrice']} => {position[0]['ep']}\n"
+                   f"Qty: {self.position[0]['positionAmt']} => {position[0]['pa']}\n"
+                   f"Balance: {self.get_balance()} USDT")
        
         self.position[0] = {
                             "entryPrice": position[0]['ep'],
@@ -1058,21 +1088,36 @@ class BinanceFutures:
         bind functions with webosocket data streams        
         :param strategy:
         """        
-        logger.info(f"pair: {self.pair}")
+        logger.info(f"pair: {self.pair}")  
+        logger.info(f"timeframes: {bin_size}")      
         self.bin_size = bin_size
-        self.strategy = strategy
+        self.strategy = strategy             
+
         if self.is_running:
-            self.ws = BinanceFuturesWs(account=self.account, pair=self.pair, test=self.demo)
-            self.ws.bind(allowed_range[bin_size][0], self.__update_ohlcv)
+            self.ws = BinanceFuturesWs(account=self.account, pair=self.pair, test=self.demo)   
+
+            #if len(self.bin_size) > 0: 
+                #for t in self.bin_size:                                        
+                    #self.ws.bind(allowed_range_minute_granularity[t][0] if self.minute_granularity else allowed_range[t][0] \
+                    #    , self.__update_ohlcv)
+
+            if len(self.bin_size) > 1:   
+                self.minute_granularity=True  
+
+            if self.minute_granularity==True and '1m' not in self.bin_size:
+                self.bin_size.append('1m')      
+
+            self.ws.bind('1m' if self.minute_granularity else allowed_range[bin_size[0]][0] \
+                        , self.__update_ohlcv)                    
             self.ws.bind('instrument', self.__on_update_instrument)
             self.ws.bind('wallet', self.__on_update_wallet)
             self.ws.bind('position', self.__on_update_position)
             self.ws.bind('order', self.__on_update_order)
             self.ws.bind('margin', self.__on_update_margin)
-            self.ws.bind('IndividualSymbolBookTickerStreams', self.__on_update_bookticker)
+            self.ws.bind('IndividualSymbolBookTickerStreams', self.__on_update_bookticker)            
             #todo orderbook
-            #self.ob = OrderBook(self.ws)
-        logger.info(f" on_update(self, bin_size, strategy)")
+            #self.ob = OrderBook(self.ws)            
+        logger.info(f" on_update(self, bin_size, strategy)")       
 
     def stop(self):
         """

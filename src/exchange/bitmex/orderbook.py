@@ -1,7 +1,8 @@
 import sys, time
 
-from src.bitmex_websocket import BitMexWs
+from src.exchange.bitmex.bitmex_websocket import BitMexWs
 from src import logger
+
 
 class OrderBook:
     inited = False
@@ -22,8 +23,8 @@ class OrderBook:
 
         if action == "partial":
             self.inited = True
-
-        for v in values:
+       
+        for v in values:           
             ordId = v['id']
             side = v['side']
             orders = self.asks if side == "Buy" else self.bids

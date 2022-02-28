@@ -5,15 +5,12 @@ import sys
 from hyperopt import fmin, tpe, STATUS_OK, STATUS_FAIL, Trials
 
 from src import logger, notify
-from src.bitmex import BitMex
-from src.binance_futures import BinanceFutures
-from src.bitmex_stub import BitMexStub
-from src.binance_futures_stub import BinanceFuturesStub
-from src.bitmex_backtest import BitMexBackTest
-from src.binance_futures_backtest import BinanceFuturesBackTest
-from datetime import datetime, timezone
-from time import sleep
-import time
+from src.exchange.bitmex.bitmex import BitMex
+from src.exchange.binance_futures.binance_futures import BinanceFutures
+from src.exchange.bitmex.bitmex_stub import BitMexStub
+from src.exchange.binance_futures.binance_futures_stub import BinanceFuturesStub
+from src.exchange.bitmex.bitmex_backtest import BitMexBackTest
+from src.exchange.binance_futures.binance_futures_backtest import BinanceFuturesBackTest
 
 
 class Bot:
@@ -27,15 +24,15 @@ class Bot:
     bin_size = '1h'
     # Pair
     pair = 'BTCUSDT'
-    # periods
+    # Periods
     periods = 20
-    # run on test net?
+    # Run on test net?
     test_net = False
     # Back test?
     back_test = False
-    # Stub Test?
+    # Stub Test(paper trading)?
     stub_test = False
-    # parameter search?
+    # Parameter optimization?
     hyperopt = False
 
     def __init__(self, bin_size):
@@ -48,7 +45,7 @@ class Bot:
 
     def options(self):
         """
-        Function to obtain value for searching for a parameter.
+        Function to get values for parameter optimization
         """
         pass
 
@@ -73,7 +70,7 @@ class Bot:
 
     def strategy(self, open, close, high, low, volume):
         """
-        Strategy function, when creating a bot please inherit this and implement this fn. 
+        Strategy function, when creating a bot please inherit and implement this fn. 
         :param open: open price
         :param close: close price
         :param high: high price

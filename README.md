@@ -2,9 +2,9 @@
 
 <img src="img/rptr.png" width="200">
 
-Trading system for automated algorithmic trading on Binance Futures and BitMEX.  
+A trading system for automated algorithmic trading on Binance Futures and BitMEX.  
 
-Author is not responsible for any damage caused by this software. Be careful and test your strategy using very small sizes for some time to make sure it does what you expect it to do. 
+The author is not responsible for any damage caused by this software. Be careful and test your strategy using very small sizes for some time to make sure it does what you expect it to do. 
 
 ## Features
 
@@ -14,9 +14,9 @@ Author is not responsible for any damage caused by this software. Be careful and
 - all types of orders supported including majority of parameters/combinations - if you miss any, you can request
 - Supports custom strategies
 - Backtesting
-- Testnet only for BitMEX (todo Binance Futures testnet)
-- Stub trading 
-- TA-lib indicators, you can request an indicator as well if its missing
+- Testnet for BitMEX and Binance Futures
+- Stub trading (paper trading)
+- TA-lib indicators, you can request an indicator if its missing
 - Very easy strategy implementation, should be easy enough to migrate most pine script(tradingview) strategies - see Sample strategy
 
 ## Implemented reference strategies
@@ -26,6 +26,8 @@ Author is not responsible for any damage caused by this software. Be careful and
 3. RCI
 4. Open Close Cross Strategy
 5. Trading View Strategy (implemented but not supported in the current implementation via gmail) - maybe in the future todo tradingview webhooks implementation, until then this project is recommended for tradingview webhooks trading: https://github.com/CryptoMF/frostybot
+
+It is not recommended to use these strategies for live trading, as they are here mostly just for reference.
 
 ## Requirements
 
@@ -65,18 +67,28 @@ Set your API keys in `src / config.py` file.
 ```python
 config = {
     "binance_keys": {
-                    "binanceaccount1":{"API_KEY": "", "SECRET_KEY": ""},
+                    "binanceaccount1": {"API_KEY": "", "SECRET_KEY": ""},
                     "binanceaccount2": {"API_KEY": "", "SECRET_KEY": ""}
                     },
+    "binance_test_keys": {
+                    "binancetest1": {"API_KEY": "", "SECRET_KEY": ""},
+                    "binancetest2": {"API_KEY": "", "SECRET_KEY": ""}
+                    },
     "bitmex_keys": {
-                    "bitmexaccount1":{"API_KEY": "", "SECRET_KEY": ""},
+                    "bitmexaccount1": {"API_KEY": "", "SECRET_KEY": ""},
                     "bitmexaccount2": {"API_KEY": "", "SECRET_KEY": ""}
                     },
     "bitmex_test_keys": {
-                    "bitmextest1":{"API_KEY": "", "SECRET_KEY": ""},
+                    "bitmextest1": {"API_KEY": "", "SECRET_KEY": ""},
                     "bitmextest2": {"API_KEY": "", "SECRET_KEY": ""}
                     },
-    "line_apikey": {"API_KEY": ""}                       
+    "line_apikey": {"API_KEY": ""},
+    "healthchecks.io": {
+                    "binanceaccount1": {
+                        "websocket_heartbeat": "",
+                        "listenkey_heartbeat": ""
+                    }
+    }                       
 }
 ```
 
@@ -105,7 +117,7 @@ $ python main.py --account binanceaccount1 --exchange binance --pair BTCUSDT --s
 
 ### 2. Demo Trade Mode
 
-It is possible to trade on BitMEX [testnet](https://testnet.bitmex.com/). (todo Binance Futures testnet)
+It is possible to trade on BitMEX [testnet](https://testnet.bitmex.com/) and Binance Futures [testnet](https://testnet.binancefuture.com/en/futures/BTCUSDT)
 
 ```bash
 $ python main.py --demo --account bitmexaccount1 --exchange bitmex --pair XBTUSD --strategy Sample
@@ -136,82 +148,86 @@ Follow this example, which hopefully explains a lot of questions.
 
 ```python
 # sample strategy
-
 class Sample(Bot):
-    # set variables
-    long_entry_signal_history = []
-    short_entry_signal_history = []
-
     def __init__(self): 
         # set time frame here       
-        Bot.__init__(self, '1m')
+        Bot.__init__(self, ['15m'])
+        # initiate variables
+        self.isLongEntry = []
+        self.isShortEntry = []
         
-    # this for parameter optimization in hyperopt mode - see other reference strategies  
     def options(self):
         return {}
 
-    def strategy(self, open, close, high, low, volume):
-        
+    def strategy(self, action, open, close, high, low, volume):    
+        # this is your strategy function
+        # use action argument for mutli timeframe implementation, since a timeframe string will be passed as `action`        
         # get lot or set your own value which will be used to size orders 
-        # careful default lot is about 20x your account size !!!
-        lot = self.exchange.get_lot()
+        # don't forget to round properly
+        # careful default lot is about 20x your account size !!! (binance futures)
+        lot = round(self.exchange.get_lot() / 20, 3)
 
-        # indicator lengths
-        fast_len = self.input('fast_len', int, 6)
-        slow_len = self.input('slow_len', int, 18)
+        # Example of a callback function, which we can utilize for order execution etc.
+        def entry_callback(avg_price=close[-1]):
+            long = True if self.exchange.get_position_size() > 0 else False
+            logger.info(f"{'Long' if long else 'Short'} Entry Order Successful")
 
-        # setting indicators, they usually take source and length as arguments
-        sma1 = sma(close, fast_len)
-        sma2 = sma(close, slow_len)
+        # if you are using minute granularity or multiple timeframes its important to use `action` as its going pass a timeframe string
+        # this way you can separate functionality and use proper ohlcv timeframe data that get passed each time
+        if action == '1m':
+            #if you use minute_granularity you can make use of 1m timeframe for various operations
+            pass
+        if action == '15m':
+            # indicator lengths
+            fast_len = self.input('fast_len', int, 6)
+            slow_len = self.input('slow_len', int, 18)
 
-        # entry conditions
-        long_entry_condition = crossover(sma1, sma2)
-        short_entry_condition = crossunder(sma1, sma2)
+            # setting indicators, they usually take source and length as arguments
+            sma1 = sma(close, fast_len)
+            sma2 = sma(close, slow_len)
 
-        # setting a simple stop loss and profit target in % using built-in simple profit take and stop loss implementation 
-        # which is placing the sl and tp automatically after entering a position
-        self.exchange.sltp(profit_long=1.25, profit_short=1.25, stop_long=1, stop_short=1.1, round_decimals=0)
+            # entry conditions
+            long_entry_condition = crossover(sma1, sma2)
+            short_entry_condition = crossunder(sma1, sma2)
 
-        # example of calculation of stop loss price 0.8% round on 2 decimals hardcoded inside this class
-        # sl_long = round(close[-1] - close[-1]*0.8/100, 2)
-        # sl_short = round(close[-1] - close[-1]*0.8/100, 2)
-        
-        # order execution logic
-        if long_entry_condition:
-            # entry - True means long for every other order other than entry use self.exchange.order() function
-            self.exchange.entry("Long", True, lot/20)
-            # stop loss hardcoded inside this class
-            #self.exchange.order("SLLong", False, lot/20, stop=sl_long, reduce_only=True, when=False)
+            # setting a simple stop loss and profit target in % using built-in simple profit take and stop loss implementation 
+            # which is placing the sl and tp automatically after entering a position
+            self.exchange.sltp(profit_long=1.25, profit_short=1.25, stop_long=1, stop_short=1.1, round_decimals=0)
+
+            # example of calculation of stop loss price 0.8% round on 2 decimals hardcoded inside this class
+            # sl_long = round(close[-1] - close[-1]*0.8/100, 2)
+            # sl_short = round(close[-1] - close[-1]*0.8/100, 2)
             
-        if short_entry_condition:
-            # entry - False means short for every other order other than entry use self.exchange.order() function
-            self.exchange.entry("Short", False, lot/20)
-            # stop loss hardcoded inside this class
-            # self.exchange.order("SLShort", True, lot/20, stop=sl_short, reduce_only=True, when=False)
-        
-        # storing history for entry signals, you can store any variable this way to keep historical values
-        self.long_entry_signal_history.append(long_entry_condition)
-        self.short_entry_signal_history.append(short_entry_condition)
+            # order execution logic
+            if long_entry_condition:
+                # entry - True means long for every other order other than entry use self.exchange.order() function
+                self.exchange.entry("Long", True, lot, callback=entry_callback)
+                # stop loss hardcoded inside this class
+                #self.exchange.order("SLLong", False, lot, stop=sl_long, reduce_only=True, when=False)
+                
+            if short_entry_condition:
+                # entry - False means short for every other order other than entry use self.exchange.order() function
+                self.exchange.entry("Short", False, lot, callback=entry_callback)
+                # stop loss hardcoded inside this class
+                # self.exchange.order("SLShort", True, lot, stop=sl_short, reduce_only=True, when=False)
+            
+            # storing history for entry signals, you can store any variable this way to keep historical values
+            self.isLongEntry.append(long_entry_condition)
+            self.isShortEntry.append(short_entry_condition)
 
-        # OHLCV and indicator data, you can access history using list index        
-        # log indicator values 
-        logger.info(f"sma1: {sma1[-1]}")
-        logger.info(f"second last sma2: {sma2[-2]}")
-        # log last candle OHLCV values
-        logger.info(f"open: {open[-1]}")
-        logger.info(f"high: {high[-1]}")
-        logger.info(f"low: {low[-1]}")
-        logger.info(f"close: {close[-1]}")
-        logger.info(f"volume: {volume[-1]}")
-        #second last candle OHLCV values
-        logger.info(f"second last open: {open[-2]}")
-        logger.info(f"second last high: {high[-2]}")
-        logger.info(f"second last low: {low[-2]}")
-        logger.info(f"second last close: {close[-2]}")
-        logger.info(f"second last volume: {volume[-2]}")
-        # log history entry signals
-        logger.info(f"long_entry_hist: {self.long_entry_signal_history}")
-        logger.info(f"short_entry_hist: {self.short_entry_signal_history}")
+            # OHLCV and indicator data, you can access history using list index        
+            # log indicator values 
+            logger.info(f"sma1: {sma1[-1]}")
+            logger.info(f"second last sma2: {sma2[-2]}")
+            # log last candle OHLCV values
+            logger.info(f"open: {open[-1]}")
+            logger.info(f"high: {high[-1]}")
+            logger.info(f"low: {low[-1]}")
+            logger.info(f"close: {close[-1]}")
+            logger.info(f"volume: {volume[-1]}")            
+            # log history entry signals
+            #logger.info(f"long entry signal history list: {self.isLongEntry}")
+            #logger.info(f"short entry signal history list: {self.isShortEntry}")    
 ```
 
 ## Basic HTML5 Charts and Order Info for Backtests
@@ -234,5 +250,22 @@ https://discord.gg/ah3MGeN
 
 if you find this software useful and want to support the development, please feel free to donate.
 
-BTC address: 
-ETH address: 
+BTC address: 3MJsicsG6C4L7iZyVhEpVsBeEMUxLF3Qq2
+
+ETH address: 0x24291B6F1e3e42D73280Dac54d7251482f5d4D99
+
+DOGE adderess: DLWdyMihy6WTvUkdhiQm7HPCTais5QFRJQ
+
+BNB address: bnb1kfmd03rzr7xekrrdmca92qyasv3kx2vfn7tzk6
+
+Tether(BSC): 0x24291B6F1e3e42D73280Dac54d7251482f5d4D99
+
+USDC(BSC): 0x24291B6F1e3e42D73280Dac54d7251482f5d4D99
+
+SOL address: HARKcAFct9tc3L4E7vt2sDb2jkqBfZz1aaaPFBck5s6T
+
+LTC address: LZo5Q7pabhYt5Zhpt9HC3eHDG3W5nZqGhU
+
+XRP address: rLMGyMAhrDDAh3de2yhzDFwidbPPE7ifkt
+
+MATIC address: 0x24291B6F1e3e42D73280Dac54d7251482f5d4D99
