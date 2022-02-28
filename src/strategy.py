@@ -302,8 +302,8 @@ class Sample(Bot):
         # set time frame here       
         Bot.__init__(self, ['15m'])
         # initiate variables
-        self.long_entry_signal_history = []
-        self.short_entry_signal_history = []
+        self.isLongEntry = []
+        self.isShortEntry = []
         
     def options(self):
         return {}
@@ -361,8 +361,8 @@ class Sample(Bot):
                 # self.exchange.order("SLShort", True, lot/20, stop=sl_short, reduce_only=True, when=False)
             
             # storing history for entry signals, you can store any variable this way to keep historical values
-            self.long_entry_signal_history.append(long_entry_condition)
-            self.short_entry_signal_history.append(short_entry_condition)
+            self.isLongEntry.append(long_entry_condition)
+            self.isShortEntry.append(short_entry_condition)
 
             # OHLCV and indicator data, you can access history using list index        
             # log indicator values 
@@ -375,6 +375,6 @@ class Sample(Bot):
             logger.info(f"close: {close[-1]}")
             logger.info(f"volume: {volume[-1]}")            
             # log history entry signals
-            #logger.info(f"long_entry_signal_history: {self.long_entry_signal_history}")
-            #logger.info(f"short_entry_signal_history: {self.short_entry_signal_history}")
+            #logger.info(f"long entry signal history list: {self.isLongEntry}")
+            #logger.info(f"short entry signal history list: {self.isShortEntry}")  
             #logger.info(f"timestamp: {self.exchange.timestamp}")

@@ -27,7 +27,7 @@ The author is not responsible for any damage caused by this software. Be careful
 4. Open Close Cross Strategy
 5. Trading View Strategy (implemented but not supported in the current implementation via gmail) - maybe in the future todo tradingview webhooks implementation, until then this project is recommended for tradingview webhooks trading: https://github.com/CryptoMF/frostybot
 
-It is not recommended to use these strategies live as they are here mostly for reference.
+It is not recommended to use these strategies for live trading, as they are here mostly just for reference.
 
 ## Requirements
 
@@ -67,7 +67,7 @@ Set your API keys in `src / config.py` file.
 ```python
 config = {
     "binance_keys": {
-                    "binanceaccount1":{"API_KEY": "", "SECRET_KEY": ""},
+                    "binanceaccount1": {"API_KEY": "", "SECRET_KEY": ""},
                     "binanceaccount2": {"API_KEY": "", "SECRET_KEY": ""}
                     },
     "binance_test_keys": {
@@ -82,7 +82,13 @@ config = {
                     "bitmextest1": {"API_KEY": "", "SECRET_KEY": ""},
                     "bitmextest2": {"API_KEY": "", "SECRET_KEY": ""}
                     },
-    "line_apikey": {"API_KEY": ""}                       
+    "line_apikey": {"API_KEY": ""},
+    "healthchecks.io": {
+                    "binanceaccount1": {
+                        "websocket_heartbeat": "",
+                        "listenkey_heartbeat": ""
+                    }
+    }                       
 }
 ```
 
@@ -147,8 +153,8 @@ class Sample(Bot):
         # set time frame here       
         Bot.__init__(self, ['15m'])
         # initiate variables
-        self.long_entry_signal_history = []
-        self.short_entry_signal_history = []
+        self.isLongEntry = []
+        self.isShortEntry = []
         
     def options(self):
         return {}
@@ -197,17 +203,17 @@ class Sample(Bot):
                 # entry - True means long for every other order other than entry use self.exchange.order() function
                 self.exchange.entry("Long", True, lot, callback=entry_callback)
                 # stop loss hardcoded inside this class
-                #self.exchange.order("SLLong", False, lot/20, stop=sl_long, reduce_only=True, when=False)
+                #self.exchange.order("SLLong", False, lot, stop=sl_long, reduce_only=True, when=False)
                 
             if short_entry_condition:
                 # entry - False means short for every other order other than entry use self.exchange.order() function
                 self.exchange.entry("Short", False, lot, callback=entry_callback)
                 # stop loss hardcoded inside this class
-                # self.exchange.order("SLShort", True, lot/20, stop=sl_short, reduce_only=True, when=False)
+                # self.exchange.order("SLShort", True, lot, stop=sl_short, reduce_only=True, when=False)
             
             # storing history for entry signals, you can store any variable this way to keep historical values
-            self.long_entry_signal_history.append(long_entry_condition)
-            self.short_entry_signal_history.append(short_entry_condition)
+            self.isLongEntry.append(long_entry_condition)
+            self.isShortEntry.append(short_entry_condition)
 
             # OHLCV and indicator data, you can access history using list index        
             # log indicator values 
@@ -220,8 +226,8 @@ class Sample(Bot):
             logger.info(f"close: {close[-1]}")
             logger.info(f"volume: {volume[-1]}")            
             # log history entry signals
-            #logger.info(f"long_entry_signal_history: {self.long_entry_signal_history}")
-            #logger.info(f"short_entry_signal_history: {self.short_entry_signal_history}")
+            #logger.info(f"long entry signal history list: {self.isLongEntry}")
+            #logger.info(f"short entry signal history list: {self.isShortEntry}")    
 ```
 
 ## Basic HTML5 Charts and Order Info for Backtests

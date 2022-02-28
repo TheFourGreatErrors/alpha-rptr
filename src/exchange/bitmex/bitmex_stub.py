@@ -12,8 +12,8 @@ class BitMexStub(BitMex):
     minute_granularity = False
     # Enable log output
     enable_trade_log = True   
-    # Default Balance (0.1BTC)
-    balance = 0.1 * 100000000
+    # Default Balance in USDT 
+    balance = 1000 # * 100000000
     # Default Leverage
     leverage = 1    
 
@@ -62,10 +62,12 @@ class BitMexStub(BitMex):
 
     def get_lot(self):
         """
-         Calculate the Lot
-         :return:
-         """
-        return int((1 - self.get_retain_rate()) * self.get_balance() / 100000000 * self.get_leverage() * self.get_market_price())
+        Calculate the Lot
+        :return:
+        """
+        #return int((1 - self.get_retain_rate()) * self.get_balance() / self.get_leverage() * self.get_market_price() * 100000000)
+        return float( self.get_balance() * self.get_leverage()) / (1 if self.qty_in_usdt else self.get_market_price())
+
 
     def get_balance(self):
         """
