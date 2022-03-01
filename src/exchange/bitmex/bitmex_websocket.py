@@ -17,6 +17,7 @@ from src.config import config as conf
 
 def generate_nonce():
     return int(round(time.time() * 1000))
+    
 
 def generate_signature(secret, verb, url, nonce, data):
     """Generate a request signature compatible with BitMEX."""
@@ -33,32 +34,30 @@ def generate_signature(secret, verb, url, nonce, data):
     return signature
 
 
-class BitMexWs:
-    # Account
-    account = ''
-    # Pair
-    pair = 'XBTUSD'
-    # testnet    
-    testnet = False
-    # condition that the bot runs on.
-    is_running = True
-    # Notification destination listener
-    handlers = {}
-    
+class BitMexWs:        
+
     def __init__(self, account, pair, test=False):
         """
         constructor
         """
+        # Account
         self.account = account
+        # Pair
         self.pair = pair
+        # condition that the bot runs on.
+        self.is_running = True
+        # testnet   
         self.testnet = test
+        # Notification destination listener
+        self.handlers = {}
+
         if test:
             domain = 'testnet.bitmex.com'
         else:
             domain = 'www.bitmex.com'
         self.endpoint = 'wss://' + domain + '/realtime?subscribe=tradeBin1m:' + self.pair + ',' \
                         'tradeBin5m:' + self.pair + ',tradeBin1h:' + self.pair + ',tradeBin1d:' + self.pair + ',instrument:' + self.pair + ',' \
-                        'margin,position:' + self.pair + ',wallet,orderBookL2:' + self.pair 
+                        'margin,position,order,execution:' + self.pair + ',wallet,orderBookL2:' + self.pair #+ ',order:' + self.pair + ',execution:' + self.pair 
         self.ws = websocket.WebSocketApp(self.endpoint,
                              on_message=self.__on_message,
                              on_error=self.__on_error,
@@ -117,7 +116,7 @@ class BitMexWs:
             if 'table' in obj:
                 if len(obj['data']) <= 0:
                     return
-
+                
                 table = obj['table']
                 action = obj['action']
                 data = obj['data']
@@ -134,8 +133,9 @@ class BitMexWs:
                         "low" : data[0]['close'],
                         "close" : data[0]['close'],
                         "volume": 0
-                    })                    
-                    self.__emit(table, action, to_data_frame(new_data))                 
+                    })                                 
+                    self.__emit(table, table[-2:], to_data_frame(new_data))    
+
                 elif table.startswith("instrument"):
                     self.__emit(table, action, data[0])
 
@@ -145,10 +145,16 @@ class BitMexWs:
                 elif table.startswith("position"):
                     self.__emit(table, action, data[0])
 
+                elif table == "order":
+                    self.__emit(table, action, data[0])
+
+                elif table.startswith("execution"):
+                    self.__emit(table, action, data[0])
+
                 elif table.startswith("wallet"):
                     self.__emit(table, action, data[0])
 
-                elif table.startswith("orderBookL2"):
+                elif table.startswith("orderBookL2"):                          
                     self.__emit(table, action, data)
 
         except Exception as e:
@@ -210,9 +216,13 @@ class BitMexWs:
             self.handlers['margin'] = func
         if key == 'position':
             self.handlers['position'] = func
+        if key == 'order':
+            self.handlers['order'] = func
+        if key == 'execution':
+            self.handlers['execution'] = func
         if key == 'wallet':
             self.handlers['wallet'] = func
-        if key == 'orderBookL2':
+        if key == 'orderBookL2':            
             self.handlers['orderBookL2'] = func
 
     def close(self):

@@ -8,7 +8,7 @@ import time
 from src.factory import BotFactory
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="This is trading script on bitmex")
+    parser = argparse.ArgumentParser(description="This is trading script for cryptocurrency trading")
     parser.add_argument("--test",     default=False,   action="store_true")
     parser.add_argument("--stub",     default=False,   action="store_true")
     parser.add_argument("--demo",     default=False,   action="store_true")

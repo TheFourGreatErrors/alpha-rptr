@@ -14,59 +14,52 @@ from pytz import UTC
 
 from src import logger, to_data_frame, notify
 from src.config import config as conf
-from src.binance_futures_api import Client
+from src.exchange.binance_futures.binance_futures_api import Client
 
 
 def generate_nonce():
     return int(round(time.time() * 1000))
 
-def get_listenkey(api_key, api_secret): 
-    client = Client(api_key=api_key, api_secret=api_secret)
+
+def get_listenkey(api_key, api_secret, testnet): 
+    client = Client(api_key=api_key, api_secret=api_secret, testnet=testnet)
     listenKey = client.stream_get_listen_key()
     return listenKey
 
 
-def generate_signature(secret, verb, url, nonce, data):
-    """Generate a request signature compatible with BitMEX."""
-    # Parse the url so we can remove the base and extract just the path.
-    parsedURL = urllib.parse.urlparse(url)
-    path = parsedURL.path
-    if parsedURL.query:
-        path = path + '?' + parsedURL.query
+class BinanceFuturesWs:    
 
-    # print "Computing HMAC: %s" % verb + path + str(nonce) + data
-    message = (verb + path + str(nonce) + data).encode('utf-8')
-
-    signature = hmac.new(secret.encode('utf-8'), message, digestmod=hashlib.sha256).hexdigest()
-    return signature
-
-
-class BinanceFuturesWs:
-    # Account
-    account = ''
-    #Pair
-    pair= 'BTCUSDT'
-    # testnet
-    testnet = False
-    # condition that the bot runs on.
-    is_running = True
-    # Notification destination listener
-    handlers = {}
-    listenKey = None
-    
     def __init__(self, account, pair, test=False):
         """
         constructor
         """
+        # Account
         self.account = account
+        # Pair
         self.pair = pair.lower()
+        # testnet
         self.testnet = test
+        # domain
+        domain = None
+        # Use healthchecks.io
+        self.use_healthcecks = False
+        # Last Heartbeat
+        self.last_heartbeat = 0
+        # condition that the bot runs on.
+        self.is_running = True
+        # Notification destination listener
+        self.handlers = {}
+        # listen key
+        self.listenKey = None
+        # API keys
+        self.api_key = conf['binance_test_keys'][self.account]['API_KEY'] if self.testnet else conf['binance_keys'][self.account]['API_KEY']
+        self.api_secret = conf['binance_test_keys'][self.account]['SECRET_KEY'] if self.testnet else conf['binance_keys'][self.account]['SECRET_KEY']        
         if test:
-            domain = 'testnet.bitmex.com'
+            self.domain = 'stream.binancefuture.com'
         else:
-            domain = 'fstream.binance.com'
+            self.domain = 'fstream.binance.com'
         self.__get_auth_user_data_streams()
-        self.endpoint = 'wss://' + domain + '/stream?streams=' + self.listenKey + '/' + self.pair + '@ticker/' + self.pair + '@kline_1m/' \
+        self.endpoint = 'wss://' + self.domain + '/stream?streams=' + self.listenKey + '/' + self.pair + '@ticker/' + self.pair + '@kline_1m/' \
                         + self.pair + '@kline_5m/' + self.pair + '@kline_30m/' \
                         + self.pair + '@kline_1h/'  + self.pair + '@kline_1d/' + self.pair + '@kline_1w/' \
                         + self.pair + '@depth20@100ms/' + self.pair + '@bookTicker'
@@ -83,33 +76,56 @@ class BinanceFuturesWs:
     def __get_auth_user_data_streams(self):
         """
         authenticate user data streams
-        """
-        api_key = conf['binance_keys'][self.account]['API_KEY']       
-        api_secret = conf['binance_keys'][self.account]['SECRET_KEY']   
-        
-        if len(api_key) > 0 and len(api_secret):
-            self.listenKey = get_listenkey(api_key, api_secret) 
+        """        
+        if len(self.api_key) > 0 and len(self.api_secret):
+            self.listenKey = get_listenkey(self.api_key, self.api_secret, testnet=self.testnet) 
         else:
-            logger.info("WebSocket is not able to get listenKey for user data streams")    
+            logger.info("WebSocket is not able to get listenKey for user data streams") 
 
     def __start(self):
         """
         start the websocket.
         """
-        while self.is_running:
-            self.ws.run_forever()
+        self.ws.run_forever()
     
     def __keep_alive_user_datastream(self, listenKey):
         """
         keep alive user data stream, needs to ping every 60m
-        """      
-        api_key = conf['binance_keys'][self.account]['API_KEY']       
-        api_secret = conf['binance_keys'][self.account]['SECRET_KEY']    
-        client = Client(api_key, api_secret)
+        """              
+        client = Client(self.api_key, self.api_secret, self.testnet)
         def loop_function():
             while self.is_running:
-                client.stream_keepalive()
-                time.sleep(3480)
+                try:
+                    # retries 10 times over 486secs
+                    # before raising error/exception
+                    # check binance_futures_api.py line 113
+                    # for implementation details
+
+                    #client.stream_keepalive()
+                    listenKey = client.stream_get_listen_key() 
+                    
+                    if self.listenKey != listenKey:
+                        logger.info("listenKey Changed!")
+                        notify("listenKey Changed!")
+                        self.listenKey = listenKey
+                        self.ws.close()
+
+                    # Send a heartbeat to Healthchecks.io
+                    if self.use_healthcecks:
+                        try:
+                            requests.get(conf['healthchecks.io'][self.account]['listenkey_heartbeat'])
+                            #logger.info("Listen Key Heart Beat sent!") 
+                        except Exception as e:
+                            pass
+
+                    time.sleep(600)
+                except Exception as e:
+                    logger.error(f"Keep Alive Error - {str(e)}")
+                    #logger.error(traceback.format_exc())
+
+                    notify(f"Keep Alive Error - {str(e)}")
+                    #notify(traceback.format_exc())
+
         timer = threading.Timer(10, loop_function)
         timer.daemon = True
         if listenKey is not None:  
@@ -147,6 +163,16 @@ class BinanceFuturesWs:
                 datas = obj['data']                
                 
                 if e.startswith("kline"):
+                    if self.use_healthcecks:
+                        current_minute = datetime.now().time().minute
+                        if self.last_heartbeat != current_minute:
+                            # Send a heartbeat to Healthchecks.io
+                            try:
+                                requests.get(conf['healthchecks.io'][self.account]['websocket_heartbeat'])
+                                #logger.info("WS Heart Beat sent!") 
+                                self.last_heartbeat = current_minute
+                            except Exception as e:
+                                pass
                     data = [{
                         "timestamp" : datas['k']['T'],
                         "high" : float(datas['k']['h']),
@@ -156,7 +182,7 @@ class BinanceFuturesWs:
                         "volume" : float(datas['k']['v'])
                     }]                     
                     data[0]['timestamp'] = datetime.fromtimestamp(data[0]['timestamp']/1000).astimezone(UTC)                                        
-                    self.__emit(obj['data']['k']['i'], action, to_data_frame([data[0]]))                    
+                    self.__emit(obj['data']['k']['i'], obj['data']['k']['i'], to_data_frame([data[0]]))                    
                 elif e.startswith("24hrTicker"):
                     self.__emit(e, action, datas)               
 
@@ -176,6 +202,7 @@ class BinanceFuturesWs:
                     self.__get_auth_user_data_streams()
                     logger.info(f"listenKeyExpired!!!")
                     #self.__on_close(ws)
+                    self.ws.close()
 
             elif not 'e' in obj['data']:
                 e = 'IndividualSymbolBookTickerStreams'
@@ -183,8 +210,6 @@ class BinanceFuturesWs:
                 data = obj['data']
                 #logger.info(f"{data}")
                 self.__emit(e, action, data)
-
-
 
         except Exception as e:
             logger.error(e)
@@ -206,9 +231,15 @@ class BinanceFuturesWs:
             self.handlers['close']()
 
         if self.is_running:
-            logger.info("Websocket restart")
-            notify(f"Websocket restart")
+            logger.info(f"Websocket On Close: Restart")
+            notify(f"Websocket On Close: Restart")
 
+            time.sleep(60)
+            self.endpoint = 'wss://' + self.domain + '/stream?streams=' + self.listenKey + '/' + self.pair + '@ticker/' + self.pair + '@kline_1m/' \
+                    + self.pair + '@kline_5m/' + self.pair + '@kline_30m/' \
+                    + self.pair + '@kline_1h/'  + self.pair + '@kline_1d/' + self.pair + '@kline_1w/' \
+                    + self.pair + '@depth20@100ms/' + self.pair + '@bookTicker'
+        
             self.ws = websocket.WebSocketApp(self.endpoint,
                                  on_message=self.__on_message,
                                  on_error=self.__on_error,
