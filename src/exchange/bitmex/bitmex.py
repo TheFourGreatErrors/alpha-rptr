@@ -13,19 +13,19 @@ from pytz import UTC
 
 from src import logger, retry, allowed_range, allowed_range_minute_granularity, find_timeframe_string, \
     to_data_frame, resample, delta, FatalError, notify, ord_suffix
-from src.bitmex_api import bitmex_api
+from src.exchange.bitmex.bitmex_api import bitmex_api
 from src.config import config as conf
-from src.bitmex_websocket import BitMexWs
+from src.exchange.bitmex.bitmex_websocket import BitMexWs
 
 
 # Orderbook class
-from src.orderbook import OrderBook
+from src.exchange.bitmex.orderbook import OrderBook
 
 
 class BitMex:      
     # Use minute granularity?
     minute_granularity = False
-    # Sort timeframe in when multiple timeframes
+    # Sort timeframe execution when multiple timeframes
     timeframes_sorted = True # True for higher first, False for lower first and None when off      
     # Enable log output
     enable_trade_log = True
@@ -54,12 +54,14 @@ class BitMex:
         self.wallet = None
          # Price
         self.market_price = 0
+        # Order update
+        self.order_update = None
         # Position
         self.position = None
         # Margin
         self.margin = None
         # Time Frame
-        self.bin_size = '1h'
+        self.bin_size = ['1h']
         # Client for private API
         self.private_client = None
         # Client for public API
@@ -78,12 +80,25 @@ class BitMex:
                         'profit_short': 0,
                         'stop_long': 0,
                         'stop_short': 0,
-                        'eval_tp_next_candle': False
+                        'eval_tp_next_candle': False,
+                        'profit_long_callback': None,
+                        'profit_short_callback': None,
+                        'stop_long_callback': None,
+                        'stop_short_callback': None
                         }         
         # Profit, Loss and Trail Offset
-        self.exit_order = {'profit': 0, 'loss': 0, 'trail_offset': 0}
+        self.exit_order = {
+                        'profit': 0, 
+                        'loss': 0, 
+                        'trail_offset': 0, 
+                        'profit_callback': None,
+                        'loss_callback': None,
+                        'trail_callbak': None
+                        }
         # Trailing Stop
         self.trail_price = 0
+        # Order callbacks
+        self.callbacks = {}
         # Last strategy execution time
         self.last_action_time = None
         
@@ -232,13 +247,15 @@ class BitMex:
                         f"({order['orderID']}, {order['ordType']}, {order['side']}, {order['orderQty']}, "
                         f"{order['price']}, {order['stopPx']})")
         logger.info(f"Cancel All Order")
+        self.callbacks = {}
 
-    def close_all(self):
+    def close_all(self, callback=None):
         """
         Close all positions for this pair
         """
         self.__init_client()
         order = retry(lambda: self.private_client.Order.Order_closePosition(symbol=self.pair).result())
+        self.callbacks[order['orderID']] = callback
         logger.info(f"Close Position : (orderID, orderType, side, orderQty, limit, stop) = "
                     f"({order['orderID']}, {order['ordType']}, {order['side']}, {order['orderQty']}, "
                     f"{order['price']}, {order['stopPx']})")
@@ -262,12 +279,14 @@ class BitMex:
         logger.info(f"Cancel Order : (orderID, orderType, side, orderQty, limit, stop) = "
                     f"({order['orderID']}, {order['ordType']}, {order['side']}, {order['orderQty']}, "
                     f"{order['price']}, {order['stopPx']})")
+        self.callbacks.pop(order['orderID'])
         return True
 
     def __new_order(self, ord_id, side, ord_qty, limit=0, stop=0, post_only=False, reduce_only=False):
         """
         create an order
         """
+        logger.info(f"{ord_id} {side} {ord_qty} {stop}")
         if limit > 0 and post_only:
             ord_type = "Limit"
             retry(lambda: self.private_client.Order.Order_new(symbol=self.pair, ordType=ord_type, clOrdID=ord_id,
@@ -376,7 +395,7 @@ class BitMex:
 
             notify(f"Amend Order\nType: {ord_type}\nSide: {side}\nQty: {ord_qty}\nLimit: {limit}\nStop: {stop}")
 
-    def entry(self, id, long, qty, limit=0, stop=0, post_only=False, reduce_only=False, when=True):
+    def entry(self, id, long, qty, limit=0, stop=0, post_only=False, reduce_only=False, allow_amend=False, when=True, round_decimals=0, callback=None):
         """
         places an entry order, works as equivalent to tradingview pine script implementation
         https://tradingview.com/study-script-reference/#fun_strategy{dot}entry
@@ -389,28 +408,30 @@ class BitMex:
         :param reduce_only: Reduce Only means that your existing position cannot be increased only reduced by this order
         :param when: Do you want to execute the order or not - True for live trading
         :return:
-        """
+        """        
         self.__init_client()
 
         if self.get_margin()['excessMargin'] <= 0 or qty <= 0:
             return
-
+       
         if not when:
             return
-
+       
         pos_size = self.get_position_size()
 
         if long and pos_size > 0:
             return
-
+            logger.info(f"11")
         if not long and pos_size < 0:
+            logger.info(f"11")
             return
-
+        
         ord_qty = qty + abs(pos_size)
+        ord_qty = round(ord_qty, round_decimals)
 
-        self.order(id, long, ord_qty, limit, stop, post_only, reduce_only, when)
+        self.order(id, long, ord_qty, limit, stop, post_only, reduce_only, allow_amend, when, callback)
 
-    def entry_pyramiding(self, id, long, qty, limit=0, stop=0, post_only=False, reduce_only=False, cancel_all=False, pyramiding=2, when=True):
+    def entry_pyramiding(self, id, long, qty, limit=0, stop=0, post_only=False, reduce_only=False, cancel_all=False, pyramiding=2, allow_amend=False, when=True, round_decimals=0, callback=None):
         """
         places an entry order, works as equivalent to tradingview pine script implementation with pyramiding
         https://tradingview.com/study-script-reference/#fun_strategy{dot}entry
@@ -462,9 +483,11 @@ class BitMex:
         if ord_qty < ((pyramiding*qty) / 100) * 2:
             return       
 
-        self.order(id, long, ord_qty, limit, stop, post_only, reduce_only, when)
+        ord_qty = round(ord_qty, round_decimals)
 
-    def order(self, id, long, qty, limit=0, stop=0, post_only=False, reduce_only=False, allow_amend=True, when=True):
+        self.order(id, long, ord_qty, limit, stop, post_only, reduce_only, allow_amend, when, callback)
+
+    def order(self, id, long, qty, limit=0, stop=0, post_only=False, reduce_only=False, allow_amend=False, when=True, callback=None):
         """
         places an order, works as equivalent to tradingview pine script implementation
         https://www.tradingview.com/pine-script-reference/#fun_strategy{dot}order
@@ -479,16 +502,16 @@ class BitMex:
         :param when: Do you want to execute the order or not - True for live trading
         :return:
         """
-        self.__init_client()
-
-        if self.get_margin()['excessMargin'] <= 0 or qty <= 0:
+        self.__init_client()        
+        
+        if self.get_margin()['excessMargin'] <= 0 or qty <= 0:            
             return
-
+        
         if not when:
             return
-
+        
         side = "Buy" if long else "Sell"
-        ord_qty = qty        
+        ord_qty = qty             
 
         if allow_amend:
             order = self.get_open_order(id)
@@ -498,10 +521,11 @@ class BitMex:
                 self.__new_order(ord_id, side, ord_qty, limit, stop, post_only, reduce_only)
             else:
                 self.__amend_order(ord_id, side, ord_qty, limit, stop, post_only)
-
         else:
             ord_id = id + ord_suffix()
             self.__new_order(ord_id, side, ord_qty, limit, stop, post_only, reduce_only)
+        
+        self.callbacks[ord_id] = callback  
 
     def get_open_order(self, id):
         """
@@ -528,9 +552,10 @@ class BitMex:
         """
         self.exit_order = {'profit': profit, 'loss': loss, 'trail_offset': trail_offset}
 
-    def sltp(self, profit_long=0, profit_short=0, stop_long=0, stop_short=0, eval_tp_next_candle=False, round_decimals=2):
+    def sltp(self, profit_long=0, profit_short=0, stop_long=0, stop_short=0, eval_tp_next_candle=False, round_decimals=2,
+                 profit_long_callback=None, profit_short_callback=None, stop_long_callback=None, stop_short_callback=None):
         """
-        simple profit target triggered upon entering a position
+        Simple take profit and stop loss implementation, which sends a reduce only stop loss order upon entering a position.
         :param profit_long: profit target value in % for longs
         :param profit_short: profit target value in % for shorts
         :param stop_long: stop loss value for long position in %
@@ -542,7 +567,11 @@ class BitMex:
                             'profit_short': profit_short/100,
                             'stop_long': stop_long/100,
                             'stop_short': stop_short/100,
-                            'eval_tp_next_candle': eval_tp_next_candle
+                            'eval_tp_next_candle': eval_tp_next_candle,
+                            'profit_long_callback': profit_long_callback,
+                            'profit_short_callback': profit_short_callback,
+                            'stop_long_callback': stop_long_callback,
+                            'stop_short_callback': stop_short_callback
                             }        
         self.round_decimals = round_decimals
 
@@ -573,27 +602,31 @@ class BitMex:
                     self.get_market_price() - self.get_exit_order()['trail_offset'] < self.get_trail_price():
                 logger.info(f"Loss cut by trailing stop: {self.get_exit_order()['trail_offset']}")
                 self.close_all()
+                self.close_all(self.get_exit_order()['trail_callback'])
             elif self.get_position_size() < 0 and \
                     self.get_market_price() + self.get_exit_order()['trail_offset'] > self.get_trail_price():
                 logger.info(f"Loss cut by trailing stop: {self.get_exit_order()['trail_offset']}")
                 self.close_all()
+                self.close_all(self.get_exit_order()['trail_callback'])
 
         # stop loss
         if unrealised_pnl < 0 and \
                 0 < self.get_exit_order()['loss'] < abs(unrealised_pnl / 100000000):
             logger.info(f"Loss cut by stop loss: {self.get_exit_order()['loss']}")
             self.close_all()
+            self.close_all(self.get_exit_order()['loss_callback'])
 
         # profit take
         if unrealised_pnl > 0 and \
                 0 < self.get_exit_order()['profit'] < abs(unrealised_pnl / 100000000):
             logger.info(f"Take profit by stop profit: {self.get_exit_order()['profit']}")
             self.close_all()
-
-    # Simple take profit and stop loss implementation
+            self.close_all(self.get_exit_order()['profit_callback'])
+     
     def eval_sltp(self):
         """
-        evaluate simple profit target and stop loss
+        Simple take profit and stop loss implementation, which sends a reduce only stop loss order upon entering a position.
+        - requires setting values with sltp() prior
         """
         pos_size = self.get_position_size()
         # sl_order = self.get_open_order('SL')
@@ -627,7 +660,7 @@ class BitMex:
                     #time.sleep(2)                    
                     self.__amend_order(tp_order['clOrdID'], False, abs(pos_size), limit=tp_price_long)
                 else:               
-                    self.order("TP", False, abs(pos_size), limit=tp_price_long, reduce_only=True, allow_amend=False)
+                    self.order("TP", False, abs(pos_size), limit=tp_price_long, reduce_only=True, allow_amend=False, callback=self.get_sltp_values()['profit_long_callback'])
         if tp_percent_short > 0 and is_tp_full_size == False:
             if pos_size < 0:                
                 tp_price_short = round(avg_entry -(avg_entry*tp_percent_short), self.round_decimals)
@@ -635,7 +668,7 @@ class BitMex:
                      #time.sleep(2)                   
                     self.__amend_order(tp_order['clOrdID'], True, abs(pos_size), limit=tp_price_short)
                 else:
-                    self.order("TP", True, abs(pos_size), limit=tp_price_short, reduce_only=True, allow_amend=False)
+                    self.order("TP", True, abs(pos_size), limit=tp_price_short, reduce_only=True, allow_amend=False, callback=self.get_sltp_values()['profit_short_callback'])
         #sl
         sl_order = self.get_open_order('SL')
         if sl_order is not None:
@@ -655,20 +688,20 @@ class BitMex:
                 if sl_order is not None:                             
                     self.cancel(id=sl_order['clOrdID'])
                     time.sleep(2)
-                    self.order("SL", False, abs(pos_size), stop=sl_price_long, reduce_only=True, allow_amend=False)
+                    self.order("SL", False, abs(pos_size), stop=sl_price_long, reduce_only=True, allow_amend=False, callback=self.get_sltp_values()['stop_long_callback'])
                     #self.__amend_order(sl_order['clOrdID'], False, abs(pos_size), stop=sl_price_long)
                 else:  
-                    self.order("SL", False, abs(pos_size), stop=sl_price_long, reduce_only=True, allow_amend=False)
+                    self.order("SL", False, abs(pos_size), stop=sl_price_long, reduce_only=True, allow_amend=False, callback=self.get_sltp_values()['stop_long_callback'])
         if sl_percent_short > 0 and is_sl_full_size == False:
             if pos_size < 0:
                 sl_price_short = round(avg_entry + (avg_entry*sl_percent_short), self.round_decimals)
                 if sl_order is not None:                                  
                     self.cancel(id=sl_order['clOrdID'])
                     time.sleep(2)
-                    self.order("SL", True, abs(pos_size), stop=sl_price_short, reduce_only=True, allow_amend=False)
+                    self.order("SL", True, abs(pos_size), stop=sl_price_short, reduce_only=True, allow_amend=False, callback=self.get_sltp_values()['stop_short_callback'])
                     #self.__amend_order(sl_order['clOrdID'], True, abs(pos_size), stop=sl_price_short)
                 else:  
-                    self.order("SL", True, abs(pos_size), stop=sl_price_short, reduce_only=True, allow_amend=False)
+                    self.order("SL", True, abs(pos_size), stop=sl_price_short, reduce_only=True, allow_amend=False, callback=self.get_sltp_values()['stop_short_callback'])
 
     def fetch_ohlcv(self, bin_size, start_time, end_time):
         """
@@ -830,6 +863,39 @@ class BitMex:
         update wallet
         """
         self.wallet = {**self.wallet, **wallet} if self.wallet is not None else self.wallet
+
+    def __on_update_order(self, action, order):
+        """
+        Update order status        
+        """
+        self.order_update = order
+        #logger.info(f"order: {order}")
+        #logger.info(f"action:{ac tion}")
+
+        #only after order if completely filled
+        if order['leavesQty'] == 0: 
+            logger.info(f"========= Order Update ==============")
+            logger.info(f"ID     : {order['clOrdID']}") # Clinet Order ID
+            logger.info(f"Pair   : {order['symbol']}") 
+            logger.info(f"Type   : {order['ordType']}")
+            #logger.info(f"Uses   : {order['wt']}")
+            logger.info(f"Side   : {order['side']}")
+            logger.info(f"Status : {order['ordStatus']}")
+            logger.info(f"Qty    : {order['orderQty']}")
+            logger.info(f"Leaves qty: {order['leavesQty']}")
+            logger.info(f"Limit  : {order['price']}")
+            logger.info(f"Stop   : {order['stopPx']}")
+            logger.info(f"APrice : {order['avgPx']}")
+            logger.info(f"======================================")
+
+            # Call the respective order callback
+            callback = self.callbacks.pop(order['clOrdID'], None)  # Removes the respective order callback and returns it
+            if callback != None:
+                callback()
+
+        # Evaluation of profit and loss
+        self.eval_exit()
+        #self.eval_sltp()
         
     def __on_update_position(self, action, position):
         """
@@ -879,14 +945,24 @@ class BitMex:
 
         if self.is_running:
             self.ws = BitMexWs(account=self.account, pair=self.pair, test=self.demo)
-            #self.ws.bind(allowed_range[bin_size][0], self.update_ohlcv)
-            if len(self.bin_size) > 0:
-                for t in self.bin_size:                                        
-                    self.ws.bind(allowed_range_minute_granularity[t][0] if self.minute_granularity else allowed_range[t][0] \
-                        , self.__update_ohlcv)
+            
+            #if len(self.bin_size) > 0: 
+                #for t in self.bin_size:                                        
+                    #self.ws.bind(allowed_range_minute_granularity[t][0] if self.minute_granularity else allowed_range[t][0] \
+                    #    , self.__update_ohlcv)
+
+            if len(self.bin_size) > 1:   
+                self.minute_granularity=True  
+
+            if self.minute_granularity==True and '1m' not in self.bin_size:
+                self.bin_size.append('1m')      
+                             
+            self.ws.bind('1m' if self.minute_granularity else allowed_range[bin_size[0]][0] \
+                        , self.__update_ohlcv)       
             self.ws.bind('instrument', self.__on_update_instrument)
             self.ws.bind('wallet', self.__on_update_wallet)
             self.ws.bind('position', self.__on_update_position)
+            self.ws.bind('order', self.__on_update_order)
             self.ws.bind('margin', self.__on_update_margin)
             self.ob = OrderBook(self.ws)
                         

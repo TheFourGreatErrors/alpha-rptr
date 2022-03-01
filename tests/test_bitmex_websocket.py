@@ -2,7 +2,7 @@
 import time
 import unittest
 
-from src.bitmex_websocket import BitMexWs
+from src.exchange.bitmex.bitmex_websocket import BitMexWs
 
 
 class TestBitMexWs(unittest.TestCase):

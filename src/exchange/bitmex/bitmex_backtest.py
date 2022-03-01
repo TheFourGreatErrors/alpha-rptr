@@ -9,10 +9,11 @@ import pandas as pd
 
 from src import logger, allowed_range, allowed_range_minute_granularity, retry, delta, load_data, resample, \
     find_timeframe_string
-from src.bitmex_stub import BitMexStub
+from src.exchange.bitmex.bitmex_stub import BitMexStub
 
-OHLC_DIRNAME = os.path.join(os.path.dirname(__file__), "../ohlc/{}/{}")
-OHLC_FILENAME = os.path.join(os.path.dirname(__file__), "../ohlc/{}/{}/data.csv")
+OHLC_DIRNAME = os.path.join(os.path.dirname(__file__), "../ohlc/{}/{}/{}")
+OHLC_FILENAME = os.path.join(os.path.dirname(__file__), "../ohlc/{}/{}/{}/data.csv")
+
 
 class BitMexBackTest(BitMexStub):      
     # Update Data before Backtest
@@ -21,6 +22,8 @@ class BitMexBackTest(BitMexStub):
     minute_granularity = False
     # Check candles
     check_candles_flag = True
+    # Number of days to download and test historical data 
+    days = 120
     # Enable log output
     enable_trade_log = True
     # Start balance
@@ -81,7 +84,7 @@ class BitMexBackTest(BitMexStub):
         """
         return self.time
 
-    def entry(self, id, long, qty, limit=0, stop=0, post_only=False, when=True):
+    def entry(self, id, long, qty, limit=0, stop=0, post_only=False, when=True, round_decimals=0, callback=None):
         """
         places an entry order, works equivalent to tradingview pine script implementation
         https://jp.tradingview.com/study-script-reference/#fun_strategy{dot}entry
@@ -94,24 +97,9 @@ class BitMexBackTest(BitMexStub):
         :param when: Do you want to execute the order or not - True for live trading
         :return:
         """
-        BitMexStub.entry(self, id, long, qty, limit, stop, post_only, when)
+        BitMexStub.entry(self, id, long, qty, limit, stop, post_only, when, round_decimals, callback)    
 
-    def order(self, id, long, qty, limit=0, stop=0, post_only=False, reduce_only=False, allow_amend=True, when=False):
-        """
-        places an entry order, works equivalent to tradingview pine script implementation
-        https://jp.tradingview.com/study-script-reference/#fun_strategy{dot}entry
-        :param id: Order id
-        :param long: Long or Short
-        :param qty: Quantity
-        :param limit: Limit price
-        :param stop: Stop limit
-        :param post_only: Post only        
-        :param when: Do you want to execute the order or not - True for live trading
-        :return:
-        """
-        BitMexStub.order(self, id, long, qty, limit, stop, post_only, reduce_only, allow_amend, when)
-
-    def commit(self, id, long, qty, price, need_commission=True):
+    def commit(self, id, long, qty, price, need_commission=True, callback=None):
         """
         Commit
         :param id: order
@@ -120,30 +108,30 @@ class BitMexBackTest(BitMexStub):
         :param price: price
         :param need_commission: use commision or not?
         """
-        BitMexStub.commit(self, id, long, qty, price, need_commission)
+        BitMexStub.commit(self, id, long, qty, price, need_commission, callback)
 
         if long:
             self.buy_signals.append(self.index)
         else:
             self.sell_signals.append(self.index)
 
-    def close_all(self):
+    def close_all(self, callback=None):
         """
         Close all positions
         """
         if self.get_position_size() == 0:
             return 
-        BitMexStub.close_all(self)
+        BitMexStub.close_all(self, callback)
         self.close_signals.append(self.index)
 
-    def close_all_at_price(self, price):
+    def close_all_at_price(self, price, callback=None):
         """
         close the current position at price, for backtesting purposes its important to have a function that closes at given price
         :param price: price
         """
         if self.get_position_size() == 0:
             return 
-        BitMexStub.close_all_at_price(self, price)
+        BitMexStub.close_all_at_price(self, price, callback)
         self.close_signals.append(self.index) 
 
     def __crawler_run(self):
@@ -162,81 +150,63 @@ class BitMexBackTest(BitMexStub):
         if self.timeframe_data is None: 
             self.timeframe_data = {}          
             for t in self.bin_size:            
-                self.timeframe_data[t] = resample(self.df_ohlcv.iloc[:self.warmup_len], t, minute_granularity=self.minute_granularity) if self.minute_granularity \
-                    else self.df_ohlcv.iloc[:self.warmup_len] # if a single timeframe is used without minute_granularity it already resampled the data after downloading it 
+                self.timeframe_data[t] = resample(self.df_ohlcv, t, minute_granularity=self.minute_granularity) if self.minute_granularity \
+                    else self.df_ohlcv # if a single timeframe is used without minute_granularity it already resampled the data after downloading it 
+
                 self.timeframe_info[t] = {
                                             "allowed_range": allowed_range_minute_granularity[t][0] if self.minute_granularity else self.bin_size[0], #allowed_range[t][0],
-                                            "ohlcv": self.timeframe_data[t][:-1], # Dataframe with closed candles
-                                            "last_action_time": None,#self.timeframe_data[bin_size].iloc[-1].name,
-                                            "last_candle": None,#self.timeframe_data[bin_size].iloc[-2].values,
-                                            "partial_candle": None#self.timeframe_data[bin_size].iloc[-1].values  # Store last incomplete candle
+                                            "ohlcv": self.timeframe_data[t][:-1], # Dataframe with closed candles,
+                                            "last_action_index": math.ceil(self.warmup_len / allowed_range_minute_granularity[t][3]) if self.minute_granularity \
+                                                else self.warmup_len
                                         }                     
 
         #logger.info(f"timeframe info: {self.timeframe_info}")
         for i in range(self.warmup_len):
-            self.balance_history.append((self.get_balance() - self.start_balance) / 100000000 * self.get_market_price())
+            self.balance_history.append((self.get_balance() - self.start_balance))#/100000000*self.get_market_price())
             self.draw_down_history.append(self. max_draw_down_session_perc)
 
         for i in range(len(self.df_ohlcv) - self.warmup_len):
-            self.data = self.df_ohlcv.iloc[i:i + self.warmup_len, :]
+            self.data = self.df_ohlcv.iloc[i:i + self.warmup_len + 1, :]
             index = self.data.iloc[-1].name
-            self.timestamp = self.data.iloc[-1].name #self.data.iloc[-1][0]            
             new_data = self.data.iloc[-1:]              
             
             # action is either the(only) key of self.timeframe_info dictionary, which is a single timeframe string
             # or "1m" when minute granularity is needed - multiple timeframes or self.minute_granularity = True
             action = "1m" if (self.minute_granularity or len(self.timeframe_info) > 1) else self.bin_size[0]
             
-            timeframes_to_update = []
+            timeframes_to_process = []
 
             for t in self.timeframe_info:            
                 if self.timeframe_info[t]["allowed_range"] == action:
                     # append minute count of a timeframe when sorting when sorting is need otherwise just add a string timeframe
-                    timeframes_to_update.append(allowed_range_minute_granularity[t][3]) if self.timeframes_sorted != None else timeframes_to_update.append(t)  
+                    timeframes_to_process.append(allowed_range_minute_granularity[t][3]) if self.timeframes_sorted != None else timeframes_to_process.append(t)  
 
             # Sorting timeframes that will be updated
             if self.timeframes_sorted == True:
-                timeframes_to_update.sort(reverse=True)
+                timeframes_to_process.sort(reverse=True)
             if self.timeframes_sorted == False:
-                timeframes_to_update.sort(reverse=False)
+                timeframes_to_process.sort(reverse=False)
             
-            logger.info(f"timefeames to update: {timeframes_to_update}")        
+            # logger.info(f"timefeames to update: {timeframes_to_update}")        
 
-            for t in timeframes_to_update:
+            for t in timeframes_to_process:
                 # Find timeframe string based on its minute count value
                 if self.timeframes_sorted != None:             
-                    t = find_timeframe_string(t)                
+                    t = find_timeframe_string(t)  
+
+                last_action_index = self.timeframe_info[t]["last_action_index"]              
                 
-                # replace latest candle if timestamp is same or append               
-                if self.timeframe_data[t].iloc[-1].name == new_data.iloc[0].name:
-                    self.timeframe_data[t] = pd.concat([self.timeframe_data[t][:-1], new_data])
-                else:
-                    self.timeframe_data[t] = pd.concat([self.timeframe_data[t], new_data])      
+                # Append the latest candle if new              
+                if self.timeframe_data[t].iloc[last_action_index].name != new_data.iloc[0].name:
+                    continue     
 
-                # exclude current candle data and store partial candle data                
-                re_sample_data = resample(self.timeframe_data[t], t, minute_granularity=True if self.minute_granularity else False) if self.minute_granularity \
-                    else self.timeframe_data[t] # if a single timeframe is used without minute_granularity it already resampled the data after downloading it 
-                self.timeframe_info[t]['partial_candle'] = re_sample_data.iloc[-1].values # store partial candle data
-                re_sample_data = re_sample_data[:-1] # exclude current candle data
-                logger.info(f"{self.timeframe_info[t]['last_action_time']} : {self.timeframe_data[t].iloc[-1].name} : {re_sample_data.iloc[-1].name}")  
-
-                if self.timeframe_info[t]["last_action_time"] is not None and \
-                    self.timeframe_info[t]["last_action_time"] == re_sample_data.iloc[-1].name:
-                    continue
-
-                # The last candle in the buffer needs to be preserved 
-                # while resetting the buffer as it may be incomlete
-                # or contains latest data from WS
-                self.timeframe_data[t] = pd.concat([re_sample_data.iloc[-1 * self.ohlcv_len:, :], self.timeframe_data[t].iloc[[-1]]]) 
-                #store ohlcv dataframe to timeframe_info dictionary
-                self.timeframe_info[t]["ohlcv"] = re_sample_data
-                #logger.info(f"Buffer Right Edge: {self.timeframe_data[t].iloc[-1]}")
+                tf_ohlcv_data = self.timeframe_data[t].iloc[last_action_index-self.ohlcv_len : last_action_index+1]
                 
-                close = re_sample_data['close'].values
-                open = re_sample_data['open'].values
-                high = re_sample_data['high'].values
-                low = re_sample_data['low'].values
-                volume = re_sample_data['volume'].values
+                close = tf_ohlcv_data['close'].values
+                open = tf_ohlcv_data['open'].values
+                high = tf_ohlcv_data['high'].values
+                low = tf_ohlcv_data['low'].values
+                volume = tf_ohlcv_data['volume'].values
 
                 if (t == "1m" and self.minute_granularity) or self.minute_granularity != True:
                     if self.get_position_size() > 0 and low[-1] > self.get_trail_price():
@@ -252,18 +222,19 @@ class BitMexBackTest(BitMexStub):
                                 }
             
                     self.index = index
-                    self.balance_history.append((self.get_balance() - self.start_balance) / 100000000 * self.get_market_price())    
+                    self.balance_history.append((self.get_balance() - self.start_balance)) #/ 100000000 * self.get_market_price())    
 
                 #self.eval_sltp()
-                self.strategy(t, open, close, high, low, volume)        
-                self.timeframe_info[t]['last_action_time'] = re_sample_data.iloc[-1].name           
+                self.timestamp = tf_ohlcv_data.iloc[-1].name.isoformat().replace("T"," ")
+                self.strategy(t, open, close, high, low, volume)      
+                self.timeframe_info[t]['last_action_index'] += 1           
 
-                #self.balance_history.append((self.get_balance() - self.start_balance) / 100000000 * self.get_market_price())
+                #self.balance_history.append((self.get_balance() - self.start_balance)) #/ 100000000 * self.get_market_price())
                 #self.eval_exit()
                 #self.eval_sltp()
 
         self.close_all()
-        logger.info(f"Back test time : {time.time() - start}")    
+        logger.info(f"Back test time : {time.time() - start}")      
 
     def on_update(self, bin_size, strategy):
         """
@@ -378,9 +349,9 @@ class BitMexBackTest(BitMexStub):
         Read the data.
         :return:
         """
-        start_time = datetime.now(timezone.utc) - 1 * timedelta(days=15)
+        start_time = datetime.now(timezone.utc) - 1 * timedelta(days=self.days)
         end_time = datetime.now(timezone.utc)
-        file = OHLC_FILENAME.format(self.pair, bin_size)
+        file = OHLC_FILENAME.format("BitMEX", self.pair, bin_size)
         
         # Force minute granularity if multiple timeframes are used
         if len(bin_size) > 1:
@@ -465,7 +436,7 @@ class BitMexBackTest(BitMexStub):
         """
         Display results
         """
-        DATA_FILENAME = OHLC_FILENAME.format(self.pair, self.bin_size)
+        DATA_FILENAME = OHLC_FILENAME.format("BitMEX", self.pair, self.bin_size)
         self.symlink(DATA_FILENAME, 'html/data/data.csv', overwrite=True)
         ORDERS_FILENAME = os.path.join(os.path.dirname(__file__), "../orders.csv")
         self.symlink(ORDERS_FILENAME, 'html/data/orders.csv', overwrite=True)
@@ -485,6 +456,7 @@ class BitMexBackTest(BitMexStub):
         i = 1
 
         plt.figure(figsize=(12,8))
+        plt.suptitle(self.pair + f" - {self.bin_size}", fontsize=12)
 
         plt.subplot(plt_num,1,i)
         plt.plot(self.df_ohlcv.index, self.df_ohlcv["high"])

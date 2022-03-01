@@ -4,16 +4,16 @@ import os, tempfile
 import time
 from datetime import timedelta, datetime, timezone
 import dateutil.parser
-import math
 
 import pandas as pd
 
 from src import logger, allowed_range, allowed_range_minute_granularity, retry, delta, load_data, resample, \
     find_timeframe_string
-from src.binance_futures_stub import BinanceFuturesStub
+from src.exchange.binance_futures.binance_futures_stub import BinanceFuturesStub
 
-OHLC_DIRNAME = os.path.join(os.path.dirname(__file__), "../ohlc/{}/{}")
-OHLC_FILENAME = os.path.join(os.path.dirname(__file__), "../ohlc/{}/{}/data.csv")
+OHLC_DIRNAME = os.path.join(os.path.dirname(__file__), "../ohlc/{}/{}/{}")
+OHLC_FILENAME = os.path.join(os.path.dirname(__file__), "../ohlc/{}/{}/{}/data.csv")
+
 
 class BinanceFuturesBackTest(BinanceFuturesStub):   
     # Update Data before Backtest
@@ -22,6 +22,8 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
     minute_granularity = False
     # Check candles
     check_candles_flag = True
+    # Number of days to download and test historical data 
+    days = 120
     # Enable log output
     enable_trade_log = True
     # Start balance
@@ -80,7 +82,7 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
         """
         return self.time    
     
-    def entry(self, id, long, qty, limit=0, stop=0, post_only=False, when=True, round_decimals=3):
+    def entry(self, id, long, qty, limit=0, stop=0, post_only=False, when=True, round_decimals=3, callback=None):
         """
         places an entry order, works equivalent to tradingview pine script implementation
         https://jp.tradingview.com/study-script-reference/#fun_strategy{dot}entry
@@ -91,11 +93,13 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
         :param stop: Stop limit
         :param post_only: Post only        
         :param when: Do you want to execute the order or not - True for live trading
+        :round_decimals: Round qty to decimals
+        :callback
         :return:
         """
-        BinanceFuturesStub.entry(self, id, long, qty, limit, stop, post_only, when, round_decimals)
+        BinanceFuturesStub.entry(self, id, long, qty, limit, stop, post_only, when, round_decimals, callback)
 
-    def commit(self, id, long, qty, price, need_commission=False):
+    def commit(self, id, long, qty, price, need_commission=False, callback=None):
         """
         Commit
         :param id: order
@@ -111,23 +115,23 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
         else:
             self.sell_signals.append(self.index)
 
-    def close_all(self):
+    def close_all(self, callback=None):
         """
         Close all positions
         """
         if self.get_position_size() == 0:
             return 
-        BinanceFuturesStub.close_all(self)
+        BinanceFuturesStub.close_all(self, callback)
         self.close_signals.append(self.index)
     
-    def close_all_at_price(self, price):
+    def close_all_at_price(self, price, callback=None):
         """
         close the current position at price, for backtesting purposes its important to have a function that closes at given price
         :param price: price
         """
         if self.get_position_size() == 0:
             return 
-        BinanceFuturesStub.close_all_at_price(self, price)
+        BinanceFuturesStub.close_all_at_price(self, price, callback)
         self.close_signals.append(self.index)        
 
     def __crawler_run(self):
@@ -218,7 +222,7 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
                                 }
             
                     self.index = index
-                    self.balance_history.append((self.get_balance() - self.start_balance) / 100000000 * self.get_market_price())    
+                    self.balance_history.append((self.get_balance() - self.start_balance)) #/ 100000000 * self.get_market_price())    
 
                 #self.eval_sltp()
                 self.timestamp = tf_ohlcv_data.iloc[-1].name.isoformat().replace("T"," ")
@@ -346,9 +350,9 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
         Read the data.
         :return:
         """
-        start_time = datetime.now(timezone.utc) - 1 * timedelta(days=15)
+        start_time = datetime.now(timezone.utc) - 1 * timedelta(days=self.days)
         end_time = datetime.now(timezone.utc)
-        file = OHLC_FILENAME.format(self.pair, bin_size)
+        file = OHLC_FILENAME.format("binance_futures", self.pair, bin_size)
         
         # Force minute granularity if multiple timeframes are used
         if len(bin_size) > 1:
@@ -433,7 +437,7 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
         """
         Display results
         """
-        DATA_FILENAME = OHLC_FILENAME.format(self.pair, self.bin_size)
+        DATA_FILENAME = OHLC_FILENAME.format("binance_futures", self.pair, self.bin_size)
         self.symlink(DATA_FILENAME, 'html/data/data.csv', overwrite=True)
         ORDERS_FILENAME = os.path.join(os.path.dirname(__file__), "../orders.csv")
         self.symlink(ORDERS_FILENAME, 'html/data/orders.csv', overwrite=True)
@@ -453,6 +457,7 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
         i = 1
 
         plt.figure(figsize=(12,8))
+        plt.suptitle(self.pair + f" - {self.bin_size}", fontsize=12)
 
         plt.subplot(plt_num,1,i)
         plt.plot(self.df_ohlcv.index, self.df_ohlcv["high"])
@@ -462,8 +467,8 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
                 color = v['color']
                 plt.plot(self.df_ohlcv.index, self.df_ohlcv[k], color)
         plt.ylabel("Price(USD)")
-        ymin = min(self.df_ohlcv["low"]) - 200
-        ymax = max(self.df_ohlcv["high"]) + 200
+        ymin = min(self.df_ohlcv["low"]) - 0.5
+        ymax = max(self.df_ohlcv["high"]) + 0.5
         plt.vlines(self.buy_signals, ymin, ymax, "blue", linestyles='dashed', linewidth=1)
         plt.vlines(self.sell_signals, ymin, ymax, "red", linestyles='dashed', linewidth=1)
         plt.vlines(self.close_signals, ymin, ymax, "green", linestyles='dashed', linewidth=1)
@@ -492,4 +497,3 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
         self.df_ohlcv.at[self.index, name] = value
         if name not in self.plot_data:
             self.plot_data[name] = {'color': color, 'overlay': overlay}
-

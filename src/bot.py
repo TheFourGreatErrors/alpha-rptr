@@ -5,12 +5,12 @@ import sys
 from hyperopt import fmin, tpe, STATUS_OK, STATUS_FAIL, Trials
 
 from src import logger, notify
-from src.bitmex import BitMex
-from src.binance_futures import BinanceFutures
-from src.bitmex_stub import BitMexStub
-from src.binance_futures_stub import BinanceFuturesStub
-from src.bitmex_backtest import BitMexBackTest
-from src.binance_futures_backtest import BinanceFuturesBackTest
+from src.exchange.bitmex.bitmex import BitMex
+from src.exchange.binance_futures.binance_futures import BinanceFutures
+from src.exchange.bitmex.bitmex_stub import BitMexStub
+from src.exchange.binance_futures.binance_futures_stub import BinanceFuturesStub
+from src.exchange.bitmex.bitmex_backtest import BitMexBackTest
+from src.exchange.binance_futures.binance_futures_backtest import BinanceFuturesBackTest
 
 
 class Bot:
