@@ -1,6 +1,6 @@
 # coding: UTF-8
 
-import src.strategy as strategy
+import importlib
 
 
 class BotFactory():
@@ -13,7 +13,8 @@ class BotFactory():
         :return: Bot
         """
         try:
-            cls = getattr(strategy, args.strategy)
+            strategy_module = importlib.import_module("src.strategies."+args.strategy)
+            cls = getattr(strategy_module, args.strategy)
             bot = cls()
             bot.test_net  = args.demo
             bot.back_test = args.test
