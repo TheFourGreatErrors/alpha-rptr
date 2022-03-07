@@ -325,8 +325,8 @@ class BinanceFuturesStub(BinanceFutures):
             else:
                 self.lose_loss += -1 * profit #* self.get_market_price() 
                 self.lose_count += 1
-                if close_rate > self.max_draw_down:
-                    self.max_draw_down = close_rate
+                if close_rate*self.leverage < self.max_draw_down:
+                    self.max_draw_down = close_rate*self.leverage
 
             self.balance += profit #* self.get_market_price() / 100
 
