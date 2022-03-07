@@ -107,8 +107,9 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
         :param qty: quantity
         :param price: price
         :param need_commission: use commision or not?
+        :param callback
         """
-        BinanceFuturesStub.commit(self, id, long, qty, price, need_commission)
+        BinanceFuturesStub.commit(self, id, long, qty, price, need_commission, callback)
 
         if long:
             self.buy_signals.append(self.index)
