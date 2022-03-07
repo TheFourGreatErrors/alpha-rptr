@@ -303,22 +303,23 @@ class BitMexStub(BitMex):
 
         commission = self.get_commission() if need_commission else 0.0
 
-        if (self.get_position_size() > 0 >= order_qty) or (self.get_position_size() < 0 < order_qty):
-            if self.get_position_avg_price() > price:
-                close_rate = ((self.get_position_avg_price() - price) / price - commission) * self.get_leverage()
-                profit = -1 * self.get_position_size() * close_rate
+        if (self.get_position_size() > 0 >= order_qty) or (self.get_position_size() < 0 < order_qty):            
+            closing_qty = -order_qty if abs(order_qty) < abs(self.get_position_size()) else self.get_position_size()
+            if self.get_position_size() >= 0:
+                close_rate = ((price - self.get_position_avg_price())/self.get_position_avg_price()) - commission                 
             else:
-                close_rate = ((price - self.get_position_avg_price()) / self.get_position_avg_price() - commission) * self.get_leverage()
-                profit = self.get_position_size() * close_rate
+                close_rate = ((self.get_position_avg_price() - price)/self.get_position_avg_price()) - commission
+
+            profit = abs(closing_qty) * close_rate * (1 if self.qty_in_usdt else self.get_position_avg_price())
 
             if profit > 0:
-                self.win_profit += profit/self.get_market_price()#*100000000
-                self.win_count += 1
+                self.win_profit += profit #* self.get_market_price() 
+                self.win_count += 1                
             else:
-                self.lose_loss += -1 * profit/self.get_market_price()#*100000000
+                self.lose_loss += -1 * profit #* self.get_market_price() 
                 self.lose_count += 1
-                if close_rate > self.max_draw_down:
-                    self.max_draw_down = close_rate
+                if close_rate*self.leverage < self.max_draw_down:
+                    self.max_draw_down = close_rate*self.leverage
 
             self.balance += profit #* self.get_market_price() / 100 #*100000000
 
@@ -354,7 +355,7 @@ class BitMexStub(BitMex):
                 #logger.info(f"WIN RATE      : {0 if self.order_count == 0 else self.win_count/self.order_count*100} %")
                 logger.info(f"WIN RATE      : {0 if self.order_count == 0 else self.win_count/(self.win_count + self.lose_count)*100} %")
                 logger.info(f"PROFIT FACTOR : {self.win_profit if self.lose_loss == 0 else self.win_profit/self.lose_loss}")
-                logger.info(f"MAX DRAW DOWN : {self.max_draw_down * 100}")
+                logger.info(f"MAX DRAW DOWN : {abs(self.max_draw_down) * 100:.2f}%")
                 logger.info(f"MAX DRAW DOWN SESSION : {round(self.max_draw_down_session, 4)} or {round(self.max_draw_down_session_perc, 2)}%")
                 logger.info(f"======================================")
 
