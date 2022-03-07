@@ -351,6 +351,7 @@ class BinanceFuturesStub(BinanceFutures):
 
             if self.enable_trade_log:
                 logger.info(f"========= Close Position =============")
+                logger.info(f"ID            : {id if next_qty == 0 else 'Reversal'}")
                 logger.info(f"TIME          : {self.timestamp}")
                 logger.info(f"TRADE COUNT   : {self.order_count}")
                 logger.info(f"POSITION SIZE : {self.position_size}")
@@ -361,7 +362,7 @@ class BinanceFuturesStub(BinanceFutures):
                 #logger.info(f"WIN RATE      : {0 if self.order_count == 0 else self.win_count/self.order_count*100} %")
                 logger.info(f"WIN RATE      : {0 if self.order_count == 0 else self.win_count/(self.win_count + self.lose_count)*100} %")
                 logger.info(f"PROFIT FACTOR : {self.win_profit if self.lose_loss == 0 else self.win_profit/self.lose_loss}")
-                logger.info(f"MAX DRAW DOWN : {self.max_draw_down * 100}")
+                logger.info(f"MAX DRAW DOWN : {abs(self.max_draw_down) * 100:.2f}%")
                 logger.info(f"MAX DRAW DOWN SESSION : {round(self.max_draw_down_session, 4)} or {round(self.max_draw_down_session_perc, 2)}%")
                 logger.info(f"======================================")
 
