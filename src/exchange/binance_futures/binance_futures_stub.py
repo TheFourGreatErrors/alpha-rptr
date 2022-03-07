@@ -118,7 +118,7 @@ class BinanceFuturesStub(BinanceFutures):
         pos_size = self.position_size
         if pos_size == 0:
             return
-        long = pos_size < 0 if True else False 
+        long = pos_size < 0
         ord_qty = abs(pos_size)
         self.commit("Close", long, ord_qty, self.get_market_price(), True, callback)
     
