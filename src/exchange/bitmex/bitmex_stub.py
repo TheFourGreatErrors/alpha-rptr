@@ -58,8 +58,8 @@ class BitMexStub(BitMex):
         self.isShortEntry = [False,False]        
 
         self.order_log = open("orders.csv", "w")
-        self.order_log.write("time,type,price,quantity,av_price,position,pnl,balance,drawdown\n") #header
-
+        self.order_log.write("time,type,id,price,quantity,av_price,position,pnl,balance,drawdown\n") #header
+        
     def get_lot(self):
         """
         Calculate the Lot
@@ -112,7 +112,7 @@ class BitMexStub(BitMex):
             return
         long = pos_size < 0
         ord_qty = abs(pos_size)
-        self.commit(id, long, ord_qty, self.get_market_price(), True, callback)
+        self.commit("Close", long, ord_qty, self.get_market_price(), True, callback)
     
     def close_all_at_price(self, price, callback=None):
         """
@@ -124,7 +124,7 @@ class BitMexStub(BitMex):
             return
         long = pos_size < 0 if True else False 
         ord_qty = abs(pos_size)
-        self.commit(id, long, ord_qty, price, True, callback)
+        self.commit("Close", long, ord_qty, price, True, callback)
 
     def cancel(self, id):
         """
@@ -335,16 +335,16 @@ class BitMexStub(BitMex):
                         self.max_draw_down_session_perc = (self.balance_ath - self.balance) / self.balance_ath * 100
 
             self.drawdown = (self.balance_ath - self.balance) / self.balance_ath * 100
-            # self.order_log.write("time,type,price,quantity,av_price,position,pnl,balance,drawdown\n") #header
-            self.order_log.write(f"{self.timestamp},{'BUY' if long else 'SELL'},{price:.2f},{-self.position_size if abs(next_qty) else order_qty:.2f}, \
-                {self.position_avg_price:.2f},{0 if abs(next_qty) else self.position_size+order_qty:.2f}, \
-                {profit:.2f},{self.get_balance():.2f},{self.drawdown:.2f}\n")
-            self.order_log.flush()       
+
+            # self.order_log.write("time,type,id,price,quantity,av_price,position,pnl,balance,drawdown\n") #header
+            self.order_log.write(f"{self.timestamp},{'BUY' if long else 'SELL'},{id if next_qty == 0 else 'Reversal'},{price:.2f},{-self.position_size if abs(next_qty) else order_qty:.2f},{self.position_avg_price:.2f},{0 if abs(next_qty) else self.position_size+order_qty:.2f},{profit:.2f},{self.get_balance():.2f},{self.drawdown:.2f}\n")
+            self.order_log.flush()
 
             self.position_size = self.get_position_size() + order_qty                                   
 
             if self.enable_trade_log:
                 logger.info(f"========= Close Position =============")
+                logger.info(f"ID            : {id if next_qty == 0 else 'Reversal'}")
                 logger.info(f"TIME          : {self.timestamp}")
                 logger.info(f"TRADE COUNT   : {self.order_count}")
                 logger.info(f"POSITION SIZE : {self.position_size}")
@@ -369,9 +369,9 @@ class BitMexStub(BitMex):
                 logger.info(f"PRICE         : {price}")
                 logger.info(f"TRADE COUNT   : {self.order_count}")
                 logger.info(f"ID            : {id}")
-                logger.info(f"POSITION SIZE : {qty}")
-                logger.info(f"**************************************")        
-                       
+                logger.info(f"POSITION SIZE : {order_qty if next_qty * self.position_size > 0 else next_qty}")
+                logger.info(f"**************************************")   
+
             if long and 0 < self.position_size < next_qty:
                 self.position_avg_price = (self.position_avg_price * self.position_size + price * qty) /  next_qty 
             elif not long and 0 > self.position_size > next_qty:
@@ -382,9 +382,8 @@ class BitMexStub(BitMex):
             logger.info(f"//////// Current Position ////////////")
             logger.info(f"current position size: {next_qty} at avg. price: {self.position_avg_price}")
 
-            # self.order_log.write("time,type,price,quantity,av_price,position,pnl,balance,drawdown\n") #header
-            self.order_log.write(f"{self.timestamp},{'BUY' if long else 'SELL'},{price:.2f},{next_qty if abs(order_qty) > abs(next_qty) else order_qty:.2f}, \
-                {self.position_avg_price:.2f},{self.position_size:.2f},{'-'},{self.get_balance():.2f},{self.drawdown:.2f}\n")
+            # self.order_log.write("time,type,id,price,quantity,av_price,position,pnl,balance,drawdown\n") #header
+            self.order_log.write(f"{self.timestamp},{'BUY' if long else 'SELL'},{id},{price:.2f},{next_qty if abs(order_qty) > abs(next_qty) else order_qty:.2f},{self.position_avg_price:.2f},{self.position_size:.2f},{'-'},{self.get_balance():.2f},{self.drawdown:.2f}\n")
             self.order_log.flush()
            
             self.set_trail_price(price)
