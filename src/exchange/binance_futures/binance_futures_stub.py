@@ -58,7 +58,7 @@ class BinanceFuturesStub(BinanceFutures):
         self.isShortEntry = [False,False]        
 
         self.order_log = open("orders.csv", "w")
-        self.order_log.write("time,type,price,quantity,av_price,position,pnl,balance,drawdown\n") #header
+        self.order_log.write("time,type,id,price,quantity,av_price,position,pnl,balance,drawdown\n") #header
         
     def get_lot(self):
         """
@@ -120,7 +120,7 @@ class BinanceFuturesStub(BinanceFutures):
             return
         long = pos_size < 0 if True else False 
         ord_qty = abs(pos_size)
-        self.commit(id, long, ord_qty, self.get_market_price(), True, callback)
+        self.commit("Close", long, ord_qty, self.get_market_price(), True, callback)
     
     def close_all_at_price(self, price, callback=None):
         """
@@ -132,7 +132,7 @@ class BinanceFuturesStub(BinanceFutures):
             return
         long = pos_size < 0 if True else False 
         ord_qty = abs(pos_size)
-        self.commit(id, long, ord_qty, price, True, callback)
+        self.commit("Close", long, ord_qty, price, True, callback)
 
     def cancel(self, id):
         """
@@ -325,8 +325,8 @@ class BinanceFuturesStub(BinanceFutures):
             else:
                 self.lose_loss += -1 * profit #* self.get_market_price() 
                 self.lose_count += 1
-                if close_rate > self.max_draw_down:
-                    self.max_draw_down = close_rate
+                if close_rate*self.leverage < self.max_draw_down:
+                    self.max_draw_down = close_rate*self.leverage
 
             self.balance += profit #* self.get_market_price() / 100
 
@@ -343,16 +343,15 @@ class BinanceFuturesStub(BinanceFutures):
 
             self.drawdown = (self.balance_ath - self.balance) / self.balance_ath * 100
 
-            # self.order_log.write("time,type,price,quantity,av_price,position,pnl,balance,drawdown\n") #header
-            self.order_log.write(f"{self.timestamp},{'BUY' if long else 'SELL'},{price:.2f},{-self.position_size if abs(next_qty) else order_qty:.2f}, \
-                {self.position_avg_price:.2f},{0 if abs(next_qty) else self.position_size+order_qty:.2f}, \
-                {profit:.2f},{self.get_balance():.2f},{self.drawdown:.2f}\n")
+            # self.order_log.write("time,type,id,price,quantity,av_price,position,pnl,balance,drawdown\n") #header
+            self.order_log.write(f"{self.timestamp},{'BUY' if long else 'SELL'},{id if next_qty == 0 else 'Reversal'},{price:.2f},{-self.position_size if abs(next_qty) else order_qty:.2f},{self.position_avg_price:.2f},{0 if abs(next_qty) else self.position_size+order_qty:.2f},{profit:.2f},{self.get_balance():.2f},{self.drawdown:.2f}\n")
             self.order_log.flush()
 
             self.position_size = self.get_position_size() + order_qty    
 
             if self.enable_trade_log:
                 logger.info(f"========= Close Position =============")
+                logger.info(f"ID            : {id if next_qty == 0 else 'Reversal'}")
                 logger.info(f"TIME          : {self.timestamp}")
                 logger.info(f"TRADE COUNT   : {self.order_count}")
                 logger.info(f"POSITION SIZE : {self.position_size}")
@@ -363,7 +362,7 @@ class BinanceFuturesStub(BinanceFutures):
                 #logger.info(f"WIN RATE      : {0 if self.order_count == 0 else self.win_count/self.order_count*100} %")
                 logger.info(f"WIN RATE      : {0 if self.order_count == 0 else self.win_count/(self.win_count + self.lose_count)*100} %")
                 logger.info(f"PROFIT FACTOR : {self.win_profit if self.lose_loss == 0 else self.win_profit/self.lose_loss}")
-                logger.info(f"MAX DRAW DOWN : {self.max_draw_down * 100}")
+                logger.info(f"MAX DRAW DOWN : {abs(self.max_draw_down) * 100:.2f}%")
                 logger.info(f"MAX DRAW DOWN SESSION : {round(self.max_draw_down_session, 4)} or {round(self.max_draw_down_session_perc, 2)}%")
                 logger.info(f"======================================")
 
@@ -390,9 +389,8 @@ class BinanceFuturesStub(BinanceFutures):
             logger.info(f"//////// Current Position ////////////")
             logger.info(f"current position size: {next_qty} at avg. price: {self.position_avg_price}")
 
-            # self.order_log.write("time,type,price,quantity,av_price,position,pnl,balance,drawdown\n") #header
-            self.order_log.write(f"{self.timestamp},{'BUY' if long else 'SELL'},{price:.2f},{next_qty if abs(order_qty) > abs(next_qty) else order_qty:.2f}, \
-                {self.position_avg_price:.2f},{self.position_size:.2f},{'-'},{self.get_balance():.2f},{self.drawdown:.2f}\n")
+            # self.order_log.write("time,type,id,price,quantity,av_price,position,pnl,balance,drawdown\n") #header
+            self.order_log.write(f"{self.timestamp},{'BUY' if long else 'SELL'},{id},{price:.2f},{next_qty if abs(order_qty) > abs(next_qty) else order_qty:.2f},{self.position_avg_price:.2f},{self.position_size:.2f},{'-'},{self.get_balance():.2f},{self.drawdown:.2f}\n")
             self.order_log.flush()
 
             self.set_trail_price(price)

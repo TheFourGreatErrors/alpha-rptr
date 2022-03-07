@@ -9,3 +9,8 @@ ohlc/
 *.egg-info/
 credentials.json
 token.json
+html/data/data.csv
+html/data/orders.csv
+orders.csv
+trades.csv
+logs/
