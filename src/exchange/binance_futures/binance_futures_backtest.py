@@ -440,7 +440,7 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
         """
         DATA_FILENAME = OHLC_FILENAME.format("binance_futures", self.pair, self.bin_size)
         self.symlink(DATA_FILENAME, 'html/data/data.csv', overwrite=True)
-        ORDERS_FILENAME = os.path.join(os.path.dirname(__file__), "../orders.csv")
+        ORDERS_FILENAME = os.path.join(os.getcwd(), "./orders.csv")
         self.symlink(ORDERS_FILENAME, 'html/data/orders.csv', overwrite=True)
         
         logger.info(f"============== Result ================")
