@@ -73,6 +73,29 @@
       top: 50%;
     }
 
+    .button{
+      display: inline-block;
+      padding: 0 0.3em;
+      margin: 0.1em;
+      cursor: pointer;
+      color: #efefef;
+      border-radius: 0.25em;
+      background: #3a58ec;
+      transition: 0.3s;
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+      user-select: none;
+    }
+
+    .button:hover {
+      background: #193def;
+      color: #efefef;
+    }
+    .button:active {
+      transform: translateY(2px);
+    }
+
     .button-label {
       display: inline-block;
       padding: 0.1em 1em;
@@ -178,7 +201,8 @@
         <label class="button-label" for="drawdown-button">
           <h1>Drawdown</h1>
         </label>
-      </div>
+        <div class="button fitchart">⚃</div>
+      </div>      
     </div>
     <div id="chart"></div>
   </div>
@@ -192,6 +216,7 @@
       timeScale: {
         timeVisible: true,
         secondsVisible: true,
+        minBarSpacing: 0.001
       },
       rightPriceScale: {
         visible: true
@@ -350,6 +375,10 @@
         })
         
         equity_chart_series.setData(balance_series);
+
+        $('.button.fitchart').click(function(){
+          chart.timeScale().fitContent()
+        })
 
         $('input[type=radio][name=ed_toggle]').change(function() {
           if (this.value == 'equity') {
