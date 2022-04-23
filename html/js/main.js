@@ -265,10 +265,10 @@ function load_backtest(title)
 
         if(data.result !== 'not-found')
         {   
-            var savedtest = JSON.parse(data[title])
+            backtest = JSON.parse(data[title])
             $(".header .title span").html(title)
-            load_data(savedtest.chart_data, savedtest.order_data)
-            backtest.strategy_code = savedtest.strategy_code
+            load_data(backtest.chart_data, backtest.order_data)
+            
             chart.timeScale().fitContent()
         }
         else modal_alert("Error", "Backtest not found!")
