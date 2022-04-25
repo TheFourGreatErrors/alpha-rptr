@@ -117,6 +117,11 @@ body{
   width: 300px;
 }
 
+.save_modal .save_button{
+  margin-left: 10px;
+  padding: 2px 10px;
+}
+
 .library_modal .featherlight-content {
   width: 90%;
   height: 90%; 
@@ -302,6 +307,15 @@ body{
 .srcmodal .featherlight-inner.source_code{
   height: 100%;
   margin: 0;    
+}
+
+.dialog .featherlight-content{
+  max-width: 50%;
+}
+
+.dialog button{
+  margin: 10px 5px 10px 0px;
+  padding: 2px 10px;
 }
 
 .footer{

@@ -114,7 +114,8 @@ $('.button.save').click(function(event){
         <button class="save_button"><span style="font-size: smaller">&#128190;</span> Save</button>
     </div>
     `;
-    $.featherlight(form, {variant: "save_modal"})    
+    $.featherlight(form, {variant: "save_modal"})  
+    $(".save_modal .save_title").focus()  
 })
 
 $('body').on("click", ".save_form .save_button", {}, function(event){
@@ -170,6 +171,33 @@ function modal_alert(title, content)
     `;
     html = html.replace("{title}", title).replace("{content}", content)
     $.featherlight(html, {variant: "alert"})    
+}
+
+function modal_dialog(title, content, button, callback)
+{    
+    var html = `
+    <div class="message">
+        <h3>{title}</h3>
+        <p>{content}</p>
+        <div class=buttons-cont">
+            <button class="confirm">{button}</button>
+            <button class="cancel">Cancel</button>
+        </div>
+    </div>
+    `;
+    html = html.replace("{title}", title)
+                .replace("{content}", content)
+                .replace("{button}", button)
+    $.featherlight(html, {variant: "dialog"})   
+    
+    $('body').on("click", ".dialog .confirm", function(event){
+        callback();
+        $.featherlight.close()
+    })
+
+    $('body').on("click", ".dialog .cancel", function(event){
+        $.featherlight.close()
+    })
 }
 
 $(".library").click(function(event){
@@ -228,33 +256,38 @@ $('body').on( 'click', '#backtests .delete_link', function () {
     var title = $(this).attr("title")
     var element = this
 
-    $.get( "/cgi-bin/db.py?key=library", function( data ) {
+    var message = "Do you really want to delete <b>"+title+"</b> from Library?"
+
+    modal_dialog("Confirm Delete", message, "Delete", function(){
+
+        $.get( "/cgi-bin/db.py?key=library", function( data ) {
+                
+            library = data.result !== 'not-found' ? JSON.parse(data.library) : {}
+
+            if (typeof library[title] !== "undefined")
+            {
+                delete library[title]
+
+                $.post("/cgi-bin/db.py?key=library", JSON.stringify(library), function(data){
+
+                    if(data.result !== 'success')
+                    modal_alert("Error", title+" could not be removed from Library! Try Again!")    
+                })
+            }             
+            else modal_alert("Error", title+" is not in Library!")        
+        }) 
+        
+        $.get( "/cgi-bin/db.py?do=delete&key="+title, function( data ) {
             
-        library = data.result !== 'not-found' ? JSON.parse(data.library) : {}
-
-        if (typeof library[title] !== "undefined")
-        {
-            delete library[title]
-
-            $.post("/cgi-bin/db.py?key=library", JSON.stringify(library), function(data){
-
-                if(data.result !== 'success')
-                modal_alert("Error", title+" could not be removed from Library! Try Again!")    
-            })
-        }             
-        else modal_alert("Error", title+" is not in Library!")        
-    }) 
-    
-    $.get( "/cgi-bin/db.py?do=delete&key="+title, function( data ) {
-        
-        if(data.result == 'success'){
-            table
-                .row( $(element).parents('tr') )
-                .remove()
-                .draw();
-        }
-        
-    });
+            if(data.result == 'success'){
+                table
+                    .row( $(element).parents('tr') )
+                    .remove()
+                    .draw();
+            }
+            
+        });
+    })    
 
     return false
 });
