@@ -1,7 +1,7 @@
 # coding: UTF-8
 
-import importlib
-
+import importlib, os
+from src import symlink
 
 class BotFactory():
 
@@ -23,6 +23,10 @@ class BotFactory():
             bot.account = args.account
             bot.exchange_arg = args.exchange
             bot.pair = args.pair
+
+            STRATEGY_FILENAME = os.path.join(os.getcwd(), f"src/strategies/{args.strategy}.py")
+            symlink(STRATEGY_FILENAME, 'html/data/strategy.py', overwrite=True)
+            
             return bot
         except Exception as _:
             raise Exception(f"Not Found Strategy : {args.strategy}")

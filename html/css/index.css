@@ -1,0 +1,324 @@
+/* Works on Firefox */
+* {
+  scrollbar-color: #ddd #fff;
+}
+
+/* Works on Chrome, Edge, and Safari */
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px
+}
+
+*::-webkit-scrollbar-track {
+  background: #fff;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: #ddd;
+  border-radius: 6px;
+}
+
+body{
+  text-align: center;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.header{
+  width: 980px;
+  margin: 15px auto;
+  padding: 0 10px;
+  clear: both;
+  overflow: hidden;
+}
+
+.logo{
+  float: left;
+  margin:auto;
+}
+
+.logo img{
+  height: 60px;
+  margin: 10px auto;
+}
+
+.meta{
+  float: left;
+  margin:auto 10px;
+  text-align: left;
+  overflow: hidden;
+}
+
+.title{
+  margin: 10px auto;
+}
+
+.title span{
+  display: inline-block;
+  margin: auto;
+  line-height: 20px;
+  font-size: 20px;
+  font-weight: bold;  
+  vertical-align: middle;
+}
+
+.button.save{
+  padding: 4px 10px;
+  margin: auto 10px;
+  font-size: 12px;
+  background: #efefef;
+  color: #292929;
+  vertical-align: middle;
+}
+
+.button.save:hover {
+  background: #dfdfdf;
+  color: #000;
+}
+
+.props{
+  margin: auto;
+  color: #333;
+}
+
+.library{
+  float: right;  
+  margin: 10px auto;
+  padding: 5px 20px;
+  border: 1px dotted #666;
+  border-radius: 0.2em;
+  color: #333;
+  cursor: pointer;
+}
+
+.library:hover{
+  color: #000;
+  border: 1px solid #666;
+}
+
+.library:active {
+  transform: translateY(2px);
+}
+
+.library .icon{
+  line-height: 40px;
+  font-size: 40px;
+}
+
+.library .name{
+  line-height: 10px;
+  font-size: 10px;
+}
+
+.save_form{
+  padding: 10px;
+}
+
+.save_modal .save_title{
+  width: 300px;
+}
+
+.save_modal .save_button{
+  margin-left: 10px;
+  padding: 2px 10px;
+}
+
+.library_modal .featherlight-content {
+  width: 90%;
+  height: 90%; 
+}
+
+.library_modal .featherlight-inner{
+  height: 100%;  
+  padding-right: 15px; 
+  overflow-y:auto;
+  overflow-x:hidden;
+  scrollbar-color: #ddd #fff; 
+  text-align: center;
+}
+
+.left-aligned-cell{
+  text-align: left;
+}
+
+.test_link{
+  text-decoration: none;
+  color: #333;
+}
+
+.delete_link{
+  text-decoration: none;
+}
+
+
+/*----------------*/
+
+#chart_container{
+  position: relative;
+  width: 1000px;
+  margin: 15px auto 25px;
+  border: 1px dotted #ddd;
+}
+
+#chart_title{
+  position: absolute;
+  z-index: 9;
+  background-color: #fff;
+  margin: 10px;
+  font-size: 0.75em;
+  border: 1px dotted #ddd;
+  padding: 0.1em 0.5em;
+  border-radius: 0.25em;
+  color: #666;
+  left: 7.5%;
+}
+
+#ed_toggle{
+  position: absolute;
+  z-index: 10;
+  right: 7.5%;
+  margin: 10px;
+}
+
+.button-wrap {
+  position: relative;
+  text-align: center;
+  top: 50%;
+}
+
+.button{
+  display: inline-block;
+  padding: 0.25em 0.6em;
+  margin: 0.1em;
+  cursor: pointer;
+  color: #efefef;
+  border-radius: 0.25em;
+  
+  transition: 0.3s;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+
+  font-size: 0.75em;
+  margin: 0.1em;
+  font-family: "Lato", sans-serif;
+  font-weight: bold;
+}
+
+.button:active {
+  transform: translateY(2px);
+}
+
+.button.fitchart{
+  background: #3a58ec;
+}
+
+.button.fitchart:hover {
+  background: #193def;
+  color: #efefef;
+}
+
+.button.code{
+  background: #444;
+}
+
+.button.code:hover {
+  background: #333;
+  color: #efefef;
+}
+
+.button-label {
+  display: inline-block;
+  padding: 0.1em 0.6em;
+  margin: 0.1em;
+  cursor: pointer;
+  color: #292929;
+  border-radius: 0.25em;
+  background: #efefef;
+  transition: 0.3s;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+.button-label h1 {
+  font-size: 0.75em;
+  margin: 0.1em;
+  font-family: "Lato", sans-serif;
+}
+.button-label:hover {
+  background: #d6d6d6;
+  color: #101010;
+}
+.button-label:active {
+  transform: translateY(2px);
+}
+
+#equity-button:checked + .button-label {
+  background: seagreen;
+  color: #fff;
+}
+#equity-button:checked + .button-label:hover {
+  background: #28784b;
+  color: #fff;
+}
+
+#drawdown-button:checked + .button-label {
+  background: red;
+  color: #fff;
+}
+#drawdown-button:checked + .button-label:hover {
+  background: #e60000;
+  color: #fff;
+}
+
+.hidden {
+  display: none;
+}
+
+#chart{
+  position: relative;
+  width: 1000px;
+}
+
+#trades_cont{
+  width: 1000px;
+  margin: auto auto 50px;
+}
+
+.chart_link{
+  text-decoration: none;
+  color: #333;
+}
+
+.BUY{
+  color:seagreen;
+}
+
+.SELL{
+  color:red;
+}
+
+.srcmodal .featherlight-content {
+  width: 60%;
+  height: 90%;
+}
+
+.srcmodal .featherlight-inner.source_code{
+  height: 100%;
+  margin: 0;    
+}
+
+.dialog .featherlight-content{
+  max-width: 50%;
+}
+
+.dialog button{
+  margin: 10px 5px 10px 0px;
+  padding: 2px 10px;
+}
+
+.footer{
+  font-size: smaller;
+  margin-bottom: 10px;
+}

@@ -230,17 +230,19 @@ class Sample(Bot):
             #logger.info(f"short entry signal history list: {self.isShortEntry}")    
 ```
 
-## Basic HTML5 Charts and Order Info for Backtests
+## HTML5 Workbench for Backtests
 
-<img src="img/html5.png" width="800">
+<img src="img/HTML5Workbench.png" width="800">
 
-A basic HTML5 TradingView Lite (Open Source Version) widget based order visualization on top of Candle Stick data is available. It also displays a table with orders that can be sorted in many ways and clicking on any order date will auto-scroll that period into view.
+A HTML5 Workbench with TradingView Lite (Open Source Version) widget based order visualization on top of Candle Stick data is available. It also displays a table with orders that can be sorted in many ways and clicking on any order date will auto-scroll that period into view.
 
-A file called `orders.csv` file is generated after every backtest in the project root folder. And then at the end of each backtest `data.csv` from data folder and `orders.csv` from project root are symlinked into the new `html/data` diretory
-
-We can then use this browser interface by executing `python3 -m http.server 8000` in the `html` folder and browse to https://127.0.0.1:8000/ to view backtest results.
+A file called `orders.csv` file is generated after every backtest in the project root folder. And then at the end of each backtest `data.csv` from data folder and `orders.csv` from project root are symlinked into the new `html/data` diretory along with the current strategy file.
 
 Do not forget to refresh the page after each backtest for evaluating the results.
+
+The workbench also helps you save to and retrieve backtests from the inbuilt library. A file called `backtests.db` is created inside `html` folder by the HTML Workbench and all your saved backtests are stored in it. Do not forget to back up this file.
+
+You can use this HTML5 Workbench by executing `python3 -m http.server 8000 --cgi` in the `html` folder and browsing to https://127.0.0.1:8000/ to view backtest results and access the library.
 
 ## Dedicated discord server
 This server is dedicated for bug reporting, feature requests and support.
