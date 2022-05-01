@@ -49,25 +49,27 @@ body{
 }
 
 .title{
-  margin: 10px auto;
+  margin: 8px auto;
 }
 
 .title span{
-  display: inline-block;
-  margin: auto;
-  line-height: 20px;
+  display: inline;
+  margin-right: 10px;
+  line-height: 30px;
   font-size: 20px;
   font-weight: bold;  
   vertical-align: middle;
 }
 
 .button.save{
-  padding: 4px 10px;
-  margin: auto 10px;
+  display: inline;
+  padding: 6px 10px;
+  margin: auto;
   font-size: 12px;
   background: #efefef;
   color: #292929;
   vertical-align: middle;
+  white-space:nowrap;
 }
 
 .button.save:hover {
