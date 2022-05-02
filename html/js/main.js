@@ -175,8 +175,9 @@ function modal_alert(title, content)
 
 function modal_dialog(title, content, button, callback)
 {    
+    var id = Date.now()
     var html = `
-    <div class="message">
+    <div class="message" id="{id}">
         <h3>{title}</h3>
         <p>{content}</p>
         <div class=buttons-cont">
@@ -185,17 +186,18 @@ function modal_dialog(title, content, button, callback)
         </div>
     </div>
     `;
-    html = html.replace("{title}", title)
+    html = html.replace("{id}", id)
+                .replace("{title}", title)
                 .replace("{content}", content)
                 .replace("{button}", button)
     $.featherlight(html, {variant: "dialog"})   
     
-    $('body').on("click", ".dialog .confirm", function(event){
+    $(".dialog #"+id+" .confirm").click(function(event){
         callback();
         $.featherlight.close()
     })
 
-    $('body').on("click", ".dialog .cancel", function(event){
+    $(".dialog #"+id+" .cancel").click(function(event){
         $.featherlight.close()
     })
 }
