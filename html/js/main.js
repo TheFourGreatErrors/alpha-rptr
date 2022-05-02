@@ -87,25 +87,37 @@ $('.button.fitchart').click(function(){
     chart.timeScale().fitContent()
 })
 
-$.get( "/data/data.csv", function( data ) {
+$(document).ready(function(){
 
-    chart_data = $.csv.toObjects(data);
-    time_index = Object()
-    time_length = chart_data.length
+    var title = get_title()
 
-    for (var i=0; i<chart_data.length; i++)
+    if (title)
     {
-        time_index[chart_data[i]["time"]] = i
-        var time = new Date(chart_data[i]["time"]).getTime()
-        chart_data[i]["time"] = time/1000
+        load_backtest(title)
     }
-
-    backtest.chart_data = chart_data
-    load_chart(chart_data);
-    get_load_trades(chart_data);  
-    get_strategy_code()    
-
-});  
+    else
+    {
+        $.get( "/data/data.csv", function( data ) {
+            
+            chart_data = $.csv.toObjects(data);
+            time_index = Object()
+            time_length = chart_data.length
+        
+            for (var i=0; i<chart_data.length; i++)
+            {
+                time_index[chart_data[i]["time"]] = i
+                var time = new Date(chart_data[i]["time"]).getTime()
+                chart_data[i]["time"] = time/1000
+            }
+        
+            backtest.chart_data = chart_data
+            load_chart(chart_data);
+            get_load_trades(chart_data);  
+            get_strategy_code()    
+        
+        });  
+    } 
+})
 
 $('.button.save').click(function(event){
     var form = `
@@ -147,6 +159,7 @@ $('body').on("click", ".save_form .save_button", {}, function(event){
                         if(data.result == 'success')
                         {
                             $(".header .title span").html(title)
+                            set_title(title)
                             $.featherlight.close()
                         }
                         else modal_alert("Error", title+" could not be saved to Library! Try Again!")    
@@ -216,7 +229,7 @@ $(".library").click(function(event){
 
         for (const test in library) {
             var meta = library[test]
-            var test_link = '<a class="test_link underline" href="javascript:test_link(\'' + test + '\')">' + '♈ ' + test + '</a>'
+            var test_link = '<a class="test_link underline" target="_blank" href="' + get_backtest_link(test )+ '" onclick="load_backtest_link(event,\'' + test + '\')">' + '♈ ' + test + '</a>'
             var delete_link = '<a class="delete_link" title="'+test+'" href="#">⛔</a>'
             library_table.push([test_link, meta.cagr, meta.max_dd, meta.period, meta.start_date, meta.end_date, meta.saved, delete_link])
         }
@@ -246,10 +259,11 @@ $(".library").click(function(event){
     })
 })
 
-function test_link(title)
+function load_backtest_link(event, title)
 {    
     load_backtest(title)
     $.featherlight.close()
+    event.preventDefault()
 }
 
 $('body').on( 'click', '#backtests .delete_link', function () {
@@ -302,6 +316,7 @@ function load_backtest(title)
         {   
             backtest = JSON.parse(data[title])
             $(".header .title span").html(title)
+            set_title(title)
             load_data(backtest.chart_data, backtest.order_data)
             
             chart.timeScale().fitContent()
@@ -312,14 +327,38 @@ function load_backtest(title)
 
 function load_data(chart_data, order_data)
 {
-    $('#trades').DataTable().destroy()
-    $('#trades').html('')
+    if ( $('#trades').children().length > 0 ) {
+        $('#trades').DataTable().destroy()
+        $('#trades').html('')
+    }
 
     load_chart(chart_data)
     load_trades(chart_data, order_data)
 }
 
 /*-------------------------*/
+
+function set_title(title)
+{
+    var url = new URL(window.location);
+    url.searchParams.set('title', title);
+    window.history.pushState({}, '', url);
+}
+
+function get_title()
+{
+    var url = new URL(window.location);
+    var title = url.searchParams.get('title');
+
+    return title
+}
+
+function get_backtest_link(title)
+{
+    var url = new URL(window.location);
+    url.searchParams.set('title', title);
+    return url.toString()
+}
 
 
 function load_chart(chart_data){
