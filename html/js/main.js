@@ -424,9 +424,30 @@ function load_trades(chart_data, order_data){
         var order_date = moment.utc(order_data[i]["time"]).format("YYYY-MM-DD HH:mm")        
         order_date = '<a class="chart_link underline" href="javascript:date_link(\''+order_data[i]["time"]+'\')">📈 '+order_date+'</a>'
 
-        var type = '<span class="'+order_data[i]["type"]+'">'+order_data[i]["id"]+'</span>'        
+        var type = '<span class="'+order_data[i]["type"]+'">'+order_data[i]["id"]+'</span>'
         
-        trades_table.push([order_date, type, order_data[i]["price"], order_data[i]["quantity"], order_data[i]["av_price"],  order_data[i]["position"], order_data[i]["pnl"], order_data[i]["balance"],order_data[i]["drawdown"]])
+        var number_formatter = Intl.NumberFormat('en-US', {
+            notation: "compact",
+            maximumSignificantDigits: 6
+        });
+
+        var quantity_formatted = parseFloat(order_data[i]["quantity"])
+        quantity_formatted = isNaN(quantity_formatted) ? '-' : (Math.abs(quantity_formatted) > 10**6 ? number_formatter.format(quantity_formatted) : quantity_formatted)
+        quantity_formatted = '<div title="'+order_data[i]["quantity"]+'">'+quantity_formatted+'</div>'
+
+        var position_formatted = parseFloat(order_data[i]["position"])
+        position_formatted = isNaN(position_formatted) ? '-' : (Math.abs(position_formatted) > 10**6 ? number_formatter.format(position_formatted) : position_formatted)
+        position_formatted = '<div title="'+order_data[i]["position"]+'">'+position_formatted+'</div>'
+
+        var pnl_formatted = parseFloat(order_data[i]["pnl"])
+        pnl_formatted = isNaN(pnl_formatted) ? '-' : (Math.abs(pnl_formatted) > 10**6 ? number_formatter.format(pnl_formatted) : pnl_formatted)
+        pnl_formatted = '<div title="'+order_data[i]["pnl"]+'">'+pnl_formatted+'</div>'
+
+        var balance_formatted = order_data[i]["balance"]
+        balance_formatted = isNaN(balance_formatted) ? '-' : (Math.abs(balance_formatted) > 10**6 ? number_formatter.format(balance_formatted) : balance_formatted)
+        balance_formatted = '<div title="'+order_data[i]["balance"]+'">'+balance_formatted+'</div>'          
+        
+        trades_table.push([order_date, type, order_data[i]["price"], quantity_formatted, order_data[i]["av_price"], position_formatted, pnl_formatted, balance_formatted,order_data[i]["drawdown"]])
 
         var time = new Date(order_data[i]["time"]).getTime()/1000
 
