@@ -87,25 +87,37 @@ $('.button.fitchart').click(function(){
     chart.timeScale().fitContent()
 })
 
-$.get( "/data/data.csv", function( data ) {
+$(document).ready(function(){
 
-    chart_data = $.csv.toObjects(data);
-    time_index = Object()
-    time_length = chart_data.length
+    var title = get_title()
 
-    for (var i=0; i<chart_data.length; i++)
+    if (title)
     {
-        time_index[chart_data[i]["time"]] = i
-        var time = new Date(chart_data[i]["time"]).getTime()
-        chart_data[i]["time"] = time/1000
+        load_backtest(title)
     }
-
-    backtest.chart_data = chart_data
-    load_chart(chart_data);
-    get_load_trades(chart_data);  
-    get_strategy_code()    
-
-});  
+    else
+    {
+        $.get( "/data/data.csv", function( data ) {
+            
+            chart_data = $.csv.toObjects(data);
+            time_index = Object()
+            time_length = chart_data.length
+        
+            for (var i=0; i<chart_data.length; i++)
+            {
+                time_index[chart_data[i]["time"]] = i
+                var time = new Date(chart_data[i]["time"]).getTime()
+                chart_data[i]["time"] = time/1000
+            }
+        
+            backtest.chart_data = chart_data
+            load_chart(chart_data);
+            get_load_trades(chart_data);  
+            get_strategy_code()    
+        
+        });  
+    } 
+})
 
 $('.button.save').click(function(event){
     var form = `
@@ -147,6 +159,7 @@ $('body').on("click", ".save_form .save_button", {}, function(event){
                         if(data.result == 'success')
                         {
                             $(".header .title span").html(title)
+                            set_title(title)
                             $.featherlight.close()
                         }
                         else modal_alert("Error", title+" could not be saved to Library! Try Again!")    
@@ -175,8 +188,9 @@ function modal_alert(title, content)
 
 function modal_dialog(title, content, button, callback)
 {    
+    var id = Date.now()
     var html = `
-    <div class="message">
+    <div class="message" id="{id}">
         <h3>{title}</h3>
         <p>{content}</p>
         <div class=buttons-cont">
@@ -185,17 +199,18 @@ function modal_dialog(title, content, button, callback)
         </div>
     </div>
     `;
-    html = html.replace("{title}", title)
+    html = html.replace("{id}", id)
+                .replace("{title}", title)
                 .replace("{content}", content)
                 .replace("{button}", button)
     $.featherlight(html, {variant: "dialog"})   
     
-    $('body').on("click", ".dialog .confirm", function(event){
+    $(".dialog #"+id+" .confirm").click(function(event){
         callback();
         $.featherlight.close()
     })
 
-    $('body').on("click", ".dialog .cancel", function(event){
+    $(".dialog #"+id+" .cancel").click(function(event){
         $.featherlight.close()
     })
 }
@@ -214,7 +229,7 @@ $(".library").click(function(event){
 
         for (const test in library) {
             var meta = library[test]
-            var test_link = '<a class="test_link underline" href="javascript:test_link(\'' + test + '\')">' + '♈ ' + test + '</a>'
+            var test_link = '<a class="test_link underline" target="_blank" href="' + get_backtest_link(test )+ '" onclick="load_backtest_link(event,\'' + test + '\')">' + '♈ ' + test + '</a>'
             var delete_link = '<a class="delete_link" title="'+test+'" href="#">⛔</a>'
             library_table.push([test_link, meta.cagr, meta.max_dd, meta.period, meta.start_date, meta.end_date, meta.saved, delete_link])
         }
@@ -244,10 +259,11 @@ $(".library").click(function(event){
     })
 })
 
-function test_link(title)
+function load_backtest_link(event, title)
 {    
     load_backtest(title)
     $.featherlight.close()
+    event.preventDefault()
 }
 
 $('body').on( 'click', '#backtests .delete_link', function () {
@@ -300,6 +316,7 @@ function load_backtest(title)
         {   
             backtest = JSON.parse(data[title])
             $(".header .title span").html(title)
+            set_title(title)
             load_data(backtest.chart_data, backtest.order_data)
             
             chart.timeScale().fitContent()
@@ -310,14 +327,38 @@ function load_backtest(title)
 
 function load_data(chart_data, order_data)
 {
-    $('#trades').DataTable().destroy()
-    $('#trades').html('')
+    if ( $('#trades').children().length > 0 ) {
+        $('#trades').DataTable().destroy()
+        $('#trades').html('')
+    }
 
     load_chart(chart_data)
     load_trades(chart_data, order_data)
 }
 
 /*-------------------------*/
+
+function set_title(title)
+{
+    var url = new URL(window.location);
+    url.searchParams.set('title', title);
+    window.history.pushState({}, '', url);
+}
+
+function get_title()
+{
+    var url = new URL(window.location);
+    var title = url.searchParams.get('title');
+
+    return title
+}
+
+function get_backtest_link(title)
+{
+    var url = new URL(window.location);
+    url.searchParams.set('title', title);
+    return url.toString()
+}
 
 
 function load_chart(chart_data){
@@ -383,9 +424,30 @@ function load_trades(chart_data, order_data){
         var order_date = moment.utc(order_data[i]["time"]).format("YYYY-MM-DD HH:mm")        
         order_date = '<a class="chart_link underline" href="javascript:date_link(\''+order_data[i]["time"]+'\')">📈 '+order_date+'</a>'
 
-        var type = '<span class="'+order_data[i]["type"]+'">'+order_data[i]["id"]+'</span>'        
+        var type = '<span class="'+order_data[i]["type"]+'">'+order_data[i]["id"]+'</span>'
         
-        trades_table.push([order_date, type, order_data[i]["price"], order_data[i]["quantity"], order_data[i]["av_price"],  order_data[i]["position"], order_data[i]["pnl"], order_data[i]["balance"],order_data[i]["drawdown"]])
+        var number_formatter = Intl.NumberFormat('en-US', {
+            notation: "compact",
+            maximumSignificantDigits: 6
+        });
+
+        var quantity_formatted = parseFloat(order_data[i]["quantity"])
+        quantity_formatted = isNaN(quantity_formatted) ? '-' : (Math.abs(quantity_formatted) > 10**6 ? number_formatter.format(quantity_formatted) : quantity_formatted)
+        quantity_formatted = '<div title="'+order_data[i]["quantity"]+'">'+quantity_formatted+'</div>'
+
+        var position_formatted = parseFloat(order_data[i]["position"])
+        position_formatted = isNaN(position_formatted) ? '-' : (Math.abs(position_formatted) > 10**6 ? number_formatter.format(position_formatted) : position_formatted)
+        position_formatted = '<div title="'+order_data[i]["position"]+'">'+position_formatted+'</div>'
+
+        var pnl_formatted = parseFloat(order_data[i]["pnl"])
+        pnl_formatted = isNaN(pnl_formatted) ? '-' : (Math.abs(pnl_formatted) > 10**6 ? number_formatter.format(pnl_formatted) : pnl_formatted)
+        pnl_formatted = '<div title="'+order_data[i]["pnl"]+'">'+pnl_formatted+'</div>'
+
+        var balance_formatted = order_data[i]["balance"]
+        balance_formatted = isNaN(balance_formatted) ? '-' : (Math.abs(balance_formatted) > 10**6 ? number_formatter.format(balance_formatted) : balance_formatted)
+        balance_formatted = '<div title="'+order_data[i]["balance"]+'">'+balance_formatted+'</div>'          
+        
+        trades_table.push([order_date, type, order_data[i]["price"], quantity_formatted, order_data[i]["av_price"], position_formatted, pnl_formatted, balance_formatted,order_data[i]["drawdown"]])
 
         var time = new Date(order_data[i]["time"]).getTime()/1000
 

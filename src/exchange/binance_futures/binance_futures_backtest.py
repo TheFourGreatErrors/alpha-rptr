@@ -99,7 +99,7 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
         """
         BinanceFuturesStub.entry(self, id, long, qty, limit, stop, post_only, when, round_decimals, callback)
 
-    def commit(self, id, long, qty, price, need_commission=False, callback=None):
+    def commit(self, id, long, qty, price, need_commission=False, callback=None, reduce_only=False):
         """
         Commit
         :param id: order
@@ -109,7 +109,7 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
         :param need_commission: use commision or not?
         :param callback
         """
-        BinanceFuturesStub.commit(self, id, long, qty, price, need_commission, callback)
+        BinanceFuturesStub.commit(self, id, long, qty, price, need_commission, callback, reduce_only)
 
         if long:
             self.buy_signals.append(self.index)

@@ -266,7 +266,7 @@ class BinanceFuturesStub(BinanceFutures):
         if limit > 0 or stop > 0:
             self.open_orders.append({"id": id, "long": long, "qty": ord_qty, "limit": limit, "stop": stop, "post_only": post_only, "reduce_only": reduce_only, "callback": callback})
         else:
-            self.commit(id, long, ord_qty, self.get_market_price(), True, callback)
+            self.commit(id, long, ord_qty, self.get_market_price(), True, callback, reduce_only)
             return
 
     def close_partial(self, id, ord_qty, limit=0, stop=0, trailValue=0, post_only=False, when=True, need_commission=True, callback=None):
@@ -288,7 +288,7 @@ class BinanceFuturesStub(BinanceFutures):
             self.commit(id, long, abs(ord_qty), self.get_market_price(), True, callback)
             return
 
-    def commit(self, id, long, qty, price, need_commission=False, callback=None):
+    def commit(self, id, long, qty, price, need_commission=False, callback=None, reduce_only=False):
         """         
          : param id: order number
          : param long: long or short
@@ -298,6 +298,7 @@ class BinanceFuturesStub(BinanceFutures):
         """
         self.order_count += 1
 
+        qty = abs(self.get_position_size()) if abs(qty) > abs(self.get_position_size()) and reduce_only == True else abs(qty)
         order_qty = qty if long else -qty
 
         if self.get_position_size()*order_qty > 0:
@@ -539,18 +540,18 @@ class BinanceFuturesStub(BinanceFutures):
 
                 if limit > 0 and stop > 0:
                     if (long and high[-1] > stop and close[-1] < limit) or (not long and low[-1] < stop and close[-1] > limit):
-                        self.commit(id, long, qty, limit, True, callback)
+                        self.commit(id, long, qty, limit, True, callback, reduce_only)
                         continue
                     elif (long and high[-1] > stop) or (not long and low[-1] < stop):
                         new_open_orders.append({"id": id, "long": long, "qty": qty, "limit": limit, "stop": 0, "post_only": post_only, "reduce_only": reduce_only, "callback": callback})
                         continue
                 elif limit > 0:
                     if (long and low[-1] < limit) or (not long and high[-1] > limit):
-                        self.commit(id, long, qty, limit, True, callback)
+                        self.commit(id, long, qty, limit, True, callback, reduce_only)
                         continue
                 elif stop > 0:
                     if (long and high[-1] > stop) or (not long and low[-1] < stop):
-                        self.commit(id, long, qty, stop, True, callback)
+                        self.commit(id, long, qty, stop, True, callback, reduce_only)
                         continue
 
                 new_open_orders.append(order)
