@@ -105,9 +105,9 @@ $(document).ready(function(){
         
             for (var i=0; i<chart_data.length; i++)
             {
-                time_index[chart_data[i]["time"]] = i
-                var time = new Date(chart_data[i]["time"]).getTime()
-                chart_data[i]["time"] = time/1000
+                var time = new Date(chart_data[i]["time"]).getTime()/1000
+                chart_data[i]["time"] = time
+                time_index[time] = i 
             }
         
             backtest.chart_data = chart_data
@@ -332,6 +332,14 @@ function load_data(chart_data, order_data)
         $('#trades').html('')
     }
 
+    time_index = Object()
+    time_length = chart_data.length
+
+    for (var i=0; i<chart_data.length; i++)
+    {
+        time_index[chart_data[i]["time"]] = i
+    }
+
     load_chart(chart_data)
     load_trades(chart_data, order_data)
 }
@@ -378,7 +386,8 @@ function get_load_trades(chart_data){
 
 function date_link(date)
 {
-    var chart_position = time_index[date]
+    var time = new Date(date).getTime()/1000
+    var chart_position = time_index[time]
 
     range = chart.timeScale().getVisibleLogicalRange();
     range = (Math.floor(range["to"]) - Math.floor(range["from"]))
