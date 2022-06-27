@@ -6,6 +6,7 @@ import signal
 import time
 
 from src.factory import BotFactory
+from src.config import config as conf
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="This is trading script for cryptocurrency trading")
@@ -18,6 +19,7 @@ if __name__ == "__main__":
     parser.add_argument("--pair", default="BTCUSDT",   required=False)
     parser.add_argument("--strategy", default="doten", required=True)
     args = parser.parse_args()
+    conf["args"] = args
 
     # create the bot instance
     bot = BotFactory.create(args)

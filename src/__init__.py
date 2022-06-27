@@ -12,6 +12,8 @@ import pandas as pd
 from pandas import Series
 import requests
 from bravado.exception import HTTPError
+#Install discord_webhook module 
+from discord_webhook import DiscordWebhook, DiscordEmbed
 
 from src.config import config as conf
 
@@ -245,6 +247,20 @@ class Side:
 
 
 def notify(message: object, fileName: object = None) -> object:
+
+    try:
+        webhook_url = conf["discord_webhooks"][conf["args"].account]
+
+        if webhook_url is not None:       
+            webhook = DiscordWebhook(url=webhook_url)
+            embed = DiscordEmbed()
+            embed.set_footer(text=message)
+            embed.set_timestamp()
+            webhook.add_embed(embed)
+            response = webhook.execute()     
+    except:
+        pass   
+
     url = 'https://notify-api.line.me/api/notify'
     #api_key = os.environ.get('LINE_APIKEY')
     api_key = conf['line_apikey']['API_KEY']
