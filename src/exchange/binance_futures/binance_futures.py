@@ -618,7 +618,7 @@ class BinanceFutures:
     
     def get_all_open_orders(self):
         """
-        Get all open orders - returns default for this pair
+        Get all open orders for this pair
         :param id: Order id
         :return:
         """
@@ -956,6 +956,8 @@ class BinanceFutures:
             except Exception as e:
                 logger.error(f"An error occurred. {e}")
                 logger.error(traceback.format_exc())    
+                notify(f"An error occurred. {e}")
+                notify(traceback.format_exc())
    
     def __on_update_instrument(self, action, instrument):
         """
