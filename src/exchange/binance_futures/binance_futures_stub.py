@@ -142,8 +142,61 @@ class BinanceFuturesStub(BinanceFutures):
         """
         self.open_orders = [o for o in self.open_orders if o["id"] != id]
         return True
+    
+    def order(self, id, long, qty, limit=0, stop=0, post_only=False, reduce_only=False, when=True, callback=None, workingType="CONTRACT_PRICE"):
+        """
+        Places an order.         
+        : param id: number of order
+        : param long: long or short
+        : param qty: order quantity
+        : param limit: limit
+        : param stop: stop limit
+        : param post_only: post only
+        : param reduce_only: reduce only
+        : param when: Do you order?
+        : return:
+        """
+        if not when:
+            return
 
-    def entry(self, id, long, qty, limit=0, stop=0, post_only=False, when=True, round_decimals=3, callback=None):
+        pos_size = self.get_position_size()
+        ord_qty = abs(qty)
+
+        if reduce_only \
+            and \
+            ((pos_size > 0 and (long == True or ord_qty > abs(pos_size))) \
+            or \
+            (pos_size < 0 and (long == False or ord_qty > abs(pos_size)))):
+            return
+
+        self.cancel(id)
+
+        if limit > 0 or stop > 0:
+            self.open_orders.append({"id": id, "long": long, "qty": ord_qty, "limit": limit, "stop": stop, "post_only": post_only, "reduce_only": reduce_only, "callback": callback})
+        else:
+            self.commit(id, long, ord_qty, self.get_market_price(), True, callback, reduce_only)
+            return
+
+    def close_partial(self, id, ord_qty, limit=0, stop=0, trailValue=0, post_only=False, when=True, need_commission=True, callback=None, workingType="CONTRACT_PRICE"):
+        """
+        """
+        pos_size = self.get_position_size()
+
+        if not when or pos_size == 0:
+            return
+
+        long = True if pos_size < 0 else False
+
+        if abs(ord_qty) > abs(pos_size):
+            ord_qty = pos_size
+
+        if limit > 0 or stop > 0:
+            self.open_orders.append({"id": id, "long": long, "qty": ord_qty, "limit": limit, "stop": stop, "post_only": post_only, "callback": callback})
+        else:
+            self.commit(id, long, abs(ord_qty), self.get_market_price(), True, callback)
+            return
+
+    def entry(self, id, long, qty, limit=0, stop=0, post_only=False, when=True, round_decimals=3, callback=None, workingType="CONTRACT_PRICE"):
         """
          I place an order. Equivalent function to pine's function.
          https://jp.tradingview.com/study-script-reference/#fun_strategy{dot}entry
@@ -177,7 +230,7 @@ class BinanceFuturesStub(BinanceFutures):
             self.commit(id, long, ord_qty, self.get_market_price(), True, callback)
             return
     
-    def entry_pyramiding(self, id, long, qty, limit=0, stop=0, trailValue= 0, post_only=False, reduce_only=False, ioc=False, cancel_all=False, pyramiding=2, when=True, round_decimals=3, callback=None):
+    def entry_pyramiding(self, id, long, qty, limit=0, stop=0, trailValue= 0, post_only=False, reduce_only=False, ioc=False, cancel_all=False, pyramiding=2, when=True, round_decimals=3, callback=None, workingType="CONTRACT_PRICE"):
         """
         Places an entry order, works as equivalent to tradingview pine script implementation with pyramiding        
         :param id: Order id
@@ -192,6 +245,7 @@ class BinanceFuturesStub(BinanceFutures):
         :param when: Do you want to execute the order or not - True for live trading
         :return:
         """       
+
         # if self.get_margin()['excessMargin'] <= 0 or qty <= 0:
         #     return
         if qty <= 0:
@@ -235,60 +289,7 @@ class BinanceFuturesStub(BinanceFutures):
             self.commit(id, long, ord_qty, self.get_market_price(), True, callback)
             return
 
-    def order(self, id, long, qty, limit=0, stop=0, post_only=False, reduce_only=False, when=True, callback=None):
-        """
-        Places an order.         
-        : param id: number of order
-        : param long: long or short
-        : param qty: order quantity
-        : param limit: limit
-        : param stop: stop limit
-        : param post_only: post only
-        : param reduce_only: reduce only
-        : param when: Do you order?
-        : return:
-        """
-        if not when:
-            return
-
-        pos_size = self.get_position_size()
-        ord_qty = abs(qty)
-
-        if reduce_only \
-            and \
-            ((pos_size > 0 and (long == True or ord_qty > abs(pos_size))) \
-            or \
-            (pos_size < 0 and (long == False or ord_qty > abs(pos_size)))):
-            return
-
-        self.cancel(id)
-
-        if limit > 0 or stop > 0:
-            self.open_orders.append({"id": id, "long": long, "qty": ord_qty, "limit": limit, "stop": stop, "post_only": post_only, "reduce_only": reduce_only, "callback": callback})
-        else:
-            self.commit(id, long, ord_qty, self.get_market_price(), True, callback, reduce_only)
-            return
-
-    def close_partial(self, id, ord_qty, limit=0, stop=0, trailValue=0, post_only=False, when=True, need_commission=True, callback=None):
-        """
-        """
-        pos_size = self.get_position_size()
-
-        if not when or pos_size == 0:
-            return
-
-        long = True if pos_size < 0 else False
-
-        if abs(ord_qty) > abs(pos_size):
-            ord_qty = pos_size
-
-        if limit > 0 or stop > 0:
-            self.open_orders.append({"id": id, "long": long, "qty": ord_qty, "limit": limit, "stop": stop, "post_only": post_only, "callback": callback})
-        else:
-            self.commit(id, long, abs(ord_qty), self.get_market_price(), True, callback)
-            return
-
-    def commit(self, id, long, qty, price, need_commission=False, callback=None, reduce_only=False):
+    def commit(self, id, long, qty, price, need_commission=False, callback=None, reduce_only=False):        
         """         
          : param id: order number
          : param long: long or short

@@ -12,9 +12,11 @@ import pandas as pd
 from pandas import Series
 import requests
 from bravado.exception import HTTPError
+#Install discord_webhook module 
+from discord_webhook import DiscordWebhook, DiscordEmbed
 
 from src.config import config as conf
-
+from src.exchange.binance_futures.exceptions import BinanceAPIException, BinanceRequestException
 
 logging.basicConfig(
     level=logging.INFO,
@@ -201,6 +203,16 @@ def retry(func, count=5):
                 raise FatalError(error)
     raise err
 
+binance_errors_to_actions = {
+    # APIError(code=-1021): Timestamp for this request is outside of the recvWindow.
+    1021: "retry"
+}
+
+def check_binance_error(code):
+    try:
+        return binance_errors_to_actions[abs(int(code))]
+    except:
+        return None
 
 def retry_binance_futures(func, count=5):
     err = None
@@ -221,19 +233,29 @@ def retry_binance_futures(func, count=5):
             # if rate_remain is not None and rate_remain < 10:
             #     time.sleep(5 * 60 * (1 + rate_limit - rate_remain) / rate_limit)
             return ret
-        except HTTPError as error:
+        except BinanceAPIException as error:
+            logger.info(error)
             status_code = error.status_code
             err = error
-            if status_code >= 500:
+            if status_code >= 500 or \
+                check_binance_error(error.code) == "retry":
                 time.sleep(pow(2, i + 1))
+                logger.info(f"Retrying Request - Count: {i+1} - Status: {status_code} - Error: {error.code}")
                 continue
             elif status_code == 400 or \
                     status_code == 401 or \
                     status_code == 402 or \
                     status_code == 403 or \
                     status_code == 404 or \
-                    status_code == 429:
+                    status_code == 429 or \
+                    check_binance_error(error.code) == "error":
                 raise FatalError(error)
+        except BinanceRequestException as reqErr:
+            logger.info(reqErr)
+            time.sleep(pow(2, i + 1))
+            logger.info(f"Retrying Request - Count: {i+1}")
+            continue
+
     raise err
 
 
@@ -245,6 +267,20 @@ class Side:
 
 
 def notify(message: object, fileName: object = None) -> object:
+
+    try:
+        webhook_url = conf["discord_webhooks"][conf["args"].account]
+
+        if webhook_url is not None:       
+            webhook = DiscordWebhook(url=webhook_url)
+            embed = DiscordEmbed()
+            embed.set_footer(text=message)
+            embed.set_timestamp()
+            webhook.add_embed(embed)
+            response = webhook.execute()     
+    except:
+        pass   
+
     url = 'https://notify-api.line.me/api/notify'
     #api_key = os.environ.get('LINE_APIKEY')
     api_key = conf['line_apikey']['API_KEY']

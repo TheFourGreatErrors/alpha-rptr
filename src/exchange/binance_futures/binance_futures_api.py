@@ -27,6 +27,7 @@ import time, hashlib, hmac
 import requests
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
+import logging
 from operator import itemgetter
 
 from .exceptions import BinanceAPIException, BinanceRequestException, BinanceWithdrawException
@@ -136,13 +137,14 @@ class Client(object):
         session.headers.update({'Accept': 'application/json',
                                 'User-Agent': 'binance/python',
                                 'X-MBX-APIKEY': self.API_KEY})
-
-        retry = Retry(total=10,
-                backoff_factor=1,
+        
+        retry = Retry(total=730, #retry for more than 24 hours
+                backoff_factor=1, #0.5, 1, 2, 4, 8, 16, 32, 64, 128 intervals
                 status_forcelist=[ 500, 502, 503, 504 ])
         adapter = HTTPAdapter(max_retries=retry)
         session.mount('http://', adapter)
         session.mount('https://', adapter)
+        logging.getLogger("urllib3").setLevel(logging.ERROR)
 
         return session
 
@@ -368,6 +370,18 @@ class Client(object):
         https://binance-docs.github.io/apidocs/futures/en/#kline-candlestick-data-market_data
         """
         return self._request_futures_api('get', 'klines', data=params)
+
+    def futures_index_price_klines(self, **params):
+        """Kline/candlestick bars for a symbol. Klines are uniquely identified by their open time.
+        https://binance-docs.github.io/apidocs/futures/en/#kline-candlestick-data-market_data
+        """
+        return self._request_futures_api('get', 'indexPriceKlines', data=params)
+
+    def futures_mark_price_klines(self, **params):
+        """Kline/candlestick bars for a symbol. Klines are uniquely identified by their open time.
+        https://binance-docs.github.io/apidocs/futures/en/#kline-candlestick-data-market_data
+        """
+        return self._request_futures_api('get', 'markPriceKlines', data=params)
 
     def futures_mark_price(self, **params):
         """Get Mark Price and Funding Rate

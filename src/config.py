@@ -16,6 +16,10 @@ config = {
                     "bitmextest2": {"API_KEY": "", "SECRET_KEY": ""}
                     },
     "line_apikey": {"API_KEY": ""},
+    "discord_webhooks": {
+					"binanceaccount1": "",
+					"binanceaccount2": ""
+                    },
     "healthchecks.io": {
                     "binanceaccount1": {
                         "websocket_heartbeat": "",

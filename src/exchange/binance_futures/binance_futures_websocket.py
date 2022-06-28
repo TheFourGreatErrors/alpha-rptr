@@ -7,6 +7,7 @@ import threading
 import time
 import traceback
 import urllib
+import requests
 
 import websocket
 from datetime import datetime
@@ -29,7 +30,7 @@ def get_listenkey(api_key, api_secret, testnet):
 
 class BinanceFuturesWs:    
 
-    def __init__(self, account, pair, test=False):
+    def __init__(self, account, pair, bin_size, test=False):
         """
         constructor
         """
@@ -37,6 +38,8 @@ class BinanceFuturesWs:
         self.account = account
         # Pair
         self.pair = pair.lower()
+		# TFs Array
+        self.bin_size = bin_size
         # testnet
         self.testnet = test
         # domain
@@ -59,11 +62,7 @@ class BinanceFuturesWs:
         else:
             self.domain = 'fstream.binance.com'
         self.__get_auth_user_data_streams()
-        self.endpoint = 'wss://' + self.domain + '/stream?streams=' + self.listenKey + '/' + self.pair + '@ticker/' + self.pair + '@kline_1m/' \
-                        + self.pair + '@kline_5m/' + self.pair + '@kline_30m/' \
-                        + self.pair + '@kline_1h/'  + self.pair + '@kline_1d/' + self.pair + '@kline_1w/' \
-                        + self.pair + '@depth20@100ms/' + self.pair + '@bookTicker'
-        self.ws = websocket.WebSocketApp(self.endpoint,
+        self.ws = websocket.WebSocketApp(self.__get_wss_endpoint(),
                              on_message=self.__on_message,
                              on_error=self.__on_error,
                              on_close=self.__on_close)                             
@@ -72,6 +71,13 @@ class BinanceFuturesWs:
         self.wst.daemon = True
         self.wst.start()
         self.__keep_alive_user_datastream(self.listenKey)
+
+    def __get_wss_endpoint(self):
+        klines = ""
+        if len(self.bin_size) > 0: 
+            for t in self.bin_size: 
+                klines += self.pair + '@kline_' + t + '/'
+        return 'wss://' + self.domain + '/stream?streams=' + self.listenKey + '/' + self.pair + '@ticker/' + klines
    
     def __get_auth_user_data_streams(self):
         """
@@ -235,12 +241,8 @@ class BinanceFuturesWs:
             notify(f"Websocket On Close: Restart")
 
             time.sleep(60)
-            self.endpoint = 'wss://' + self.domain + '/stream?streams=' + self.listenKey + '/' + self.pair + '@ticker/' + self.pair + '@kline_1m/' \
-                    + self.pair + '@kline_5m/' + self.pair + '@kline_30m/' \
-                    + self.pair + '@kline_1h/'  + self.pair + '@kline_1d/' + self.pair + '@kline_1w/' \
-                    + self.pair + '@depth20@100ms/' + self.pair + '@bookTicker'
-        
-            self.ws = websocket.WebSocketApp(self.endpoint,
+            # Listen Key can change after disconnects, so the url can change too
+            self.ws = websocket.WebSocketApp(self.__get_wss_endpoint(),
                                  on_message=self.__on_message,
                                  on_error=self.__on_error,
                                  on_close=self.__on_close)                                 
