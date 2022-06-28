@@ -1100,7 +1100,11 @@ class BinanceFutures:
         self.strategy = strategy             
 
         if self.is_running:
-            self.ws = BinanceFuturesWs(account=self.account, pair=self.pair, test=self.demo)
+            klines = set()
+            if len(self.bin_size) > 0: 
+                for t in self.bin_size: 
+                    klines.add(allowed_range_minute_granularity[t][0]) if self.minute_granularity else klines.add(allowed_range[t][0])
+            self.ws = BinanceFuturesWs(account=self.account, pair=self.pair, bin_size=sorted(klines), test=self.demo)
 
             #if len(self.bin_size) > 1:   
                 #self.minute_granularity=True  
