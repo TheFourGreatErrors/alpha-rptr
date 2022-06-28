@@ -601,26 +601,22 @@ class BitMex:
             if self.get_position_size() > 0 and \
                     self.get_market_price() - self.get_exit_order()['trail_offset'] < self.get_trail_price():
                 logger.info(f"Loss cut by trailing stop: {self.get_exit_order()['trail_offset']}")
-                self.close_all()
                 self.close_all(self.get_exit_order()['trail_callback'])
             elif self.get_position_size() < 0 and \
                     self.get_market_price() + self.get_exit_order()['trail_offset'] > self.get_trail_price():
                 logger.info(f"Loss cut by trailing stop: {self.get_exit_order()['trail_offset']}")
-                self.close_all()
                 self.close_all(self.get_exit_order()['trail_callback'])
 
         # stop loss
         if unrealised_pnl < 0 and \
                 0 < self.get_exit_order()['loss'] < abs(unrealised_pnl / 100000000):
             logger.info(f"Loss cut by stop loss: {self.get_exit_order()['loss']}")
-            self.close_all()
             self.close_all(self.get_exit_order()['loss_callback'])
 
         # profit take
         if unrealised_pnl > 0 and \
                 0 < self.get_exit_order()['profit'] < abs(unrealised_pnl / 100000000):
             logger.info(f"Take profit by stop profit: {self.get_exit_order()['profit']}")
-            self.close_all()
             self.close_all(self.get_exit_order()['profit_callback'])
      
     def eval_sltp(self):
