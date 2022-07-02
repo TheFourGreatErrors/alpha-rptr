@@ -47,6 +47,14 @@ class BinanceFutures:
         self.account = account
         # Pair
         self.pair = pair
+		# Base Asset
+        self.base_asset = None
+	    # Asset Rounding
+        self.asset_rounding = None
+	    # Quote Asset
+        self.quote_asset = None
+	    # Quote Rounding
+        self.quote_rounding = None
         # Use testnet?
         self.demo = demo
         # Is bot running?
@@ -119,6 +127,21 @@ class BinanceFutures:
         api_secret = conf['binance_test_keys'][self.account]['SECRET_KEY'] if self.demo else conf['binance_keys'][self.account]['SECRET_KEY']
         
         self.client = Client(api_key=api_key, api_secret=api_secret, testnet=self.demo)
+
+        if self.base_asset == None or self.asset_rounding == None or \
+            self.quote_asset == None or self.quote_rounding == None:
+
+            exchange_info =  retry(lambda: self.client.futures_exchange_info())
+            symbols = exchange_info['symbols']
+            symbol = [symbol for symbol in symbols if symbol.get('symbol')==self.pair]                 
+
+            self.base_asset = symbol[0]['baseAsset']
+            self.asset_rounding = symbol[0]['quantityPrecision'] 
+
+            self.quote_asset = symbol[0]['quoteAsset']
+            self.quote_rounding = symbol[0]['pricePrecision']      
+
+            logger.info(f"Asset: {self.base_asset} Rounding: {self.asset_rounding} - Quote: {self.quote_asset} Rounding: {self.quote_rounding}")      
         
     def now_time(self):
         """
@@ -158,7 +181,7 @@ class BinanceFutures:
         ret = self.get_margin()
 
         if len(ret) > 0:
-            balances = [p for p in ret if p["asset"] == "USDT"]            
+            balances = [p for p in ret if p["asset"] == self.quote_asset]            
             return float(balances[0]["balance"])
         else: return None
 
@@ -171,7 +194,7 @@ class BinanceFutures:
         ret = self.get_margin()
 
         if len(ret) > 0:
-            balances = [p for p in ret if p["asset"] == "USDT"]            
+            balances = [p for p in ret if p["asset"] == self.quote_asset]            
             return float(balances[0]["availableBalance"])
         else: return None
 
@@ -1045,11 +1068,11 @@ class BinanceFutures:
             logger.info(f"Updated Position\n"
                         f"Price: {self.position[0]['entryPrice']} => {position[0]['ep']}\n"
                         f"Qty: {self.position[0]['positionAmt']} => {position[0]['pa']}\n"
-                        f"Balance: {self.get_balance()} USDT")
+                        f"Balance: {self.get_balance()} {self.quote_asset}")
             notify(f"Updated Position\n"
                    f"Price: {self.position[0]['entryPrice']} => {position[0]['ep']}\n"
                    f"Qty: {self.position[0]['positionAmt']} => {position[0]['pa']}\n"
-                   f"Balance: {self.get_balance()} USDT")
+                   f"Balance: {self.get_balance()} {self.quote_asset}")
        
         self.position[0] = {
                             "entryPrice": position[0]['ep'],
@@ -1073,7 +1096,7 @@ class BinanceFutures:
         """
         if self.margin is not None:
             self.margin[0] = {
-                                "asset": "USDT",
+                                "asset": self.quote_asset,
                                 "balance": float(margin['wb']),
                                 "crossWalletBalance": float(margin['cw'])
                              }             
