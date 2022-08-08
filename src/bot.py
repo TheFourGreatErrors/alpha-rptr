@@ -11,7 +11,16 @@ from src.exchange.bitmex.bitmex_stub import BitMexStub
 from src.exchange.binance_futures.binance_futures_stub import BinanceFuturesStub
 from src.exchange.bitmex.bitmex_backtest import BitMexBackTest
 from src.exchange.binance_futures.binance_futures_backtest import BinanceFuturesBackTest
+from datetime import datetime, timezone
+from time import sleep
+import time
+import json #pickle #jsonpickle #json
 
+class Session:
+    def __init__(self):
+        self.__session_type__ = "object"
+    def load(self, dict):
+        self.__dict__.update(dict)
 
 class Bot:
     # Parameters
@@ -34,6 +43,11 @@ class Bot:
     stub_test = False
     # Parameter optimization?
     hyperopt = False
+    # Session Persistence
+    session = Session()
+    # session = type("Session", (object,), {})()
+    session_file = None
+    session_file_name = None
 
     def __init__(self, bin_size):
         """
@@ -42,6 +56,9 @@ class Bot:
         :param periods: period
         """
         self.bin_size = bin_size
+
+    def __del__(self):
+        self.stop()
 
     def options(self):
         """
@@ -176,6 +193,15 @@ class Bot:
 
         logger.info(f"Stopping Bot")
 
+        if self.session_file != None:
+            self.session_file.truncate(0)
+            self.session_file.seek(0)
+            # pickle.dump(self.session, self.session_file)
+            json.dump(self.session, self.session_file, default=vars, indent=True)
+            # self.session_file.write(jsonpickle.encode(self.session))
+            self.session_file.close()
+            logger.info(f"Saved Session to {self.session_file_name}")
+
         self.exchange.stop()
         self.exchange.cancel_all()
-        sys.exit()
+        sys.exit(0)
