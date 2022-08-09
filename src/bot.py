@@ -60,6 +60,9 @@ class Bot:
     def __del__(self):
         self.stop()
 
+    def get_session(self):
+        return self.session
+
     def options(self):
         """
         Function to get values for parameter optimization
