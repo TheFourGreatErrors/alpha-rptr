@@ -945,8 +945,10 @@ class BinanceFutures:
 
             #logger.info(f"{self.timeframe_info[t]['last_action_time']} : {self.timeframe_data[t].iloc[-1].name} : {re_sample_data.iloc[-1].name}")  
 
-            if self.timeframe_info[t]["last_action_time"] is not None and \
-                self.timeframe_info[t]["last_action_time"] == re_sample_data.iloc[-1].name:
+            if self.timeframe_info[t]["last_action_time"] is None:
+                self.timeframe_info[t]["last_action_time"] = re_sample_data.iloc[-1].name
+                
+            if self.timeframe_info[t]["last_action_time"] == re_sample_data.iloc[-1].name:
                 continue
 
             # The last candle in the buffer needs to be preserved 
