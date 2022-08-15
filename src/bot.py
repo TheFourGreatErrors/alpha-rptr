@@ -63,6 +63,9 @@ class Bot:
     def get_session(self):
         return self.session
 
+    def set_session(self, session):
+        self.session.load(session)
+
     def options(self):
         """
         Function to get values for parameter optimization

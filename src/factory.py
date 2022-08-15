@@ -44,7 +44,7 @@ class BotFactory():
 
                     use_stored_session = query_yes_no("Session Found. Do you want to use it?", "no")
                     if use_stored_session:
-                        bot.session.load(vars)
+                        bot.set_session(vars)
                 except Exception as _:
                     logger.info("Session file is empty!")
             else:
