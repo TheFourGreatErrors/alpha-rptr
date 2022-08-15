@@ -230,6 +230,20 @@ class Sample(Bot):
             #logger.info(f"short entry signal history list: {self.isShortEntry}")    
 ```
 
+## Strategy Session Persistence
+
+Sometime we might need to restart strategies with complex internal state and we might want to preserve this state between restarts.
+
+For this a special provision has been provided by default in every strategy. You can define strategy variables that you want to persist inside the `init()` function of the strategy as `self.session.<whatever> = <whatever>` and these variables that are namespaced inside session will be optionally saved to a JSON file when the bot exits.
+
+You can turn on session persistence by adding `--session <filename.json>` to the shell command used to start the bot. The bot then prompts you whether to load the session if one exists or will create one otherwise. You can choose to ignore the saved session and it will store the session afresh in the end.
+    
+## Advanced Session Usage:
+    
+Inside strategy you can manipulate Session before saving and loading by overriding `get_session()` and `set_session(session)` methods
+
+Useful since persistence using json only supports basic types and you might have other types that you need to persist - overriding set_session and       get_session lets you manually handle the conversion from and to basic types.
+
 ## HTML5 Workbench for Backtests
 
 <img src="img/HTML5Workbench.png" width="800">
