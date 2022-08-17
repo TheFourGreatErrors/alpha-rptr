@@ -18,6 +18,7 @@ if __name__ == "__main__":
     parser.add_argument("--exchange", default="binance",   required=True)
     parser.add_argument("--pair", default="BTCUSDT",   required=False)
     parser.add_argument("--strategy", default="doten", required=True)
+    parser.add_argument("--session", default=None, required=False)
     args = parser.parse_args()
     conf["args"] = args
 
@@ -28,6 +29,8 @@ if __name__ == "__main__":
 
     if not args.test:
         # register stopping
-        signal.signal(signal.SIGINT, lambda x, y: bot.stop())
+        def term(signum, frame):
+            bot.stop()
+        signal.signal(signal.SIGINT, term)
         while True:
             time.sleep(1)

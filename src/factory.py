@@ -2,6 +2,8 @@
 
 import importlib, os
 from src import symlink
+import json #pickle #jsonpickle #json
+from src import logger, query_yes_no
 
 class BotFactory():
 
@@ -27,6 +29,27 @@ class BotFactory():
             STRATEGY_FILENAME = os.path.join(os.getcwd(), f"src/strategies/{args.strategy}.py")
             symlink(STRATEGY_FILENAME, 'html/data/strategy.py', overwrite=True)
             
+            if args.session != None:
+                try:
+                    bot.session_file_name = args.session
+                    bot.session_file = open(args.session,"r+")
+                except Exception as e:
+                    logger.info("Session file not found - Creating!")
+                    bot.session_file = open(args.session,"w")
+                
+                try:
+                    # vars = pickle.load(bot.session_file)
+                    vars = json.load(bot.session_file)
+                    # vars = jsonpickle.decode(bot.session_file.read())
+
+                    use_stored_session = query_yes_no("Session Found. Do you want to use it?", "no")
+                    if use_stored_session:
+                        bot.set_session(vars)
+                except Exception as _:
+                    logger.info("Session file is empty!")
+            else:
+                bot.session_file = None
+
             return bot
         except Exception as _:
             raise Exception(f"Not Found Strategy : {args.strategy}")
