@@ -6,6 +6,7 @@ import math
 import traceback
 from datetime import datetime, timezone
 import time
+import threading
 
 import pandas as pd
 from bravado.exception import HTTPNotFound
@@ -97,7 +98,9 @@ class BinanceFutures:
                         'profit_long_callback': None,
                         'profit_short_callback': None,
                         'stop_long_callback': None,
-                        'stop_short_callback': None
+                        'stop_short_callback': None,
+						'split': 1,
+						'interval': 0
                         }         
          # Profit, Loss and Trail Offset
         self.exit_order = {
@@ -106,7 +109,9 @@ class BinanceFutures:
                         'trail_offset': 0, 
                         'profit_callback': None,
                         'loss_callback': None,
-                        'trail_callbak': None
+                        'trail_callbak': None,
+						'split': 1,
+						'interval': 0
                         }
         # Trailing Stop
         self.trail_price = 0   
@@ -326,7 +331,7 @@ class BinanceFutures:
         logger.info(f"Cancel all open orders: {res}")    
         self.callbacks = {}
 
-    def close_all(self, callback=None):
+    def close_all(self, callback=None, split=1, interval=0):
         """
         market close opened position for this pair
         """
@@ -337,7 +342,7 @@ class BinanceFutures:
 
         side = False if position_size > 0 else True
         
-        self.order("Close", side, abs(position_size), callback=callback)
+        self.order("Close", side, abs(position_size), callback=callback, split=split, interval=interval)
         position_size = self.get_position_size()
         if position_size == 0:
             logger.info(f"Closed {self.pair} position")
@@ -370,7 +375,7 @@ class BinanceFutures:
         """
         create an order
         """
-        #removes "+" from order suffix, because of the new regular expression rule for newClientOrderId updated as ^[\.A-Z\:/a-z0-9_-]{1,36}$ (2021-01-26)       
+        #removes "+" from order suffix, because of the new regular expression rule for newClientOrderId updated as ^[\.A-Z\:/a-z0-9_-]{1,36}$ (2021-01-26)
         ord_id = ord_id.replace("+", "k") 
         
         if  trailing_stop > 0 and activationPrice > 0:
@@ -381,7 +386,7 @@ class BinanceFutures:
         elif trailing_stop > 0:
             ord_type = "TRAILING_STOP_MARKET"
             retry(lambda: self.client.futures_create_order(symbol=self.pair, type=ord_type, newClientOrderId=ord_id,
-                                                              side=side, quantity=ord_qty, callbackRate=trailing_stop))
+                                                              side=side, quantity=ord_qty, callbackRate=trailing_stop, workingType=workingType))
         elif limit > 0 and post_only:
             ord_type = "LIMIT"
             retry(lambda: self.client.futures_create_order(symbol=self.pair, type=ord_type, newClientOrderId=ord_id,
@@ -471,7 +476,7 @@ class BinanceFutures:
 
     #         notify(f"Amend Order\nType: {ord_type}\nSide: {side}\nQty: {ord_qty}\nLimit: {limit}\nStop: {stop}")
 
-    def entry(self, id, long, qty, limit=0, stop=0, post_only=False, reduce_only=False, when=True, round_decimals=3, callback=None, workingType="CONTRACT_PRICE"):
+    def entry(self, id, long, qty, limit=0, stop=0, post_only=False, reduce_only=False, when=True, round_decimals=3, callback=None, workingType="CONTRACT_PRICE", split=1, interval=0):
         """
         places an entry order, works as equivalent to tradingview pine script implementation
         https://tradingview.com/study-script-reference/#fun_strategy{dot}entry
@@ -508,9 +513,9 @@ class BinanceFutures:
         trailing_stop=0
         activationPrice=0
 
-        self.order(id, long, ord_qty, limit, stop, post_only, reduce_only, trailing_stop, activationPrice, when, callback, workingType)
+        self.order(id, long, ord_qty, limit, stop, post_only, reduce_only, trailing_stop, activationPrice, when, callback, workingType, split, interval)
 
-    def entry_pyramiding(self, id, long, qty, limit=0, stop=0, trailValue= 0, post_only=False, reduce_only=False, cancel_all=False, pyramiding=2, when=True, round_decimals=3, callback=None, workingType="CONTRACT_PRICE"):
+    def entry_pyramiding(self, id, long, qty, limit=0, stop=0, trailValue= 0, post_only=False, reduce_only=False, cancel_all=False, pyramiding=2, when=True, round_decimals=3, callback=None, workingType="CONTRACT_PRICE", split=1, interval=0):
         """
         places an entry order, works as equivalent to tradingview pine script implementation with pyramiding
         https://tradingview.com/study-script-reference/#fun_strategy{dot}entry
@@ -567,9 +572,9 @@ class BinanceFutures:
 
         ord_qty = round(ord_qty, round_decimals)
 
-        self.order(id, long, ord_qty, limit, stop, post_only, reduce_only, trailing_stop, activationPrice, when, callback, workingType)
+        self.order(id, long, ord_qty, limit, stop, post_only, reduce_only, trailing_stop, activationPrice, when, callback, workingType, split, interval)
 
-    def order(self, id, long, qty, limit=0, stop=0, post_only=False, reduce_only=False, trailing_stop=0, activationPrice=0, when=True, callback=None, workingType="CONTRACT_PRICE"):
+    def order(self, id, long, qty, limit=0, stop=0, post_only=False, reduce_only=False, trailing_stop=0, activationPrice=0, when=True, callback=None, workingType="CONTRACT_PRICE", split=1, interval=0):
         """
         places an order, works as equivalent to tradingview pine script implementation
         https://www.tradingview.com/pine-script-reference/#fun_strategy{dot}order
@@ -599,6 +604,44 @@ class BinanceFutures:
 
         order = self.get_open_order(id)
         ord_id = id + ord_suffix() #if order is None else order["clientOrderId"]
+
+        if split > 1:
+
+            exchange = self
+            sub_ord_qty = round(ord_qty/split, self.asset_rounding)
+            
+            class split_order:
+
+                def __init__(self,count):
+                    self.count = count
+
+                def __call__(self):
+                    logger.info(f"Split Order - Filled - {self.count}/{split}")
+                    threading.Timer(interval, self.next_order).start()
+
+                def next_order(self):  
+
+                    sub_ord_id = f"{id}_sub{self.count+1}"                  
+
+                    #last sub order
+                    if(self.count == split-1):     
+                        #remaining quantity                   
+                        s_ord_qty = round(ord_qty - sub_ord_qty*(split-1), exchange.asset_rounding)
+                        def final_callback():
+                            logger.info(F"Order ID - {id} - All Suborders filled!")
+                            if callable(callback):
+                                callback() #call original callback
+                        sub_ord_callback = final_callback 
+                    else:
+                        s_ord_qty = sub_ord_qty
+                        sub_ord_callback = type(self)(self.count+1)
+                    
+                    # Override stop for subsequent sub orders
+                    exchange.order(sub_ord_id, long, s_ord_qty, limit, 0, post_only, reduce_only, trailing_stop, activationPrice, workingType=workingType, callback=sub_ord_callback)
+
+            sub_ord_id = f"{id}_sub1"
+            self.order(sub_ord_id, long, sub_ord_qty, limit, stop, post_only, reduce_only, trailing_stop, activationPrice, workingType=workingType, callback=split_order(1))
+            return
 
         self.callbacks[ord_id] = callback
 
@@ -657,7 +700,7 @@ class BinanceFutures:
         orderbook_ticker = retry(lambda: self.client.futures_orderbook_ticker(symbol=self.pair))
         return orderbook_ticker
 
-    def exit(self, profit=0, loss=0, trail_offset=0, profit_callback=None, loss_callback=None, trail_callback=None):
+    def exit(self, profit=0, loss=0, trail_offset=0, profit_callback=None, loss_callback=None, trail_callback=None, split=1, interval=0):
         """
         profit taking and stop loss and trailing, if both stop loss and trailing offset are set trailing_offset takes precedence
         :param profit: Profit (specified in ticks)
@@ -670,11 +713,12 @@ class BinanceFutures:
                             'trail_offset': trail_offset, 
                             'profit_callback': profit_callback,
                             'loss_callback': loss_callback,
-                            'trail_callback': trail_callback
+                            'trail_callback': trail_callback,
+                            'split': split,
+                            'interval': interval
                             }
 
-    def sltp(self, profit_long=0, profit_short=0, stop_long=0, stop_short=0, eval_tp_next_candle=False, round_decimals=2, 
-                    profit_long_callback=None, profit_short_callback=None, stop_long_callback=None, stop_short_callback=None, workingType="CONTRACT_PRICE"):
+    def sltp(self, profit_long=0, profit_short=0, stop_long=0, stop_short=0, eval_tp_next_candle=False, round_decimals=2, profit_long_callback=None, profit_short_callback=None, stop_long_callback=None, stop_short_callback=None, workingType="CONTRACT_PRICE", split=1, interval = 0):
         """
         Simple take profit and stop loss implementation, which sends a reduce only stop loss order upon entering a position.
         :param profit_long: profit target value in % for longs
@@ -693,7 +737,9 @@ class BinanceFutures:
                             'profit_short_callback': profit_short_callback,
                             'stop_long_callback': stop_long_callback,
                             'stop_short_callback': stop_short_callback,
-                            'sltp_working_type': workingType
+                            'sltp_working_type': workingType,
+                            'split': split,
+                            'interval': interval
                             }        
         self.round_decimals = round_decimals
 
@@ -723,24 +769,26 @@ class BinanceFutures:
             if self.get_position_size() > 0 and \
                     self.get_market_price() - self.get_exit_order()['trail_offset'] < self.get_trail_price():
                 logger.info(f"Loss cut by trailing stop: {self.get_exit_order()['trail_offset']}")
-                self.close_all(self.get_exit_order()['trail_callback'])
+                self.close_all(self.get_exit_order()['trail_callback'], self.get_exit_order()['split'], self.get_exit_order()['interval'])
             elif self.get_position_size() < 0 and \
                     self.get_market_price() + self.get_exit_order()['trail_offset'] > self.get_trail_price():
                 logger.info(f"Loss cut by trailing stop: {self.get_exit_order()['trail_offset']}")
-                self.close_all(self.get_exit_order()['trail_callback'])
+                self.close_all(self.get_exit_order()['trail_callback'], self.get_exit_order()['split'], self.get_exit_order()['interval'])
 
         #stop loss
         if unrealised_pnl < 0 and \
                 0 < self.get_exit_order()['loss'] < abs(unrealised_pnl):
             logger.info(f"Loss cut by stop loss: {self.get_exit_order()['loss']}")
-            self.close_all(self.get_exit_order()['loss_callback'])
+            self.close_all(self.get_exit_order()['loss_callback'], self.get_exit_order()['split'], self.get_exit_order()['interval'])
 
         # profit take
         if unrealised_pnl > 0 and \
                 0 < self.get_exit_order()['profit'] < abs(unrealised_pnl):
             logger.info(f"Take profit by stop profit: {self.get_exit_order()['profit']}")
-            self.close_all(self.get_exit_order()['profit_callback'])
-    
+            self.close_all(self.get_exit_order()['profit_callback'], self.get_exit_order()['split'], self.get_exit_order()['interval'])
+
+    # simple TP implementation
+
     def eval_sltp(self):
         """
         Simple take profit and stop loss implementation, which sends a reduce only stop loss order upon entering a position.
@@ -775,9 +823,11 @@ class BinanceFutures:
                     time.sleep(2)                                         
                     self.cancel(id=tp_order['clientOrderId'])
                     time.sleep(2)
-                    self.order("TP", False, abs(pos_size), limit=tp_price_long, reduce_only=True, callback=self.get_sltp_values()['profit_long_callback'], workingType=self.get_sltp_values()['sltp_working_type'])
+                    self.order("TP", False, abs(pos_size), limit=tp_price_long, reduce_only=True, callback=self.get_sltp_values()['profit_long_callback'], workingType=self.get_sltp_values()['sltp_working_type'], \
+                        split=self.get_sltp_values()['split'], interval=self.get_sltp_values()['interval'])
                 else:               
-                    self.order("TP", False, abs(pos_size), limit=tp_price_long, reduce_only=True, callback=self.get_sltp_values()['profit_long_callback'], workingType=self.get_sltp_values()['sltp_working_type'])
+                    self.order("TP", False, abs(pos_size), limit=tp_price_long, reduce_only=True, callback=self.get_sltp_values()['profit_long_callback'], workingType=self.get_sltp_values()['sltp_working_type'], \
+                        split=self.get_sltp_values()['split'], interval=self.get_sltp_values()['interval'])
         if tp_percent_short > 0 and is_tp_full_size == False:
             if pos_size < 0:                
                 tp_price_short = round(avg_entry -(avg_entry*tp_percent_short), self.round_decimals)
@@ -785,9 +835,11 @@ class BinanceFutures:
                     time.sleep(2)                                                        
                     self.cancel(id=tp_order['clientOrderId'])
                     time.sleep(2)
-                    self.order("TP", True, abs(pos_size), limit=tp_price_short, reduce_only=True, callback=self.get_sltp_values()['profit_short_callback'], workingType=self.get_sltp_values()['sltp_working_type'])
+                    self.order("TP", True, abs(pos_size), limit=tp_price_short, reduce_only=True, callback=self.get_sltp_values()['profit_short_callback'], workingType=self.get_sltp_values()['sltp_working_type'], \
+                        split=self.get_sltp_values()['split'], interval=self.get_sltp_values()['interval'])
                 else:
-                    self.order("TP", True, abs(pos_size), limit=tp_price_short, reduce_only=True, callback=self.get_sltp_values()['profit_short_callback'], workingType=self.get_sltp_values()['sltp_working_type'])
+                    self.order("TP", True, abs(pos_size), limit=tp_price_short, reduce_only=True, callback=self.get_sltp_values()['profit_short_callback'], workingType=self.get_sltp_values()['sltp_working_type'], \
+                        split=self.get_sltp_values()['split'], interval=self.get_sltp_values()['interval'])
         #sl
         sl_order = self.get_open_order('SL')
         if sl_order is not None:
@@ -808,9 +860,11 @@ class BinanceFutures:
                     time.sleep(2)                                    
                     self.cancel(id=sl_order['clientOrderId'])
                     time.sleep(2)
-                    self.order("SL", False, abs(pos_size), stop=sl_price_long, reduce_only=True, callback=self.get_sltp_values()['stop_long_callback'], workingType=self.get_sltp_values()['sltp_working_type'])
+                    self.order("SL", False, abs(pos_size), stop=sl_price_long, reduce_only=True, callback=self.get_sltp_values()['stop_long_callback'], workingType=self.get_sltp_values()['sltp_working_type'], \
+                        split=self.get_sltp_values()['split'], interval=self.get_sltp_values()['interval'])
                 else:  
-                    self.order("SL", False, abs(pos_size), stop=sl_price_long, reduce_only=True, callback=self.get_sltp_values()['stop_long_callback'], workingType=self.get_sltp_values()['sltp_working_type'])
+                    self.order("SL", False, abs(pos_size), stop=sl_price_long, reduce_only=True, callback=self.get_sltp_values()['stop_long_callback'], workingType=self.get_sltp_values()['sltp_working_type'], \
+                        split=self.get_sltp_values()['split'], interval=self.get_sltp_values()['interval'])
         if sl_percent_short > 0 and is_sl_full_size == False:
             if pos_size < 0:
                 sl_price_short = round(avg_entry + (avg_entry*sl_percent_short), self.round_decimals)
@@ -818,9 +872,11 @@ class BinanceFutures:
                     time.sleep(2)                                         
                     self.cancel(id=sl_order['clientOrderId'])
                     time.sleep(2)
-                    self.order("SL", True, abs(pos_size), stop=sl_price_short, reduce_only=True, callback=self.get_sltp_values()['stop_short_callback'], workingType=self.get_sltp_values()['sltp_working_type']) 
+                    self.order("SL", True, abs(pos_size), stop=sl_price_short, reduce_only=True, callback=self.get_sltp_values()['stop_short_callback'], workingType=self.get_sltp_values()['sltp_working_type'], \
+                        split=self.get_sltp_values()['split'], interval=self.get_sltp_values()['interval']) 
                 else:  
-                    self.order("SL", True, abs(pos_size), stop=sl_price_short, reduce_only=True, callback=self.get_sltp_values()['stop_short_callback'], workingType=self.get_sltp_values()['sltp_working_type'])                         
+                    self.order("SL", True, abs(pos_size), stop=sl_price_short, reduce_only=True, callback=self.get_sltp_values()['stop_short_callback'], workingType=self.get_sltp_values()['sltp_working_type'], \
+                        split=self.get_sltp_values()['split'], interval=self.get_sltp_values()['interval'])                         
         
     def fetch_ohlcv(self, bin_size, start_time, end_time):
         """
@@ -1022,6 +1078,38 @@ class BinanceFutures:
         """
         self.order_update = order
 
+        if(order['X'] == "CANCELED" or order['X'] == "EXPIRED"):
+            #If stop price is set for a GTC Order and filled quanitity is 0 then EXPIRED means TRIGGERED
+            if(float(order['sp']) > 0 and order['f'] == "GTC" and float(order['z']) == 0 and order['X'] == "EXPIRED"):
+                logger.info(f"========= Order Update ==============")
+                logger.info(f"ID     : {order['c']}") # Clinet Order ID
+                logger.info(f"Type   : {order['o']}")
+                logger.info(f"Uses   : {order['wt']}")
+                logger.info(f"Side   : {order['S']}")
+                logger.info(f"Status : TRIGGERED")
+                logger.info(f"TIF    : {order['f']}")
+                logger.info(f"Qty    : {order['q']}")
+                logger.info(f"Filled : {order['z']}")
+                logger.info(f"Limit  : {order['p']}")
+                logger.info(f"Stop   : {order['sp']}")
+                logger.info(f"APrice : {order['ap']}")
+                logger.info(f"======================================")
+            else:
+                logger.info(f"========= Order Update ==============")
+                logger.info(f"ID     : {order['c']}") # Clinet Order ID
+                logger.info(f"Type   : {order['o']}")
+                logger.info(f"Uses   : {order['wt']}")
+                logger.info(f"Side   : {order['S']}")
+                logger.info(f"Status : {order['X']}")
+                logger.info(f"TIF    : {order['f']}")
+                logger.info(f"Qty    : {order['q']}")
+                logger.info(f"Filled : {order['z']}")
+                logger.info(f"Limit  : {order['p']}")
+                logger.info(f"Stop   : {order['sp']}")
+                logger.info(f"APrice : {order['ap']}")
+                logger.info(f"======================================")
+                self.callbacks.pop(order['c'], None)
+
         #only after order if completely filled
         if(self.order_update_log and float(order['q']) == float(order['z'])): 
             logger.info(f"========= Order Update ==============")
@@ -1039,12 +1127,12 @@ class BinanceFutures:
 
             # Call the respective order callback
             callback = self.callbacks.pop(order['c'], None)  # Removes the respective order callback and returns it
-            if callback != None:
+            if callable(callback):
                 callback()
 
         # Evaluation of profit and loss
-        self.eval_exit()
-        #self.eval_sltp()
+        # self.eval_exit()
+        # self.eval_sltp()
         
     def __on_update_position(self, action, position):
         """
