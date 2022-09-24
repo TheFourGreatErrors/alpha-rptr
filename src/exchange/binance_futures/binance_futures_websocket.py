@@ -45,7 +45,7 @@ class BinanceFuturesWs:
         # domain
         domain = None
         # Use healthchecks.io
-        self.use_healthcecks = False
+        self.use_healthcecks = True
         # Last Heartbeat
         self.last_heartbeat = 0
         # condition that the bot runs on.

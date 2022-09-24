@@ -730,11 +730,22 @@ class BitMex:
                 break        
         return resample(data, bin_size)        
 
-    def security(self, bin_size):
+    def security(self, bin_size, data=None):
         """
         Recalculate and obtain different time frame data
-        """        
-        return resample(self.data, bin_size)[:-1]   
+        """     
+        if data == None:   
+            timeframe_list = []
+
+            for t in self.bin_size:               
+                    # append minute count of a timeframe when sorting when sorting is needed 
+                    timeframe_list.append(allowed_range_minute_granularity[t][3]) 
+            timeframe_list.sort(reverse=True)
+            t = find_timeframe_string(timeframe_list[-1])  
+            data = self.timeframe_data[t]         
+            return resample(data, bin_size)[:-1]   
+        else:        
+            return resample(data, bin_size)[:-1]     
     
     def __update_ohlcv(self, action, new_data):
         """

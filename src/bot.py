@@ -1,7 +1,11 @@
 # coding: UTF-8
 
 import sys
+import time
+from datetime import datetime, timezone
+from time import sleep
 
+import json #pickle #jsonpickle #json
 from hyperopt import fmin, tpe, STATUS_OK, STATUS_FAIL, Trials
 
 from src import logger, notify
@@ -11,16 +15,14 @@ from src.exchange.bitmex.bitmex_stub import BitMexStub
 from src.exchange.binance_futures.binance_futures_stub import BinanceFuturesStub
 from src.exchange.bitmex.bitmex_backtest import BitMexBackTest
 from src.exchange.binance_futures.binance_futures_backtest import BinanceFuturesBackTest
-from datetime import datetime, timezone
-from time import sleep
-import time
-import json #pickle #jsonpickle #json
+
 
 class Session:
     def __init__(self):
         self.__session_type__ = "object"
     def load(self, dict):
         self.__dict__.update(dict)
+
 
 class Bot:
     # Parameters

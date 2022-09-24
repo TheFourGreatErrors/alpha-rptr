@@ -18,6 +18,7 @@ The author is not responsible for any damage caused by this software. Be careful
 - Stub trading (paper trading)
 - TA-lib indicators, you can request an indicator if its missing
 - Very easy strategy implementation, should be easy enough to migrate most pine script(tradingview) strategies - see Sample strategy
+- Discord webhooks and Line notifications supported
 
 ## Implemented reference strategies
 
@@ -83,6 +84,10 @@ config = {
                     "bitmextest2": {"API_KEY": "", "SECRET_KEY": ""}
                     },
     "line_apikey": {"API_KEY": ""},
+    "discord_webhooks": {
+					"binanceaccount1": "",
+					"binanceaccount2": ""
+                    },
     "healthchecks.io": {
                     "binanceaccount1": {
                         "websocket_heartbeat": "",
@@ -92,7 +97,7 @@ config = {
 }
 ```
 
-If you want to send notifications to LINE, set LINE's API key as well. #todo discord and telegram notifications implementation as well.
+If you want to send notifications to LINE or Discord, set LINE's API key and/or Discord webhooks - discord will be sending notifications based on the account you choose to trade with. #todo telegram 
 
 ## How to execute
 
@@ -250,7 +255,7 @@ Useful since persistence using json only supports basic types and you might have
 
 A HTML5 Workbench with TradingView Lite (Open Source Version) widget based order visualization on top of Candle Stick data is available. It also displays a table with orders that can be sorted in many ways and clicking on any order date will auto-scroll that period into view.
 
-A file called `orders.csv` file is generated after every backtest in the project root folder. And then at the end of each backtest `data.csv` from data folder and `orders.csv` from project root are symlinked into the new `html/data` diretory along with the current strategy file.
+A file called `orders.csv` file is generated after every backtest in the project root folder. And then at the end of each backtest `data.csv` from data folder and `orders.csv` from project root are symlinked into the new `html/data` directory along with the current strategy file.
 
 Do not forget to refresh the page after each backtest for evaluating the results.
 

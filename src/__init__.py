@@ -18,6 +18,7 @@ from discord_webhook import DiscordWebhook, DiscordEmbed
 from src.config import config as conf
 from src.exchange.binance_futures.exceptions import BinanceAPIException, BinanceRequestException
 
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s",
@@ -51,6 +52,7 @@ allowed_range_minute_granularity = {
     "1d": ["1m", "1440T", 1440, 1440], "3d": ["1m", "4320T", 4320, 4320]
     # not support yet '1w', '2w', '1M'
 }
+
 # https://stackoverflow.com/questions/3041986/apt-command-line-interface-like-yes-no-input
 def query_yes_no(question, default="yes"):
     """Ask a yes/no question via raw_input() and return their answer.

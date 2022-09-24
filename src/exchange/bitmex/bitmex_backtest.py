@@ -247,13 +247,24 @@ class BitMexBackTest(BitMexStub):
         BitMexStub.on_update(self, bin_size, strategy)
         self.__crawler_run()
 
-    def security(self, bin_size):
+    def security(self, bin_size, data=None):
         """
         Recalculate and obtain different time frame data
         """
-        if bin_size not in self.resample_data:
-            self.resample_data[bin_size] = resample(self.df_ohlcv, bin_size)
-        return self.resample_data[bin_size][:self.data.iloc[-1].name].iloc[-1 * self.ohlcv_len:, :]
+        if data == None and bin_size not in self.bin_size:   
+            timeframe_list = []
+
+            for t in self.bin_size:               
+                    # append minute count of a timeframe when sorting when sorting is needed 
+                    timeframe_list.append(allowed_range_minute_granularity[t][3]) 
+            timeframe_list.sort(reverse=True)
+            t = find_timeframe_string(timeframe_list[-1])   
+            data = self.timeframe_data[t]
+            self.resample_data[bin_size] = resample(data, bin_size)     
+            return self.resample_data[bin_size][:self.data.iloc[-1].name].iloc[-1 * self.ohlcv_len:, :] 
+        else:
+            self.resample_data[bin_size] = resample(data, bin_size)
+            return self.resample_data[bin_size][:self.data.iloc[-1].name].iloc[-1 * self.ohlcv_len:, :]
 
     def check_candles(self, df):
         """
