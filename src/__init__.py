@@ -85,13 +85,12 @@ def query_yes_no(question, default="yes"):
             logger.info("Please respond with 'yes' or 'no' " "(or 'y' or 'n').\n")
 
 # https://stackoverflow.com/questions/8299386/modifying-a-symlink-in-python/55742015#55742015
-def symlink(target, link_name, overwrite=False):
-    
-    '''
+def symlink(target, link_name, overwrite=False):    
+    """
     Create a symbolic link named link_name pointing to target.
     If link_name exists then FileExistsError is raised, unless overwrite=True.
     When trying to overwrite a directory, IsADirectoryError is raised.
-    '''
+    """
 
     if not overwrite:
         os.symlink(target, link_name)

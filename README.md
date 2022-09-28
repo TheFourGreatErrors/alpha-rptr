@@ -148,7 +148,8 @@ $ python main.py --stub --account binanceaccount1 --exchange binance --pair BTCU
 
 ## How to add a custom strategy
 
-You can add a strategy by creating a new class in `src / strategy.py`.
+You can add a strategy by creating a new file in `src / strategies` and name your strategy class exactly the same as your file(case sensitive).
+Don't forget to import needed files like indicators etc.- copy from other sample strategies.
 Follow this example, which hopefully explains a lot of questions.
 
 ```python
@@ -163,13 +164,18 @@ class Sample(Bot):
         
     def options(self):
         return {}
+    
+    # override this bot class function to setup warmup candlestick data - needed for your indicators to calculate from sufficient lenght of candlestick historical data
+    # in our case here we have our longest source requirement length 18(sma2) so 100 is more than enough
+    def ohlcv_len(self):
+        return 100
 
     def strategy(self, action, open, close, high, low, volume):    
         # this is your strategy function
         # use action argument for mutli timeframe implementation, since a timeframe string will be passed as `action`        
         # get lot or set your own value which will be used to size orders 
-        # don't forget to round properly
-        # careful default lot is about 20x your account size !!! (binance futures)
+        # don't forget to round properly - Binance Futures should round automatically now, so you dont need to pass `round_decimals` argument or leave it None
+        # careful default lot is about 20x your account size !!!
         lot = round(self.exchange.get_lot() / 20, 3)
 
         # Example of a callback function, which we can utilize for order execution etc.
@@ -196,7 +202,8 @@ class Sample(Bot):
             short_entry_condition = crossunder(sma1, sma2)
 
             # setting a simple stop loss and profit target in % using built-in simple profit take and stop loss implementation 
-            # which is placing the sl and tp automatically after entering a position
+            # which is placing the sl and tp automatically after entering a position 
+            # rounding on Binance Futures is now automatic so remove `round_decimals` or set it `None`
             self.exchange.sltp(profit_long=1.25, profit_short=1.25, stop_long=1, stop_short=1.1, round_decimals=0)
 
             # example of calculation of stop loss price 0.8% round on 2 decimals hardcoded inside this class

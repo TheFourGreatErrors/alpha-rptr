@@ -30,12 +30,17 @@ class Sample(Bot):
         
     def options(self):
         return {}
+    
+    # override this bot class function to setup warmup candlestick data - needed for your indicators to calculate from sufficient lenght of candlestick historical data
+    # in our case here we have our longest source requirement length 18(sma2) so 100 is more than enough
+    def ohlcv_len(self):
+        return 100
 
     def strategy(self, action, open, close, high, low, volume):    
         # this is your strategy function
         # use action argument for mutli timeframe implementation, since a timeframe string will be passed as `action`        
         # get lot or set your own value which will be used to size orders 
-        # don't forget to round properly
+        # don't forget to round properly - Binance Futures should round automatically now, so you dont need to pass `round_decimals` argument or leave it None
         # careful default lot is about 20x your account size !!!
         lot = round(self.exchange.get_lot() / 20, 3)
 

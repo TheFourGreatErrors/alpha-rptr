@@ -1,9 +1,10 @@
 # coding: UTF-8
 
 import importlib, os
-from src import symlink
+
 import json #pickle #jsonpickle #json
-from src import logger, query_yes_no
+
+from src import logger, query_yes_no, symlink
 
 class BotFactory():
 

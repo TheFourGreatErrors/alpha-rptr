@@ -32,9 +32,10 @@ class BinanceFutures:
     # Order Update Log
     order_update_log = True  
     # OHLCV length
-    ohlcv_len = 100    
-    # Round decimals
-    round_decimals = 2   
+    ohlcv_len = 100      
+    # Call strategy function on start, this can be useful when you dont want to wait for the candle to close to trigger the strategy function
+    # this also can be problematic for certain operations like sending orders(or duplicates of orders that were already sent) calculated based on closed candle data that are no longer relevant etc.    
+    call_strat_on_start = False
 
     def __init__(self, account, pair, demo=False, threading=True):
         """
@@ -168,14 +169,15 @@ class BinanceFutures:
         """         
         return 20
 
-    def get_lot(self, round_decimals=3):
+    def get_lot(self, round_decimals=None):
         """        
         lot calculation
         :param round_decimals: round decimals
         :return:
         """
         account_information = self.get_account_information()        
-        return round(float(account_information['totalMarginBalance']) / self.get_market_price() * self.lot_leverage(), round_decimals)    
+        return round(float(account_information['totalMarginBalance']) / self.get_market_price() * self.lot_leverage(),
+                 round_decimals if round_decimals != None else self.asset_rounding)    
 
     def get_balance(self):
         """
@@ -333,7 +335,7 @@ class BinanceFutures:
 
     def close_all(self, callback=None, split=1, interval=0):
         """
-        market close opened position for this pair
+        market close open position for this pair
         """
         self.__init_client()
         position_size = self.get_position_size()
@@ -476,7 +478,8 @@ class BinanceFutures:
 
     #         notify(f"Amend Order\nType: {ord_type}\nSide: {side}\nQty: {ord_qty}\nLimit: {limit}\nStop: {stop}")
 
-    def entry(self, id, long, qty, limit=0, stop=0, post_only=False, reduce_only=False, when=True, round_decimals=3, callback=None, workingType="CONTRACT_PRICE", split=1, interval=0):
+    def entry(self, id, long, qty, limit=0, stop=0, post_only=False, reduce_only=False, when=True, round_decimals=None,
+                 callback=None, workingType="CONTRACT_PRICE", split=1, interval=0):
         """
         places an entry order, works as equivalent to tradingview pine script implementation
         https://tradingview.com/study-script-reference/#fun_strategy{dot}entry
@@ -508,14 +511,15 @@ class BinanceFutures:
             return
 
         ord_qty = abs(qty) + abs(pos_size)
-        ord_qty = round(ord_qty, round_decimals)
+        ord_qty = round(ord_qty, round_decimals if round_decimals != None else self.asset_rounding)
 
         trailing_stop=0
         activationPrice=0
 
         self.order(id, long, ord_qty, limit, stop, post_only, reduce_only, trailing_stop, activationPrice, when, callback, workingType, split, interval)
 
-    def entry_pyramiding(self, id, long, qty, limit=0, stop=0, trailValue= 0, post_only=False, reduce_only=False, cancel_all=False, pyramiding=2, when=True, round_decimals=3, callback=None, workingType="CONTRACT_PRICE", split=1, interval=0):
+    def entry_pyramiding(self, id, long, qty, limit=0, stop=0, trailValue= 0, post_only=False, reduce_only=False, cancel_all=False, pyramiding=2, when=True, round_decimals=None,
+                             callback=None, workingType="CONTRACT_PRICE", split=1, interval=0):
         """
         places an entry order, works as equivalent to tradingview pine script implementation with pyramiding
         https://tradingview.com/study-script-reference/#fun_strategy{dot}entry
@@ -570,11 +574,12 @@ class BinanceFutures:
         trailing_stop = 0
         activationPrice = 0
 
-        ord_qty = round(ord_qty, round_decimals)
+        ord_qty = round(ord_qty, round_decimals if round_decimals != None else self.asset_rounding)
 
         self.order(id, long, ord_qty, limit, stop, post_only, reduce_only, trailing_stop, activationPrice, when, callback, workingType, split, interval)
 
-    def order(self, id, long, qty, limit=0, stop=0, post_only=False, reduce_only=False, trailing_stop=0, activationPrice=0, when=True, callback=None, workingType="CONTRACT_PRICE", split=1, interval=0):
+    def order(self, id, long, qty, limit=0, stop=0, post_only=False, reduce_only=False, trailing_stop=0, activationPrice=0, when=True,
+                 callback=None, workingType="CONTRACT_PRICE", split=1, interval=0):
         """
         places an order, works as equivalent to tradingview pine script implementation
         https://www.tradingview.com/pine-script-reference/#fun_strategy{dot}order
@@ -718,7 +723,8 @@ class BinanceFutures:
                             'interval': interval
                             }
 
-    def sltp(self, profit_long=0, profit_short=0, stop_long=0, stop_short=0, eval_tp_next_candle=False, round_decimals=2, profit_long_callback=None, profit_short_callback=None, stop_long_callback=None, stop_short_callback=None, workingType="CONTRACT_PRICE", split=1, interval = 0):
+    def sltp(self, profit_long=0, profit_short=0, stop_long=0, stop_short=0, eval_tp_next_candle=False, round_decimals=None,
+                 profit_long_callback=None, profit_short_callback=None, stop_long_callback=None, stop_short_callback=None, workingType="CONTRACT_PRICE", split=1, interval = 0):
         """
         Simple take profit and stop loss implementation, which sends a reduce only stop loss order upon entering a position.
         :param profit_long: profit target value in % for longs
@@ -740,8 +746,9 @@ class BinanceFutures:
                             'sltp_working_type': workingType,
                             'split': split,
                             'interval': interval
-                            }        
-        self.round_decimals = round_decimals
+                            } 
+        if self.quote_rounding == None and round_decimals != None:
+            self.quote_rounding = round_decimals
 
     def get_exit_order(self):
         """
@@ -818,7 +825,7 @@ class BinanceFutures:
         # tp execution logic                
         if tp_percent_long > 0 and is_tp_full_size == False:
             if pos_size > 0:                
-                tp_price_long = round(avg_entry +(avg_entry*tp_percent_long), self.round_decimals) 
+                tp_price_long = round(avg_entry +(avg_entry*tp_percent_long), self.quote_rounding) 
                 if tp_order is not None:
                     time.sleep(2)                                         
                     self.cancel(id=tp_order['clientOrderId'])
@@ -830,7 +837,7 @@ class BinanceFutures:
                         split=self.get_sltp_values()['split'], interval=self.get_sltp_values()['interval'])
         if tp_percent_short > 0 and is_tp_full_size == False:
             if pos_size < 0:                
-                tp_price_short = round(avg_entry -(avg_entry*tp_percent_short), self.round_decimals)
+                tp_price_short = round(avg_entry -(avg_entry*tp_percent_short), self.quote_rounding)
                 if tp_order is not None:
                     time.sleep(2)                                                        
                     self.cancel(id=tp_order['clientOrderId'])
@@ -855,7 +862,7 @@ class BinanceFutures:
         # sl execution logic
         if sl_percent_long > 0 and is_sl_full_size == False:
             if pos_size > 0:
-                sl_price_long = round(avg_entry - (avg_entry*sl_percent_long), self.round_decimals)
+                sl_price_long = round(avg_entry - (avg_entry*sl_percent_long), self.quote_rounding)
                 if sl_order is not None:
                     time.sleep(2)                                    
                     self.cancel(id=sl_order['clientOrderId'])
@@ -867,7 +874,7 @@ class BinanceFutures:
                         split=self.get_sltp_values()['split'], interval=self.get_sltp_values()['interval'])
         if sl_percent_short > 0 and is_sl_full_size == False:
             if pos_size < 0:
-                sl_price_short = round(avg_entry + (avg_entry*sl_percent_short), self.round_decimals)
+                sl_price_short = round(avg_entry + (avg_entry*sl_percent_short), self.quote_rounding)
                 if sl_order is not None: 
                     time.sleep(2)                                         
                     self.cancel(id=sl_order['clientOrderId'])
@@ -939,7 +946,7 @@ class BinanceFutures:
             timeframe_list = []
 
             for t in self.bin_size:               
-                    # append minute count of a timeframe when sorting when sorting is needed
+                    # append minute count of a timeframe for sorting when sorting is needed
                     timeframe_list.append(allowed_range_minute_granularity[t][3]) 
             timeframe_list.sort(reverse=True)
             t = find_timeframe_string(timeframe_list[-1])     
@@ -1012,11 +1019,16 @@ class BinanceFutures:
 
             #logger.info(f"{self.timeframe_info[t]['last_action_time']} : {self.timeframe_data[t].iloc[-1].name} : {re_sample_data.iloc[-1].name}")  
 
-            if self.timeframe_info[t]["last_action_time"] is None:
-                self.timeframe_info[t]["last_action_time"] = re_sample_data.iloc[-1].name
-                
-            if self.timeframe_info[t]["last_action_time"] == re_sample_data.iloc[-1].name:
-                continue
+            if self.call_strat_on_start:
+                if self.timeframe_info[t]["last_action_time"] is not None and \
+                self.timeframe_info[t]["last_action_time"] == re_sample_data.iloc[-1].name:
+                    continue
+            else:   
+                if self.timeframe_info[t]["last_action_time"] is None:
+                    self.timeframe_info[t]["last_action_time"] = re_sample_data.iloc[-1].name
+                    
+                if self.timeframe_info[t]["last_action_time"] == re_sample_data.iloc[-1].name:
+                    continue
 
             # The last candle in the buffer needs to be preserved 
             # while resetting the buffer as it may be incomlete
