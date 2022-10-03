@@ -15,6 +15,10 @@ config = {
                     "bitmextest1": {"API_KEY": "", "SECRET_KEY": ""},
                     "bitmextest2": {"API_KEY": "", "SECRET_KEY": ""}
                     },
+    "ftx_keys": {
+                    "ftxaccount1": {"API_KEY": "", "SECRET_KEY": ""},
+                    "ftxaccount2": {"API_KEY": "", "SECRET_KEY": ""}
+                },
     "line_apikey": {"API_KEY": ""},
     "discord_webhooks": {
 					"binanceaccount1": "",

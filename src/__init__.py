@@ -5,6 +5,7 @@ import logging
 import os, tempfile
 import time
 import uuid
+import threading
 from datetime import timedelta
 
 import numpy as np
@@ -52,6 +53,78 @@ allowed_range_minute_granularity = {
     "1d": ["1m", "1440T", 1440, 1440], "3d": ["1m", "4320T", 4320, 4320]
     # not support yet '1w', '2w', '1M'
 }
+
+def bin_size_converter(bin_size):
+    """    
+    :return: returns object with bin_size and seconds key value pairs
+    """    
+
+    if bin_size == "1m":
+        bin_size = {"bin_size":"1", "seconds": 60}
+        return bin_size
+    elif bin_size == "3m":
+        bin_size = {"bin_size":"3", "seconds": 180}
+        return bin_size
+    elif bin_size == "5m":
+        bin_size = {"bin_size":"5", "seconds": 300}
+        return bin_size
+    elif bin_size == "15m":
+        bin_size = {"bin_size":"15", "seconds": 900}
+        return bin_size 
+    elif bin_size == "30m":
+        bin_size = {"bin_size":"30", "seconds": 1800}
+        return bin_size
+    elif bin_size == "1h":
+        bin_size = {"bin_size":"60", "seconds": 3600}
+        return bin_size
+    elif bin_size == "2h":
+        bin_size = {"bin_size":"120", "seconds": 7200}
+        return bin_size
+    elif bin_size == "4h":
+        bin_size = {"bin_size":"240", "seconds": 14400}
+        return bin_size
+    elif bin_size == "6h":
+        bin_size = {"bin_size":"350", "seconds": 21600}
+        return bin_size
+    elif bin_size == "12h":
+        bin_size = {"bin_size":"720", "seconds": 43200}
+        return bin_size
+    elif bin_size == "1d":
+        bin_size = {"bin_size":"D", "seconds": 86400}
+        return bin_size
+    elif bin_size == "1w":
+        bin_size = {"bin_size":"W", "seconds": 604800}
+        return bin_size
+
+
+class RepeatedTimer(object):
+  def __init__(self, interval, function, next_call=time.time(), *args, **kwargs):    
+    self._timer = None
+    self.interval = interval
+    self.function = function
+    self.args = args
+    self.kwargs = kwargs
+    self.is_running = False
+    self.next_call = next_call #time.time()
+    self.start()
+
+  def _run(self):
+    self.is_running = False
+    self.start()
+    self.function(*self.args, **self.kwargs)
+
+  def start(self):    
+    if not self.is_running:
+      self.next_call += self.interval
+      self._timer = threading.Timer(self.next_call - time.time(), self._run)
+      self._timer.daemon = True
+      self._timer.start()
+      self.is_running = True
+
+  def stop(self):
+    self._timer.cancel()
+    self.is_running = False
+
 
 # https://stackoverflow.com/questions/3041986/apt-command-line-interface-like-yes-no-input
 def query_yes_no(question, default="yes"):
@@ -240,11 +313,13 @@ binance_errors_to_actions = {
     1021: "retry"
 }
 
+
 def check_binance_error(code):
     try:
         return binance_errors_to_actions[abs(int(code))]
     except:
         return None
+
 
 def retry_binance_futures(func, count=5):
     err = None
@@ -288,6 +363,35 @@ def retry_binance_futures(func, count=5):
             logger.info(f"Retrying Request - Count: {i+1}")
             continue
 
+    raise err
+
+def retry_ftx(func, count=5):
+    err = None
+    for i in range(count):
+        try:        
+            ret = func()
+          
+            if 'error' in ret:
+                if ret['error'] == "Please retry request":
+                    time.sleep(pow(2, i + 1))
+                    continue
+            return ret['result']
+        except ConnectionError as error:            
+            time.sleep(pow(2, i + 1))               
+            continue
+        except HTTPError as error:
+            status_code = error.status_code
+            err = error
+            if status_code >= 500:
+                time.sleep(pow(2, i + 1))
+                continue               
+            elif status_code == 400 or \
+                    status_code == 401 or \
+                    status_code == 402 or \
+                    status_code == 403 or \
+                    status_code == 404 or \
+                    status_code == 429:
+                raise FatalError(error)
     raise err
 
 

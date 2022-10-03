@@ -2,19 +2,19 @@
 
 <img src="img/rptr.png" width="200">
 
-A trading system for automated algorithmic trading on Binance Futures and BitMEX.  
+A trading system for automated algorithmic trading on Binance Futures, FTX and BitMEX.  
 
 The author is not responsible for any damage caused by this software. Be careful and test your strategy using very small sizes for some time to make sure it does what you expect it to do. 
 
 ## Features
 
-- API and Websocket implementation for both Binance Futures and  BitMEX
+- API and Websocket implementation for all exchanges supported (Binance Futures, FTX, BitMEX)
 - Supports all pairs
 - Event-driven
 - all types of orders supported including majority of parameters/combinations - if you miss any, you can request
 - Supports custom strategies
 - Backtesting
-- Testnet for BitMEX and Binance Futures
+- Testnet for BitMEX and Binance Futures (FTX doesn't have a testnet)
 - Stub trading (paper trading)
 - TA-lib indicators, you can request an indicator if its missing
 - Very easy strategy implementation, should be easy enough to migrate most pine script(tradingview) strategies - see Sample strategy
@@ -83,6 +83,10 @@ config = {
                     "bitmextest1": {"API_KEY": "", "SECRET_KEY": ""},
                     "bitmextest2": {"API_KEY": "", "SECRET_KEY": ""}
                     },
+    "ftx_keys": {
+                    "ftxaccount1": {"API_KEY": "", "SECRET_KEY": ""},
+                    "ftxaccount2": {"API_KEY": "", "SECRET_KEY": ""}
+                },
     "line_apikey": {"API_KEY": ""},
     "discord_webhooks": {
 					"binanceaccount1": "",
@@ -174,8 +178,9 @@ class Sample(Bot):
         # this is your strategy function
         # use action argument for mutli timeframe implementation, since a timeframe string will be passed as `action`        
         # get lot or set your own value which will be used to size orders 
-        # don't forget to round properly - Binance Futures should round automatically now, so you dont need to pass `round_decimals` argument or leave it None
+        # don't forget to round properly - Binance Futures and FTX should round automatically now, so you dont need to pass `round_decimals` argument or leave it None
         # careful default lot is about 20x your account size !!!
+        # its always best log the values prior going live!
         lot = round(self.exchange.get_lot() / 20, 3)
 
         # Example of a callback function, which we can utilize for order execution etc.
@@ -203,7 +208,7 @@ class Sample(Bot):
 
             # setting a simple stop loss and profit target in % using built-in simple profit take and stop loss implementation 
             # which is placing the sl and tp automatically after entering a position 
-            # rounding on Binance Futures is now automatic so remove `round_decimals` or set it `None`
+            # rounding on Binance Futures abd FTX is now automatic so remove `round_decimals` or set it `None`
             self.exchange.sltp(profit_long=1.25, profit_short=1.25, stop_long=1, stop_short=1.1, round_decimals=0)
 
             # example of calculation of stop loss price 0.8% round on 2 decimals hardcoded inside this class

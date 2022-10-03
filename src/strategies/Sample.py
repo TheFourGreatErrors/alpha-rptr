@@ -40,8 +40,9 @@ class Sample(Bot):
         # this is your strategy function
         # use action argument for mutli timeframe implementation, since a timeframe string will be passed as `action`        
         # get lot or set your own value which will be used to size orders 
-        # don't forget to round properly - Binance Futures should round automatically now, so you dont need to pass `round_decimals` argument or leave it None
+        # don't forget to round properly - Binance Futures and FTX should round automatically now, so you dont need to pass `round_decimals` argument or leave it None
         # careful default lot is about 20x your account size !!!
+        # its always best log the values prior going live!
         lot = round(self.exchange.get_lot() / 20, 3)
 
         # Example of a callback function, which we can utilize for order execution etc.

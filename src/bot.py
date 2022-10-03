@@ -11,10 +11,13 @@ from hyperopt import fmin, tpe, STATUS_OK, STATUS_FAIL, Trials
 from src import logger, notify
 from src.exchange.bitmex.bitmex import BitMex
 from src.exchange.binance_futures.binance_futures import BinanceFutures
+from src.exchange.ftx.ftx import Ftx
 from src.exchange.bitmex.bitmex_stub import BitMexStub
 from src.exchange.binance_futures.binance_futures_stub import BinanceFuturesStub
 from src.exchange.bitmex.bitmex_backtest import BitMexBackTest
+from src.exchange.ftx.ftx_stub import FtxStub
 from src.exchange.binance_futures.binance_futures_backtest import BinanceFuturesBackTest
+from src.exchange.ftx.ftx_backtest import FtxBackTest
 
 
 class Session:
@@ -131,6 +134,16 @@ class Bot:
                         'status': STATUS_OK,
                         'loss': 1/profit_factor
                     }
+                if self.exchange_arg == 'ftx':
+                    self.params = args
+                    self.exchange = FtxBackTest(account=self.account, pair=self.pair)
+                    self.exchange.on_update(self.bin_size, self.strategy)
+                    profit_factor = self.exchange.win_profit/self.exchange.lose_loss
+                    logger.info(f"Profit Factor : {profit_factor}")
+                    ret = {
+                        'status': STATUS_OK,
+                        'loss': 1/profit_factor
+                    }
             except Exception as e:
                 ret = {
                     'status': STATUS_FAIL
@@ -158,6 +171,8 @@ class Bot:
                 self.exchange = BinanceFuturesStub(account=self.account, pair=self.pair)
             elif self.exchange_arg == "bitmex":
                 self.exchange = BitMexStub(account=self.account, pair=self.pair)
+            elif self.exchange_arg == "ftx":
+                self.exchange = FtxStub(account=self.account, pair=self.pair)
             else:
                 logger.info(f"--exchange argument missing or invalid")
                 return  
@@ -167,6 +182,8 @@ class Bot:
                 self.exchange = BinanceFuturesBackTest(account=self.account, pair=self.pair)
             elif self.exchange_arg == "bitmex":
                 self.exchange = BitMexBackTest(account=self.account, pair=self.pair)
+            elif self.exchange_arg == "ftx":
+                self.exchange = FtxBackTest(account=self.account, pair=self.pair)
             else:
                 logger.info(f"--exchange argument missing or invalid")
                 return
@@ -176,6 +193,8 @@ class Bot:
                 self.exchange = BinanceFutures(account=self.account, pair=self.pair, demo=self.test_net)
             elif self.exchange_arg == "bitmex":
                 self.exchange = BitMex(account=self.account, pair=self.pair, demo=self.test_net)
+            elif self.exchange_arg == "ftx":
+                self.exchange = Ftx(account=self.account, pair=self.pair, demo=self.test_net)
             else:
                 logger.info(f"--exchange argument missing or invalid")
                 return
