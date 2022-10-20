@@ -196,7 +196,7 @@ class BinanceFuturesStub(BinanceFutures):
             self.commit(id, long, abs(ord_qty), self.get_market_price(), True, callback)
             return
 
-    def entry(self, id, long, qty, limit=0, stop=0, post_only=False, when=True, round_decimals=3, callback=None, workingType="CONTRACT_PRICE"):
+    def entry(self, id, long, qty, limit=0, stop=0, post_only=False, when=True, round_decimals=None, callback=None, workingType="CONTRACT_PRICE"):
         """
          I place an order. Equivalent function to pine's function.
          https://jp.tradingview.com/study-script-reference/#fun_strategy{dot}entry
@@ -222,7 +222,7 @@ class BinanceFuturesStub(BinanceFutures):
 
         self.cancel(id)
         ord_qty = qty + abs(pos_size)
-        ord_qty = round(ord_qty, round_decimals)
+        ord_qty = round(ord_qty, round_decimals if round_decimals != None else self.asset_rounding)
 
         if limit > 0 or stop > 0:
             self.open_orders.append({"id": id, "long": long, "qty": ord_qty, "limit": limit, "stop": stop, "post_only": post_only, "reduce_only": False, "callback": callback})
@@ -230,7 +230,8 @@ class BinanceFuturesStub(BinanceFutures):
             self.commit(id, long, ord_qty, self.get_market_price(), True, callback)
             return
     
-    def entry_pyramiding(self, id, long, qty, limit=0, stop=0, trailValue= 0, post_only=False, reduce_only=False, ioc=False, cancel_all=False, pyramiding=2, when=True, round_decimals=3, callback=None, workingType="CONTRACT_PRICE"):
+    def entry_pyramiding(self, id, long, qty, limit=0, stop=0, trailValue= 0, post_only=False, reduce_only=False, ioc=False, cancel_all=False, pyramiding=2, when=True,
+                        round_decimals=None, callback=None, workingType="CONTRACT_PRICE"):
         """
         Places an entry order, works as equivalent to tradingview pine script implementation with pyramiding        
         :param id: Order id
@@ -281,7 +282,7 @@ class BinanceFuturesStub(BinanceFutures):
         if ord_qty < ((pyramiding*qty) / 100) * 2:
             return
 
-        ord_qty = round(ord_qty, round_decimals)
+        ord_qty = round(ord_qty, round_decimals if round_decimals != None else self.asset_rounding)
 
         if limit > 0 or stop > 0:
             self.open_orders.append({"id": id, "long": long, "qty": ord_qty, "limit": limit, "stop": stop, "post_only": post_only, "reduce_only": False, "callback": callback})
@@ -464,12 +465,12 @@ class BinanceFuturesStub(BinanceFutures):
         # sl execution logic
         if sl_percent_long > 0:
             if pos_size > 0:
-                sl_price_long = round(avg_entry - (avg_entry*sl_percent_long), self.round_decimals)
+                sl_price_long = round(avg_entry - (avg_entry*sl_percent_long), self.quote_rounding)
                 if self.OHLC['low'][-1] <= sl_price_long:               
                     self.close_all_at_price(sl_price_long, self.get_sltp_values()['stop_long_callback']) 
         if sl_percent_short > 0:
             if pos_size < 0:
-                sl_price_short = round(avg_entry + (avg_entry*sl_percent_short), self.round_decimals)
+                sl_price_short = round(avg_entry + (avg_entry*sl_percent_short), self.quote_rounding)
                 if self.OHLC['high'][-1] >= sl_price_short:                 
                     self.close_all_at_price(sl_price_short, self.get_sltp_values()['stop_short_callback'])    
 
@@ -481,7 +482,7 @@ class BinanceFuturesStub(BinanceFutures):
         # tp execution logic                
         if tp_percent_long > 0:
             if pos_size > 0:                
-                tp_price_long = round(avg_entry +(avg_entry*tp_percent_long), self.round_decimals) 
+                tp_price_long = round(avg_entry +(avg_entry*tp_percent_long), self.quote_rounding) 
                 if tp_price_long <= best_ask and self.get_sltp_values()['eval_tp_next_candle'] == True and  \
                     (self.isLongEntry[-1] == False and self.isLongEntry[-2] == True and self.isLongEntry[-3] == False):
                     tp_price_long = best_ask
@@ -489,7 +490,7 @@ class BinanceFuturesStub(BinanceFutures):
                     self.close_all_at_price(tp_price_long, self.get_sltp_values()['profit_long_callback'])
         if tp_percent_short > 0:
             if pos_size < 0:                
-                tp_price_short = round(avg_entry -(avg_entry*tp_percent_short), self.round_decimals)
+                tp_price_short = round(avg_entry -(avg_entry*tp_percent_short), self.quote_rounding)
                 if tp_price_short >= best_bid and self.get_sltp_values()['eval_tp_next_candle'] == True and  \
                     (self.isShortEntry[-1] == False and self.isShortEntry[-2] == True and self.isShortEntry[-3] == False):
                     tp_price_short = best_bid

@@ -139,7 +139,7 @@ class Ftx:
             self.account = None
         self.client = FtxClient(api_key=api_key, api_secret=api_secret, subaccount_name=self.account)
         
-        if self.round_decimals == None or self.round_decimals_ord_qty == None:
+        if self.asset_rounding == None or self.quote_rounding == None:
             markets_list = retry(lambda: self.client.list_markets())   
             market = [market for market in markets_list if market.get('name')==self.pair]
             self.quote_asset = market[0]['quoteCurrency']                      
