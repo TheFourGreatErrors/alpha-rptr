@@ -446,19 +446,20 @@ class BinanceFutures:
         else:
             ord_type = "MARKET"
             retry(lambda: self.client.futures_create_order(symbol=self.pair, type=ord_type, newClientOrderId=ord_id,
-                                                              side=side, quantity=ord_qty))
+                                                              side=side, quantity=ord_qty, reduceOnly="true"))
 
         if self.enable_trade_log:
             logger.info(f"========= New Order ==============")
-            logger.info(f"ID     : {ord_id}")
-            logger.info(f"Type   : {ord_type}")
-            logger.info(f"Side   : {side}")
-            logger.info(f"Qty    : {ord_qty}")
-            logger.info(f"Limit  : {limit}")
-            logger.info(f"Stop   : {stop}")
+            logger.info(f"ID        : {ord_id}")
+            logger.info(f"Type      : {ord_type}")
+            logger.info(f"Side      : {side}")
+            logger.info(f"Qty       : {ord_qty}")
+            logger.info(f"Limit     : {limit}")
+            logger.info(f"Stop      : {stop}")
+            logger.info(f"Red. Only : {reduce_only}")
             logger.info(f"======================================")
 
-            notify(f"New Order\nType: {ord_type}\nSide: {side}\nQty: {ord_qty}\nLimit: {limit}\nStop: {stop}")
+            notify(f"New Order\nType: {ord_type}\nSide: {side}\nQty: {ord_qty}\nLimit: {limit}\nStop: {stop}\nRed. Only: {reduce_only}")
 
     # def __amend_order(self, ord_id, side, ord_qty, limit=0, stop=0, post_only=False):
     #     """
