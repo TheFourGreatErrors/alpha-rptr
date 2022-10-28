@@ -384,44 +384,29 @@ class BinanceFutures:
             ord_type = "TRAILING_STOP_MARKET"
             retry(lambda: self.client.futures_create_order(symbol=self.pair, type=ord_type, newClientOrderId=ord_id,
                                                               side=side, quantity=ord_qty, activationPrice=activationPrice,
-                                                              callbackRate=trailing_stop, workingType=workingType))
+                                                              callbackRate=trailing_stop, reduceOnly="true" if reduce_only else "false", workingType=workingType))
         elif trailing_stop > 0:
             ord_type = "TRAILING_STOP_MARKET"
             retry(lambda: self.client.futures_create_order(symbol=self.pair, type=ord_type, newClientOrderId=ord_id,
-                                                              side=side, quantity=ord_qty, callbackRate=trailing_stop, workingType=workingType))
+                                                              side=side, quantity=ord_qty, callbackRate=trailing_stop, reduceOnly="true" if reduce_only else "false", workingType=workingType))
         elif limit > 0 and post_only:
             ord_type = "LIMIT"
             retry(lambda: self.client.futures_create_order(symbol=self.pair, type=ord_type, newClientOrderId=ord_id,
                                                               side=side, quantity=ord_qty, price=limit,
-                                                              timeInForce="GTX"))
-        elif limit > 0 and stop > 0 and reduce_only:
-            ord_type = "STOP"
-            retry(lambda: self.client.futures_create_order(symbol=self.pair, type=ord_type, newClientOrderId=ord_id,
-                                                              side=side, quantity=ord_qty, price=limit,
-                                                              stopPrice=stop, reduceOnly="true", workingType=workingType))
-        elif limit > 0 and reduce_only:
-            ord_type = "LIMIT"
-            retry(lambda: self.client.futures_create_order(symbol=self.pair, type=ord_type, newClientOrderId=ord_id,
-                                                              side=side, quantity=ord_qty, price=limit,
-                                                              reduceOnly="true", timeInForce="GTC"))
+                                                              timeInForce="GTX", reduceOnly="true" if reduce_only else "false"))
         elif limit > 0 and stop > 0:
             ord_type = "STOP"
             retry(lambda: self.client.futures_create_order(symbol=self.pair, type=ord_type, newClientOrderId=ord_id,
                                                               side=side, quantity=ord_qty, price=limit,
-                                                              stopPrice=stop, workingType=workingType))
+                                                              stopPrice=stop, reduceOnly="true" if reduce_only else "false", workingType=workingType))
         elif limit > 0:   
             ord_type = "LIMIT"
             retry(lambda: self.client.futures_create_order(symbol=self.pair, type=ord_type, newClientOrderId=ord_id,
-                                                              side=side, quantity=ord_qty, price=limit, timeInForce="GTC"))
-        elif stop > 0 and reduce_only:
-            ord_type = "STOP_MARKET"
-            retry(lambda: self.client.futures_create_order(symbol=self.pair, type=ord_type, newClientOrderId=ord_id,
-                                                              side=side, quantity=ord_qty, stopPrice=stop,
-                                                              reduceOnly="true", workingType=workingType))        
+                                                              side=side, quantity=ord_qty, price=limit, timeInForce="GTC", reduceOnly="true" if reduce_only else "false"))   
         elif stop > 0:
             ord_type = "STOP_MARKET"
             retry(lambda: self.client.futures_create_order(symbol=self.pair, type=ord_type, newClientOrderId=ord_id,
-                                                              side=side, quantity=ord_qty, stopPrice=stop, workingType=workingType))        
+                                                              side=side, quantity=ord_qty, stopPrice=stop, reduceOnly="true" if reduce_only else "false", workingType=workingType))        
         elif post_only: # limit order with post only
             ord_type = "LIMIT"
             i = 0            
@@ -430,7 +415,7 @@ class BinanceFutures:
                 limit = float(prices['bidPrice']) if side == "Buy" else float(prices['askPrice'])                
                 retry(lambda: self.client.futures_create_order(symbol=self.pair, type=ord_type, newClientOrderId=ord_id,
                                                                   side=side, quantity=ord_qty, price=limit,
-                                                                  timeInForce="GTX"))
+                                                                  timeInForce="GTX", reduceOnly="true" if reduce_only else "false"))
                 time.sleep(4)
 
                 self.cancel(ord_id)
