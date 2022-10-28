@@ -444,7 +444,7 @@ class BinanceFutures:
         else:
             ord_type = "MARKET"
             retry(lambda: self.client.futures_create_order(symbol=self.pair, type=ord_type, newClientOrderId=ord_id,
-                                                              side=side, quantity=ord_qty, reduceOnly="true"))
+                                                              side=side, quantity=ord_qty, reduceOnly="true" if reduce_only else "false"))
 
         if self.enable_trade_log:
             logger.info(f"========= New Order ==============")
