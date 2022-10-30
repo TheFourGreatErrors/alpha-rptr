@@ -38,7 +38,7 @@ class FtxBackTest(FtxStub):
         :pair:
         :param periods:
         """
-        FtxStub.__init__(self, account, pair, threading=False)
+        FtxStub.__init__(self, account, pair, demo=None, threading=False)
         # Pair
         self.pair = pair
         # Enable log output
@@ -442,6 +442,12 @@ class FtxBackTest(FtxStub):
             if os.path.islink(temp_link_name):
                 os.remove(temp_link_name)
             raise
+        
+    def stop(self):
+        """
+        Stop the crawler
+        """
+        self.is_running = False
 
     def show_result(self):
         """
@@ -498,8 +504,7 @@ class FtxBackTest(FtxStub):
         plt.hlines(y=0, xmin=self.df_ohlcv.index[0],
                    xmax=self.df_ohlcv.index[-1], colors='k', linestyles='dashed')
         plt.ylabel("PL(USD)")
-
-        self.update_ohlcv_timer.stop()
+      
         plt.show()        
 
     def plot(self, name, value, color, overlay=True):

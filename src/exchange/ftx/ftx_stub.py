@@ -17,7 +17,7 @@ class FtxStub(Ftx):
     # Default Leverage
     leverage = 1 
 
-    def __init__(self, account, pair, threading=True):
+    def __init__(self, account, pair, demo=False, threading=True):
         """
         constructor
         :account:
@@ -27,6 +27,8 @@ class FtxStub(Ftx):
         Ftx.__init__(self, account, pair, threading=threading)
         # Pair
         self.pair = pair
+        # Use testnet? - None is passed when using backtest mode
+        self.demo = demo
         # Balance all time high
         self.balance_ath = self.balance
         # Current Pos Size
@@ -559,7 +561,9 @@ class FtxStub(Ftx):
             self.open_orders = new_open_orders
             self.eval_exit()
             self.eval_sltp()
-            strategy(action, open, close, high, low, volume)
-            
+            strategy(action, open, close, high, low, volume)            
 
-        Ftx.on_update(self, bin_size, __override_strategy)
+        if self.demo == None:
+            self.strategy = __override_strategy            
+        else:
+            Ftx.on_update(self, bin_size, __override_strategy)        
