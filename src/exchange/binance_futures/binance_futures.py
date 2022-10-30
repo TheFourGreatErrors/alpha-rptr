@@ -313,14 +313,13 @@ class BinanceFutures:
 
         profit = 0
         close_rate = 0
-        # avg_entry_price = self.exchange.get_position_avg_price()
 
         if position_size > 0:
             close_rate = ((close - avg_entry_price)/avg_entry_price) - commission                 
         elif (position_size < 0):
             close_rate = ((avg_entry_price - close)/avg_entry_price) - commission
 
-        profit = round(abs(position_size) * close_rate * (1 if self.exchange.qty_in_usdt else avg_entry_price), self.quote_rounding)
+        profit = round(abs(position_size) * close_rate * (1 if self.qty_in_usdt else avg_entry_price), self.quote_rounding)
 
         return profit
         
