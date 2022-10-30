@@ -299,8 +299,31 @@ class BinanceFutures:
         :return:
         """
         # PnL calculation in %            
-        pnl = (self.market_price - self.entry_price) * 100 / self.entry_price
-        return pnl        
+        pnl = self.get_profit()* 100/self.get_balance()
+        return pnl   
+
+    def get_profit(self, close=None, avg_entry_price=None, position_size=None, commission=None):
+
+        if close is None:
+            close = self.market_price 
+        if avg_entry_price is None:
+            avg_entry_price = self.get_position_avg_price()
+        if position_size is None:
+            position_size = self.get_position_size()
+        if commission is None:
+            commission = self.get_commission()
+
+        profit = 0
+        close_rate = 0
+
+        if position_size > 0:
+            close_rate = ((close - avg_entry_price)/avg_entry_price) - commission                 
+        elif (position_size < 0):
+            close_rate = ((avg_entry_price - close)/avg_entry_price) - commission
+
+        profit = round(abs(position_size) * close_rate * (1 if self.qty_in_usdt else avg_entry_price), self.quote_rounding)
+
+        return profit
         
     def get_trail_price(self):
         """
