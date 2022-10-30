@@ -307,7 +307,7 @@ class BinanceFutures:
         if close is None:
             close = self.market_price 
         if avg_entry_price is None:
-            avg_entry_price = self.get_position_avg_price()
+            avg_entry_price = self.entry_price if self.entry_price != None else self.get_position_avg_price()
         if position_size is None:
             position_size = self.get_position_size()
         if commission is None:
