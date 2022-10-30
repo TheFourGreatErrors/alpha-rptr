@@ -219,9 +219,13 @@ class Ftx:
         :return:
         """
         self.__init_client()
-        pos = self.get_position(force_api_call=True, showAvgPrice=True)        
+        pos = self.get_position(force_api_call=True, showAvgPrice=True) 
+            
         if pos != None:
-            return self.get_position(force_api_call=True, showAvgPrice=True)['recentAverageOpenPrice']
+            if pos['size'] == 0.0:
+                return 0
+            return pos['recentAverageOpenPrice']
+        else: return 0
 
     def get_market_price(self):
         """
