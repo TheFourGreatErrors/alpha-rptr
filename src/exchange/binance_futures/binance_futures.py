@@ -149,6 +149,21 @@ class BinanceFutures:
 
             logger.info(f"Asset: {self.base_asset} Rounding: {self.asset_rounding} - Quote: {self.quote_asset} Rounding: {self.quote_rounding}")      
         
+        self.sync()  
+
+        logger.info(f"Position Size: {self.position_size:.3f} Entry Price: {self.entry_price:.2f}")
+        
+    def sync(self):
+
+        # Position
+        self.position = self.get_position()
+        # Position size
+        self.position_size = self.get_position_size()
+        # Entry price
+        self.entry_price = self.get_position_avg_price()
+        # Margin
+        self.margin = self.get_margin()
+    
     def now_time(self):
         """
         current time
