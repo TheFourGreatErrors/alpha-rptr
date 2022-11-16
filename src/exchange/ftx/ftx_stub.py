@@ -540,19 +540,20 @@ class FtxStub(Ftx):
                     new_open_orders.append({"id": id, "long": long, "qty": qty, "limit": limit, "stop": 0, "post_only": post_only, "reduce_only": reduce_only, "callback": callback})
                     continue
 
-                if limit > 0 and stop > 0:
-                    if (long and high[-1] > stop and close[-1] < limit) or (not long and low[-1] < stop and close[-1] > limit):
-                        self.commit(id, long, qty, limit, True, callback)
-                        continue
-                    elif (long and high[-1] > stop) or (not long and low[-1] < stop):
+                if limit > 0 and stop > 0 and (high[-1] >= stop >= low[-1]):
                         new_open_orders.append({"id": id, "long": long, "qty": qty, "limit": limit, "stop": 0, "post_only": post_only, "reduce_only": reduce_only, "callback": callback})
+                        if(not self.minute_granularity):
+                            logger.info("Simulating Stop-Limit orders on historical bars can be erroneous " +
+                                        "as there is no way to guess intra-bar price movement. " +
+                                        "Stop-Limit orders are converted into Limit orders once the stop is hit and evaluated in successive candles. " +
+                                        "Switch on Minute Granularity for a more accurate simulation of Stop-limit orders.")
                         continue
                 elif limit > 0:
                     if (long and low[-1] < limit) or (not long and high[-1] > limit):
                         self.commit(id, long, qty, limit, True, callback)
                         continue
                 elif stop > 0:
-                    if (long and high[-1] > stop) or (not long and low[-1] < stop):
+                    if (high[-1] >= stop >= low[-1]):
                         self.commit(id, long, qty, stop, True, callback)
                         continue
 
