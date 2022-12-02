@@ -273,7 +273,7 @@ Do not forget to refresh the page after each backtest for evaluating the results
 
 The workbench also helps you save to and retrieve backtests from the inbuilt library. A file called `backtests.db` is created inside `html` folder by the HTML Workbench and all your saved backtests are stored in it. Do not forget to back up this file.
 
-You can use this HTML5 Workbench by executing `python3 -m http.server 8000 --cgi` in the `html` folder and browsing to https://127.0.0.1:8000/ to view backtest results and access the library.
+You can use this HTML5 Workbench by executing `python3 -m http.server 8000 --cgi` in the `html` folder and browsing to http://127.0.0.1:8000/ to view backtest results and access the library.
 
 ## Dedicated discord server
 This server is dedicated for bug reporting, feature requests and support.
