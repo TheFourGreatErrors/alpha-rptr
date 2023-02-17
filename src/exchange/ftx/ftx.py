@@ -940,12 +940,10 @@ class Ftx:
                     self.timeframe_data[bin_size] = self.timeframe_data[t][:-1] # Exclude last candle
                     self.timeframe_data[bin_size].loc[end_time.replace(microsecond=0)] = last_candle #set last candle to end_time   
 
-        timeframes_to_update = []
-
-        for t in self.timeframe_info:            
-            if self.timeframe_info[t]["allowed_range"] == action:
-                # append minute count of a timeframe when sorting when sorting is need otherwise just add a string timeframe
-                timeframes_to_update.append(allowed_range_minute_granularity[t][3]) if self.timeframes_sorted != None else timeframes_to_update.append(t)  
+        # Timeframes to be updated
+        timeframes_to_update = [allowed_range_minute_granularity[t][3] if self.timeframes_sorted != None else 
+                                t for t in self.timeframe_info if self.timeframe_info[t]['allowed_range'] == action]        
+        #logger.info(f"timeframes to update: {timeframes_to_update}")
 
         # Sorting timeframes that will be updated
         if self.timeframes_sorted == True:
