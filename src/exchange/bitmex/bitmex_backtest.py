@@ -175,12 +175,9 @@ class BitMexBackTest(BitMexStub):
             # or "1m" when minute granularity is needed - multiple timeframes or self.minute_granularity = True
             action = "1m" if (self.minute_granularity or len(self.timeframe_info) > 1) else self.bin_size[0]
             
-            timeframes_to_process = []
-
-            for t in self.timeframe_info:            
-                if self.timeframe_info[t]["allowed_range"] == action:
-                    # append minute count of a timeframe when sorting when sorting is need otherwise just add a string timeframe
-                    timeframes_to_process.append(allowed_range_minute_granularity[t][3]) if self.timeframes_sorted != None else timeframes_to_process.append(t)  
+            # Timeframes to be updated
+            timeframes_to_process = [allowed_range_minute_granularity[t][3] if self.timeframes_sorted != None else 
+                                t for t in self.timeframe_info if self.timeframe_info[t]['allowed_range'] == action] 
 
             # Sorting timeframes that will be updated
             if self.timeframes_sorted == True:

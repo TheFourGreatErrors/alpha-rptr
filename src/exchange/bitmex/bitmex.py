@@ -751,33 +751,32 @@ class BitMex:
         """           
         if self.timeframe_data is None:
             self.timeframe_data = {}
-            for t in self.bin_size:
-                bin_size = t
+            for t in self.bin_size:                
                 end_time = datetime.now(timezone.utc)
-                start_time = end_time - self.ohlcv_len * delta(bin_size)
-                self.timeframe_data[bin_size] = self.fetch_ohlcv(bin_size, start_time, end_time)
-                self.timeframe_info[bin_size] = {
+                start_time = end_time - self.ohlcv_len * delta(t)
+                self.timeframe_data[t] = self.fetch_ohlcv(t, start_time, end_time)
+                self.timeframe_info[t] = {
                                                     "allowed_range": allowed_range_minute_granularity[t][0] if self.minute_granularity else allowed_range[t][0], 
                                                     "ohlcv": self.timeframe_data[t][:-1], # Dataframe with closed candles                                                   
-                                                    "last_action_time": None,#self.timeframe_data[bin_size].iloc[-1].name, # Last strategy execution time
-                                                    "last_candle": self.timeframe_data[bin_size].iloc[-2].values,  # Store last complete candle
-                                                    "partial_candle": self.timeframe_data[bin_size].iloc[-1].values  # Store incomplete candle
+                                                    "last_action_time": None,#self.timeframe_data[t].iloc[-1].name, # Last strategy execution time
+                                                    "last_candle": self.timeframe_data[t].iloc[-2].values,  # Store last complete candle
+                                                    "partial_candle": self.timeframe_data[t].iloc[-1].values  # Store incomplete candle
                                                 }
                 # The last candle is an incomplete candle with timestamp in future                
-                if self.timeframe_data[bin_size].iloc[-1].name > end_time:
+                if self.timeframe_data[t].iloc[-1].name > end_time:
                     last_candle = self.timeframe_data[t].iloc[-1].values # Store last candle
-                    self.timeframe_data[bin_size] = self.timeframe_data[t][:-1] # Exclude last candle
-                    self.timeframe_data[bin_size].loc[end_time.replace(microsecond=0)] = last_candle #set last candle to end_time
-                #d1 = self.timeframe_data[bin_size]
+                    self.timeframe_data[t] = self.timeframe_data[t][:-1] # Exclude last candle
+                    self.timeframe_data[t].loc[end_time.replace(microsecond=0)] = last_candle #set last candle to end_time
+                #d1 = self.timeframe_data[t]
                 # if len(d1) > 0:
-                #     d2 = self.fetch_ohlcv(allowed_range[bin_size][0],
-                #                         d1.iloc[-1].name + delta(allowed_range[bin_size][0]), end_time)
+                #     d2 = self.fetch_ohlcv(allowed_range[t][0],
+                #                         d1.iloc[-1].name + delta(allowed_range[t][0]), end_time)
 
-                #     self.timeframe_data[bin_size] = pd.concat([d1, d2])               
+                #     self.timeframe_data[t] = pd.concat([d1, d2])               
                 # else:
-                #     self.timeframe_data[bin_size] = d1                
+                #     self.timeframe_data[t] = d1                
 
-                logger.info(f"Initial Buffer Fill - Last Candle: {self.timeframe_data[bin_size].iloc[-1].name}")   
+                logger.info(f"Initial Buffer Fill - Last Candle: {self.timeframe_data[t].iloc[-1].name}")   
         #logger.info(f"{self.timeframe_data}") 
 
         # Timeframes to be updated
@@ -791,7 +790,7 @@ class BitMex:
         if self.timeframes_sorted == False:
             timeframes_to_update.sort(reverse=False)
 
-        logger.info(f"timefeames to update: {timeframes_to_update}")        
+        #logger.info(f"timefeames to update: {timeframes_to_update}")        
 
         for t in timeframes_to_update:
             # Find timeframe string based on its minute count value
