@@ -579,21 +579,17 @@ class BinanceFutures:
         if cancel_all:
             self.cancel_all()   
 
-        if long and pos_size < 0:
-            ord_qty = qty + abs(pos_size)
-        elif not long and pos_size > 0:
-            ord_qty = qty + abs(pos_size)
+        if (long and pos_size < 0) or (not long and pos_size > 0):
+            ord_qty = qty + abs(pos_size)        
         else:
             ord_qty = qty  
         
-        if long and (pos_size + qty > pyramiding*qty):
+        if (long and pos_size + qty > pyramiding*qty) or (not long and pos_size - qty < -pyramiding*qty):
             ord_qty = pyramiding*qty - abs(pos_size)
-
-        if not long and (pos_size - qty < -(pyramiding*qty)):
-            ord_qty = pyramiding*qty - abs(pos_size)
+     
         # make sure it doesnt spam small entries, which in most cases would trigger risk management orders evaluation, you can make this less than 2% if needed  
         if ord_qty < ((pyramiding*qty) / 100) * 2:
-            return
+            return       
 
         trailing_stop = 0
         activationPrice = 0
