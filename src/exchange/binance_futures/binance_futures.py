@@ -122,6 +122,10 @@ class BinanceFutures:
         self.best_bid_price = None
         # best ask price
         self.best_ask_price = None 
+        #  Bid quantity L1
+        self.bid_quantity_L1 = None
+        # Ask quantity L1
+        self.ask_quantity_L1 = None
         
     def __init_client(self):
         """
@@ -1238,6 +1242,9 @@ class BinanceFutures:
         """
         self.best_bid_price = float(bookticker['b'])
         self.best_ask_price = float(bookticker['a'])        
+        self.bid_quantity_L1 = float(bookticker['B'])         
+        self.ask_quantity_L1 = float(bookticker['A']) 
+        #logger.info(f"best bid: {self.best_bid_price}          best_ask: {self.best_ask_price}           bq_L1: {self.bid_quantity_L1}           aq_L1: {self.ask_quantity_L1}")
 
     def on_update(self, bin_size, strategy):
         """

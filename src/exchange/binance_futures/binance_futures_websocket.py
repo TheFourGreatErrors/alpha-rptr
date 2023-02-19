@@ -77,7 +77,7 @@ class BinanceFuturesWs:
         if len(self.bin_size) > 0: 
             for t in self.bin_size: 
                 klines += self.pair + '@kline_' + t + '/'
-        return 'wss://' + self.domain + '/stream?streams=' + self.listenKey + '/' + self.pair + '@ticker/' + klines
+        return 'wss://' + self.domain + '/stream?streams=' + self.listenKey + '/' + self.pair + '@ticker/' + self.pair + '@bookTicker/' + klines
    
     def __get_auth_user_data_streams(self):
         """
@@ -210,12 +210,9 @@ class BinanceFuturesWs:
                     #self.__on_close(ws)
                     self.ws.close()
 
-            elif not 'e' in obj['data']:
-                e = 'IndividualSymbolBookTickerStreams'
-                action = ''
-                data = obj['data']
-                #logger.info(f"{data}")
-                self.__emit(e, action, data)
+                elif e.startswith("bookTicker"):
+                    logger.info(f"bookticker: {obj['data']}")                   
+                    self.__emit('bookticker', action, obj['data'])
 
         except Exception as e:
             logger.error(e)
