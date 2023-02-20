@@ -365,6 +365,45 @@ def retry_binance_futures(func, count=5):
 
     raise err
 
+
+def retry_bybit(func, count=5):
+    err = None
+    for i in range(count):
+        try:
+            #logger.info(f"{func()}")
+            ret = func()
+            if 'result' in ret:
+                ret = ret['result']
+
+            #res_header = res.headers['X-MBX-USED-WEIGHT-1M']                   
+            #rate_limit = int(res.headers['X-MBX-USED-WEIGHT-1M'])
+            #todo finish retry limit and status codes
+            
+            # rate_remain = None
+            # try:                
+            #     rate_remain = int(res.headers['X-MBX-ORDER-COUNT-1M'])
+            # except KeyError:             #             
+            #     #return ret
+            #     pass
+            # if rate_remain is not None and rate_remain < 10:
+            #     time.sleep(5 * 60 * (1 + rate_limit - rate_remain) / rate_limit)
+            return ret
+        except HTTPError as error:
+            status_code = error.status_code
+            err = error
+            if status_code >= 500:
+                time.sleep(pow(2, i + 1))
+                continue
+            elif status_code == 400 or \
+                    status_code == 401 or \
+                    status_code == 402 or \
+                    status_code == 403 or \
+                    status_code == 404 or \
+                    status_code == 429:
+                raise FatalError(error)
+    raise err
+
+
 def retry_ftx(func, count=5):
     err = None
     for i in range(count):

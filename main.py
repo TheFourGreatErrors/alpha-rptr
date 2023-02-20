@@ -14,6 +14,7 @@ if __name__ == "__main__":
     parser.add_argument("--stub",     default=False,   action="store_true")
     parser.add_argument("--demo",     default=False,   action="store_true")
     parser.add_argument("--hyperopt", default=False,   action="store_true")
+    parser.add_argument("--spot", default=False,   action="store_true")
     parser.add_argument("--account", default="binanceaccount1",   required=True)
     parser.add_argument("--exchange", default="binance",   required=True)
     parser.add_argument("--pair", default="BTCUSDT",   required=False)
