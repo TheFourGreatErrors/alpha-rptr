@@ -33,8 +33,10 @@ class BitMex:
     ohlcv_len = 100    
     # Round decimals
     round_decimals = 0
-    # Call strategy function on start, this can be useful when you dont want to wait for the candle to close to trigger the strategy function
-    # this also can be problematic for certain operations like sending orders(or duplicates of orders that were already sent) calculated based on closed candle data that are no longer relevant etc.    
+    # Call strategy function on start, this can be useful
+    # when you dont want to wait for the candle to close to trigger the strategy function
+    # this also can be problematic for certain operations like sending orders or duplicates of orders 
+    # that have been already sent calculated based on closed candle data that are no longer relevant etc.    
     call_strat_on_start = False
 
     def __init__(self, account, pair, demo=False, threading=True):

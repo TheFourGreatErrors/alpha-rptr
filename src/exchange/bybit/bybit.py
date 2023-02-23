@@ -13,8 +13,9 @@ import pandas as pd
 from bravado.exception import HTTPNotFound
 from pytz import UTC
 
-from src import logger, bin_size_converter, find_timeframe_string, allowed_range_minute_granularity, allowed_range, to_data_frame, \
-    resample, delta, FatalError, notify, ord_suffix
+from src import (logger, bin_size_converter, find_timeframe_string,
+                 allowed_range_minute_granularity, allowed_range,
+                 to_data_frame, resample, delta, FatalError, notify, ord_suffix)
 from src import retry_bybit as retry
 from pybit import inverse_futures, inverse_perpetual, usdc_perpetual, usdt_perpetual, spot
 #from pybit import spot as spot_http
@@ -39,8 +40,10 @@ class Bybit:
     order_update_log = True  
     # OHLCV length
     ohlcv_len = 100      
-    # Call strategy function on start, this can be useful when you dont want to wait for the candle to close to trigger the strategy function
-    # this also can be problematic for certain operations like sending orders(or duplicates of orders that were already sent) calculated based on closed candle data that are no longer relevant etc.    
+    # Call strategy function on start, this can be useful
+    # when you dont want to wait for the candle to close to trigger the strategy function
+    # this also can be problematic for certain operations like sending orders or duplicates of orders 
+    # that have been already sent calculated based on closed candle data that are no longer relevant etc.    
     call_strat_on_start = True
 
     def __init__(self, account, pair, demo=False, spot=False, threading=True):
@@ -114,8 +117,8 @@ class Bybit:
                         'profit_short_callback': None,
                         'stop_long_callback': None,
                         'stop_short_callback': None,
-						'split': 1,
-						'interval': 0
+                        'split': 1,
+                        'interval': 0
                         }         
          # Profit, Loss and Trail Offset
         self.exit_order = {
@@ -125,8 +128,8 @@ class Bybit:
                         'profit_callback': None,
                         'loss_callback': None,
                         'trail_callbak': None,
-						'split': 1,
-						'interval': 0
+                        'split': 1,
+                        'interval': 0
                         }
         # Trailing Stop
         self.trail_price = 0   
@@ -162,12 +165,11 @@ class Bybit:
                 markets_list = retry(lambda: self.public_client.query_symbol())   
                 market = [market for market in markets_list if market.get('name')==self.pair]                
                 self.quote_asset = market[0]['quoteCurrency']                      
-                self.quote_rounding = abs(Decimal(str(market[0]['minPricePrecision'])).as_tuple().exponent) if float(market[0]['minPricePrecision']) < 1 else 0 # quotePricesion??
+                self.quote_rounding = abs(Decimal(str(market[0]['minPricePrecision'])).as_tuple().exponent) \
+                                        if float(market[0]['minPricePrecision']) < 1 else 0 # quotePricesion??
                 self.base_asset = market[0]['baseCurrency']  
-                self.asset_rounding = abs(Decimal(str(market[0]['basePrecision'])).as_tuple().exponent) if float(market[0]['basePrecision']) < 1 else 0 
-
-            logger.info(f"market: {market}")           
-            logger.info(f"Asset: {self.base_asset} Rounding: {self.asset_rounding} - Quote: {self.quote_asset} Rounding: {self.quote_rounding}")
+                self.asset_rounding = abs(Decimal(str(market[0]['basePrecision'])).as_tuple().exponent) \
+                                        if float(market[0]['basePrecision']) < 1 else 0            
         # USDC perps
         elif self.pair.endswith('PERP'): 
             HTTP = usdc_perpetual.HTTP
@@ -181,7 +183,8 @@ class Bybit:
                 self.quote_asset = market[0]['quoteCoin']                                
                 self.quote_rounding = abs(Decimal(str(tick_size)).as_tuple().exponent) if float(tick_size) < 1 else 0 
                 self.base_asset = market[0]['baseCoin'] 
-                self.asset_rounding = abs(Decimal(str(market[0]['qtyStep'])).as_tuple().exponent) if float(market[0]['qtyStep']) < 1 else 0  
+                self.asset_rounding = abs(Decimal(str(market[0]['qtyStep'])).as_tuple().exponent) \
+                                        if float(market[0]['qtyStep']) < 1 else 0  
         # USDT linear perps or inverse perps
         elif self.pair.endswith('USDT') or self.pair.endswith('USD'): 
             HTTP = usdt_perpetual.HTTP if self.pair.endswith('USDT') else inverse_perpetual.HTTP
@@ -191,11 +194,13 @@ class Bybit:
             if self.quote_rounding == None or self.asset_rounding == None:      
                 markets_list = retry(lambda: self.public_client.query_symbol())    
                 market = [market for market in markets_list if market.get('name')==self.pair]                
-                tick_size = float(market[0]['price_filter']['tick_size']) * 2 if '5' in market[0]['price_filter']['tick_size'] else market[0]['price_filter']['tick_size']                        
+                tick_size = float(market[0]['price_filter']['tick_size']) * 2 \
+                            if '5' in market[0]['price_filter']['tick_size'] else market[0]['price_filter']['tick_size']                        
                 self.quote_asset = market[0]['quote_currency']                                
                 self.quote_rounding = abs(Decimal(str(tick_size)).as_tuple().exponent) if float(tick_size) < 1 else 0                
                 self.base_asset = market[0]['base_currency']  
-                self.asset_rounding = abs(Decimal(str(market[0]['lot_size_filter']['qty_step'])).as_tuple().exponent) if float(market[0]['lot_size_filter']['qty_step']) < 1 else 0
+                self.asset_rounding = abs(Decimal(str(market[0]['lot_size_filter']['qty_step'])).as_tuple().exponent) \
+                                        if float(market[0]['lot_size_filter']['qty_step']) < 1 else 0
         else:
             HTTP = inverse_futures.HTTP
         
@@ -214,6 +219,8 @@ class Bybit:
         self.position_size = self.get_position_size()
         # Entry price
         self.entry_price = self.get_position_avg_price()
+        # Market price
+        self.market_price = self.get_market_price()
         # Margin
         # self.margin = self.get_margin()
         
@@ -238,8 +245,9 @@ class Bybit:
         :return:
         """
         account_information = self.get_account_information()        
-        return round(float(self.get_balance(return_available=only_available_balance)) / (1 if self.qty_in_usdt else self.get_market_price()) * self.get_leverage(),
-                 round_decimals if round_decimals != None else self.asset_rounding)    
+        return round(float(self.get_balance(return_available=only_available_balance)) 
+                     / (1 if self.qty_in_usdt else self.get_market_price()) * self.get_leverage(),
+                                round_decimals if round_decimals != None else self.asset_rounding)    
 
     def get_balance(self, asset=None, return_available=False):
         """
@@ -265,7 +273,8 @@ class Bybit:
             asset = asset if asset else self.quote_asset if self.pair.endswith('USDT') else self.base_asset
            
             if asset in balances:
-                balance = float(balances[asset]['available_balance']) if return_available else float(balances[asset]['wallet_balance'])                
+                balance = float(balances[asset]['available_balance']) \
+                             if return_available else float(balances[asset]['wallet_balance'])                
                 return balance
             else:
                 logger.info(f"Unable to find asset: {asset} in balances")           
@@ -275,7 +284,8 @@ class Bybit:
             balance =  float(balances['availableBalance']) if return_available else float(balances['walletBalance'])            
             return balance
         else:
-            logger.info(f"Couldnt get balance, please make sure you specify asset in argument for spot and have your keys and inputs set up correctly.")
+            logger.info(f"Couldnt get balance, please make sure you specify asset in argument \
+                        for spot and have your keys and inputs set up correctly.")
         
     def get_available_balance(self, asset=None):
         """
@@ -320,7 +330,10 @@ class Bybit:
         self.__init_client()
 
         symbol = self.pair if symbol is None else symbol
-        leverage = retry(lambda: self.private_client.set_leverage(symbol=symbol, leverage=leverage, buy_leverage=leverage, sell_leverage=leverage)) 
+        leverage = retry(lambda: self.private_client.set_leverage(symbol=symbol,
+                                                                    leverage=leverage,
+                                                                    buy_leverage=leverage,
+                                                                    sell_leverage=leverage)) 
         return #self.get_leverage(symbol)
 
     def get_leverage(self, symbol=None):
@@ -372,15 +385,15 @@ class Bybit:
         :return:
         """
         self.__init_client()
-        if self.spot:            
-            position = self.get_balance(asset=self.base_asset) # Spot treats positions only as changes in balance from quote asset to base asset
+        if self.spot: # Spot treats positions only as changes in balance from quote asset to base asset           
+            position = self.get_balance(asset=self.base_asset) 
             return float(position)
 
         position = self.get_position(force_api_call=force_api_call)
 
-        if position is not None:           
+        if position is not None: # Positition size may return positive even when short !!!          
             position_size = float(position[0]['size'])           
-            position_size = -position_size if position[0]['side'] == 'Sell' else position_size # Positition size may return positive even when short !!!
+            position_size = -position_size if position[0]['side'] == 'Sell' else position_size 
             return position_size  
         else:
             return 0
@@ -396,7 +409,8 @@ class Bybit:
         if position is None or len(position) == 0:
             return 0
          
-        position_avg_price = float(position[0]['entryPrice']) if self.pair.endswith('PERP') else float(position[0]['entry_price']) 
+        position_avg_price = float(position[0]['entryPrice']) \
+                            if self.pair.endswith('PERP') else float(position[0]['entry_price']) 
         
         return position_avg_price 
 
@@ -447,14 +461,16 @@ class Bybit:
         elif (position_size < 0):
             close_rate = ((avg_entry_price - close)/avg_entry_price) - commission
         
-        profit = round(abs(position_size) * close_rate * (1 if self.qty_in_usdt else avg_entry_price), self.quote_rounding)
+        profit = round(abs(position_size) 
+                        * close_rate * (1 if self.qty_in_usdt else avg_entry_price), self.quote_rounding)
 
         return profit
     
     def get_latest_symbol_information(self, symbol=None):
         """
         get latest symbol(trading pair) information
-        :param symbol: if provided it will return information for the specific symbol otherwise, otherwise it returns values for the pair currently traded 
+        :param symbol: if provided it will return information for the specific symbol otherwise,
+            otherwise it returns values for the pair currently traded 
         :return:
         """
         symbol = self.pair if symbol == None else symbol   
@@ -528,7 +544,7 @@ class Bybit:
         """
         market close open position for this pair
         :params spot_safety_catch: this is here to prevent you to accidentally dump all your base asset,
-                                     because spot on treats positions as changes in balance of base asset and quote asset, there is open position status
+        -because spot on treats positions as changes in balance of base asset and quote asset, there is open position status
         :params callback:
         :params split:
         :params interval:
@@ -603,12 +619,16 @@ class Bybit:
         stop_order_id = order_id        
         # Inverse, Linear Perps and USDC perp 
         if self.pair.endswith('PERP'):
-            cancel_conditional = self.private_client.cancel_all_active_orders if cancel_all else self.private_client.cancel_active_order
+            cancel_conditional = self.private_client.cancel_all_active_orders \
+                                if cancel_all else self.private_client.cancel_active_order
         else:
-            cancel_conditional = self.private_client.cancel_all_conditional_orders if cancel_all else self.private_client.cancel_conditional_order
+            cancel_conditional = self.private_client.cancel_all_conditional_orders \
+                                if cancel_all else self.private_client.cancel_conditional_order
 
         res = retry(lambda: cancel_conditional(order_id=order_id, order_link_id=user_id, 
-                            orderId=order_id, orderLinkId=user_id, stop_order_id=stop_order_id, symbol=self.pair, orderFilter='StopOrder'))                 
+                                                orderId=order_id, orderLinkId=user_id, 
+                                                stop_order_id=stop_order_id, 
+                                                symbol=self.pair, orderFilter='StopOrder'))                 
 
         if 'status' in res and res['status'].upper() == 'CANCELED':
             logger.info(f"Already Cancelled - status: {res['status']}")
@@ -643,10 +663,14 @@ class Bybit:
             user_id = user_id if user_id else ""          
         
         # Spot, Inverse, Linear Perps and USDC perp       
-        cancel_active = self.private_client.cancel_all_active_orders if not self.spot else self.private_client.batch_cancel_active_order if cancel_all \
-                        else self.private_client.cancel_active_order
+        cancel_active = self.private_client.cancel_all_active_orders \
+                        if not self.spot else self.private_client.batch_cancel_active_order \
+                            if cancel_all else self.private_client.cancel_active_order
+        
         res =  retry(lambda: cancel_active(order_id=order_id, order_link_id=user_id,
-                                 orderId=order_id, orderLinkId=user_id, symbol=self.pair, orderFilter='Order', orderTypes="LIMIT,LIMIT_MAKER"))        
+                                 orderId=order_id, orderLinkId=user_id,
+                                   symbol=self.pair, orderFilter='Order',
+                                     orderTypes="LIMIT,LIMIT_MAKER"))        
 
         if 'status' in res and res['status'].upper() == 'CANCELED':
             logger.info(f"Already Cancelled - status: {res['status']}")
@@ -661,100 +685,128 @@ class Bybit:
             self.callbacks.pop(user_id)
         return True      
 
-    def __new_order(self, ord_id, side, ord_qty, limit=0, stop=0, post_only=False, reduce_only=False, trailing_stop=0, activationPrice=0, trigger_by='LastPrice'):
+    def __new_order(
+                self,
+                ord_id,
+                side,
+                ord_qty,
+                limit=0,
+                stop=0,
+                post_only=False,
+                reduce_only=False,
+                trailing_stop=0, 
+                activationPrice=0,
+                trigger_by='LastPrice'
+                    ):
         """
         create an order
         """          
         if self.spot and stop > 0:
             logger.info(f"Conditional Orders Not Yet supported For Spot According To Official Bybit API.")
 
-        ord_qty = str(ord_qty) if self.pair.endswith('PERP') else ord_qty # USDC perps require strings for order quanity and price etc..
-          
+        ord_qty = str(ord_qty) if self.pair.endswith('PERP') else ord_qty # USDC perps require strings for order quanity and price etc...       
+       
         market_price = self.get_market_price()
-        base_price = market_price + market_price / 100 * 1 if stop > market_price else market_price - market_price / 100 * 1                
+        base_price = str(self.market_price) if self.pair.endswith('PERP') else self.market_price 
+                    #market_price + market_price / 100 * 1 if stop > market_price else market_price - market_price / 100 * 1        
+      
+        # USDC perps dont have condittional orders API endpoints
+        place_conditional = self.private_client.place_active_order if self.pair.endswith('PERP') else self.private_client.place_conditional_order
+      
        
         if limit > 0 and post_only:            
-            ord_type = "Limit" if self.pair.endswith('PERP') else "Limit"
+            ord_type = "Limit" 
             type = "LIMIT_MAKER" # Spot only
-            orderFilter = "Order" if self.pair.endswith('PERP') else None
+            orderFilter = "Order" if self.pair.endswith('PERP') else None             
             limit = str(limit) if self.pair.endswith('PERP') else limit 
+            #limit = str(limit) if self.pair.endswith('PERP') else limit 
             if self.spot:    
-                res = retry(lambda: self.private_client.place_active_order(symbol=self.pair,  type=type,  orderLinkId=ord_id,
-                                                                side=side, qty=ord_qty,  price=limit, 
-                                                                timeInForce='GTC'))              
+                res = retry(lambda: self.private_client.place_active_order(symbol=self.pair, type=type,
+                                                                           orderLinkId=ord_id,
+                                                                           side=side,
+                                                                           qty=ord_qty,
+                                                                           price=limit,
+                                                                           timeInForce='GTC'))              
             else:
-                res = retry(lambda: self.private_client.place_active_order(symbol=self.pair, order_type=ord_type, orderType=ord_type, type=type, order_link_id=ord_id, orderLinkId=ord_id,
-                                                              side=side, qty=ord_qty, orderQty=ord_qty, price=limit, orderPrice=limit,
-                                                              reduce_only=reduce_only, reduceOnly=reduce_only, close_on_trigger=reduce_only,
-                                                              time_in_force='PostOnly', timeInForce='PostOnly', orderFilter=orderFilter, position_idx=0))                
+                res = retry(lambda: self.private_client.place_active_order(symbol=self.pair, order_type=ord_type, orderType=ord_type, type=type,
+                                                                            order_link_id=ord_id, orderLinkId=ord_id, side=side, 
+                                                                            qty=ord_qty, orderQty=ord_qty,
+                                                                            price=limit, orderPrice=limit,
+                                                                            reduce_only=reduce_only, reduceOnly=reduce_only,
+                                                                            close_on_trigger=reduce_only,
+                                                                            time_in_force='PostOnly', timeInForce='PostOnly',
+                                                                            orderFilter=orderFilter, position_idx=0))                
         elif limit > 0 and stop > 0:
-            ord_type = "Limit" if self.pair.endswith('PERP') else "Limit"#"StopLimit"
+            ord_type = "Limit" #"StopLimit"
             #type = "LIMIT" #Spot only
             orderFilter = "StopOrder" if self.pair.endswith('PERP') else None
-            limit = str(limit) if self.pair.endswith('PERP') else limit
-            res = retry(lambda: self.private_client.place_conditional_order(symbol=self.pair, order_type=ord_type, orderType=ord_type, order_link_id=ord_id, orderLinkId=ord_id,
-                                                              side=side, qty=ord_qty, price=limit, stop_px=stop, triggerPrice=stop, reduce_only=reduce_only, close_on_trigger=reduce_only,
-                                                              orderPrice=limit, base_price=base_price, basePrice=str(base_price),
-                                                              time_in_force='GoodTillCancel', trigger_by=trigger_by, triggerBy=trigger_by, orderFilter=orderFilter, position_idx=0))
+            stop = str(stop) if self.pair.endswith('PERP') else stop 
+            limit = str(limit) if self.pair.endswith('PERP') else limit 
+            res = retry(lambda: place_conditional(symbol=self.pair, order_type=ord_type, orderType=ord_type,
+                                                    order_link_id=ord_id, orderLinkId=ord_id, side=side,
+                                                    qty=ord_qty, orderQty=ord_qty, price=limit, stop_px=stop, triggerPrice=stop,
+                                                    orderPrice=limit, base_price=base_price, basePrice=str(base_price),
+                                                    reduce_only=reduce_only,  reduceOnly=reduce_only,
+                                                    close_on_trigger=reduce_only,                                                                           
+                                                    time_in_force='GoodTillCancel', timeInForce='GoodTillCancel',
+                                                    trigger_by=trigger_by, triggerBy=trigger_by,
+                                                    orderFilter=orderFilter, position_idx=0))
         elif limit > 0:
-            ord_type = "Limit" if self.pair.endswith('PERP') else "Limit"
+            ord_type = "Limit" 
             type = "LIMIT"
             orderFilter = "Order" if self.pair.endswith('PERP') else None 
             limit = str(limit) if self.pair.endswith('PERP') else limit   
             if self.spot:    
-                res = retry(lambda: self.private_client.place_active_order(symbol=self.pair,  type=type,  orderLinkId=ord_id,
-                                                                side=side, qty=ord_qty,  price=limit, 
-                                                                timeInForce='GTC'))            
+                res = retry(lambda: self.private_client.place_active_order(symbol=self.pair, type=type,
+                                                                           orderLinkId=ord_id,
+                                                                           side=side,
+                                                                           qty=ord_qty,
+                                                                           price=limit, 
+                                                                           timeInForce='GTC'))            
             else:
-                res = retry(lambda: self.private_client.place_active_order(symbol=self.pair, order_type=ord_type, orderType=ord_type, type=type, order_link_id=ord_id, orderLinkId=ord_id,
-                                                              side=side, qty=ord_qty, orderQty=ord_qty, price=limit, orderPrice=limit,
-                                                              reduce_only=reduce_only, reduceOnly=reduce_only, close_on_trigger=reduce_only,
-                                                              time_in_force='GoodTillCancel', timeInForce='GoodTillCancel',orderFilter=orderFilter, position_idx=0))               
- 
+                res = retry(lambda: self.private_client.place_active_order(symbol=self.pair, order_type=ord_type, orderType=ord_type, type=type,
+                                                                           order_link_id=ord_id, orderLinkId=ord_id, side=side,
+                                                                           qty=ord_qty, orderQty=ord_qty, price=limit, orderPrice=limit,
+                                                                           reduce_only=reduce_only, reduceOnly=reduce_only,
+                                                                           close_on_trigger=reduce_only,
+                                                                           time_in_force='GoodTillCancel', timeInForce='GoodTillCancel',
+                                                                           orderFilter=orderFilter, position_idx=0))
         elif stop > 0:
-            ord_type = "Market" if self.pair.endswith('PERP') else "Market" #"Stop"
+            ord_type = "Market" #"Stop"
             #type = "MARKET" #Spot only
             orderFilter = "StopOrder" if self.pair.endswith('PERP') else None
-            res = retry(lambda: self.private_client.place_conditional_order(symbol=self.pair, order_type=ord_type, orderType=ord_type, order_link_id=ord_id, orderLinkId=ord_id,
-                                                              side=side, qty=ord_qty, orderQty=ord_qty, stop_px=stop, triggerPrice=stop, reduce_only=reduce_only, close_on_trigger=reduce_only,
-                                                              orderPrice=limit, base_price=base_price, basePrice=str(base_price),
-                                                              time_in_force='GoodTillCancel', trigger_by=trigger_by, triggerBy=trigger_by, orderFilter=orderFilter, position_idx=0))
-        # elif post_only: # limit order with post only loop
-        #     ord_type = "Order" if self.pair.endswith('PERP') else "Limit"
-        #     i = 0
-        #     while True:
-        #         prices = self.ob.get_prices()
-        #         limit = prices[0] if side == "Buy" else prices[1]
-        #         logger.info(f"best price: {prices}")
-        #         ord_type = "Limit" if self.pair.endswith('PERP') else "Limit"
-        #         type = "LIMIT_MAKER" # Spot only
-        #         orderFilter = "Order" if self.pair.endswith('PERP') else None
-        #         limit = str(limit) if self.pair.endswith('PERP') else limit 
-        #         if self.spot:    
-        #             retry(lambda: self.private_client.place_active_order(symbol=self.pair,  type=type,  orderLinkId=ord_id,
-        #                                                             side=side, qty=ord_qty,  price=limit, 
-        #                                                             timeInForce='GTC'))            
-        #         else:
-        #             retry(lambda: self.private_client.place_active_order(symbol=self.pair, order_type=ord_type, orderType=ord_type, type=type, order_link_id=ord_id, orderLinkId=ord_id,
-        #                                                         side=side, qty=ord_qty, orderQty=ord_qty, price=limit, orderPrice=limit,
-        #                                                         reduce_only=reduce_only, reduceOnly=reduce_only, close_on_trigger=reduce_only,
-        #                                                         time_in_force='PostOnly', timeInForce='PostOnly', orderFilter=orderFilter, position_idx=0))
-        #         time.sleep(1)
-
-        #         if not self.cancel(ord_id):
-        #             break
-        #         time.sleep(2)
-        #         i += 1
-        #         if i > 10:
-        #             notify(f"Order retry count exceeded")
-        #             break
-        #     self.cancel_all()
+            limit = str(limit) if self.pair.endswith('PERP') else limit   
+            stop = str(stop) if self.pair.endswith('PERP') else stop    
+            res = retry(lambda: place_conditional(symbol=self.pair, order_type=ord_type, orderType=ord_type,
+                                                    order_link_id=ord_id, orderLinkId=ord_id, side=side,
+                                                    qty=ord_qty, orderQty=ord_qty, stop_px=stop, triggerPrice=stop,
+                                                    reduce_only=reduce_only, reduceOnly=reduce_only,
+                                                    close_on_trigger=reduce_only,
+                                                    orderPrice=limit, base_price=str(base_price),# basePrice=str(base_price),
+                                                    time_in_force='GoodTillCancel', timeInForce='GoodTillCancel',
+                                                    trigger_by=trigger_by, triggerBy=trigger_by,
+                                                    orderFilter=orderFilter, position_idx=0))
+        elif post_only: # limit order with post only loop
+            logger.info(f"Limit chasing currently not supported")
         else:
-            ord_type = "Market" if self.pair.endswith('PERP') else "Market"
+            ord_type = "Market"
             type = "MARKET"
             orderFilter = "Order" if self.pair.endswith('PERP') else None
-            res = retry(lambda: self.private_client.place_active_order(symbol=self.pair, order_type=ord_type, type=type, orderType=ord_type, order_link_id=ord_id,
-                                                              side=side, qtyty=ord_qty, time_in_force='GoodTillCancel', orderFilter=orderFilter, position_idx=0))
+            stop = str(stop) if self.pair.endswith('PERP') else stop      
+            if self.spot:    
+                res = retry(lambda: self.private_client.place_active_order(symbol=self.pair, type=type,
+                                                                           orderLinkId=ord_id,
+                                                                           side=side,
+                                                                           qty=ord_qty,                                                                           
+                                                                           timeInForce='GTC'))   
+            else:   
+                res = retry(lambda: self.private_client.place_active_order(symbol=self.pair, order_type=ord_type, type=type, orderType=ord_type,
+                                                                           order_link_id=ord_id, orderLinkId=ord_id, side=side,
+                                                                           qty=ord_qty, orderQty=ord_qty,
+                                                                           reduce_only=reduce_only, reduceOnly=reduce_only,
+                                                                           close_on_trigger=reduce_only,
+                                                                           time_in_force='GoodTillCancel', timeInForce='GoodTillCancel',
+                                                                           orderFilter=orderFilter, position_idx=0))
 
         if self.enable_trade_log:
             logger.info(f"========= New Order ==============")
@@ -818,11 +870,13 @@ class Bybit:
         res = None
 
         if is_conditional:
-            res = retry(lambda: self.private_client.replace_conditional_order(symbol=self.pair, order_link_id=ord_id, orderLinkId=ord_id, orderFilter='StopOrder',
-                                                                    **kwargs))
+            res = retry(lambda: self.private_client.replace_conditional_order(symbol=self.pair, order_link_id=ord_id,
+                                                                              orderLinkId=ord_id, orderFilter='StopOrder',
+                                                                              **kwargs))
         else:
-            res = retry(lambda: self.private_client.replace_active_order(symbol=self.pair, order_link_id=ord_id, orderLinkId=ord_id, orderFilter='Order',
-                                                                    **kwargs))
+            res = retry(lambda: self.private_client.replace_active_order(symbol=self.pair, order_link_id=ord_id,
+                                                                         orderLinkId=ord_id, orderFilter='Order',
+                                                                         **kwargs))
 
         if self.enable_trade_log:
             logger.info(f"========= Amend Order ==============")
@@ -834,8 +888,22 @@ class Bybit:
             logger.info(f"Modified Order with user_id: {ord_id}, response: {res}")
             return res         
 
-    def entry(self, id, long, qty, limit=0, stop=0, post_only=False, reduce_only=False, when=True, round_decimals=None,
-                callback=None, trigger_by='LastPrice', split=1, interval=0):
+    def entry(
+            self,
+            id,
+            long,
+            qty,
+            limit=0,
+            stop=0,
+            post_only=False,
+            reduce_only=False,
+            when=True,
+            round_decimals=None,
+            callback=None,
+            trigger_by='LastPrice',
+            split=1,
+            interval=0
+            ):
         """
         places an entry order, works as equivalent to tradingview pine script implementation
         https://tradingview.com/study-script-reference/#fun_strategy{dot}entry
@@ -871,8 +939,25 @@ class Bybit:
 
         self.order(id, long, ord_qty, limit, stop, post_only, reduce_only, when, callback, trigger_by, split, interval)
 
-    def entry_pyramiding(self, id, long, qty, limit=0, stop=0, trailValue= 0, post_only=False, reduce_only=False, cancel_all=False, pyramiding=2, when=True,
-                             round_decimals=None, callback=None, trigger_by='LastPrice', split=1, interval=0):
+    def entry_pyramiding(
+            self,
+            id,
+            long,
+            qty,
+            limit=0,
+            stop=0,
+            trailValue= 0,
+            post_only=False,
+            reduce_only=False,
+            cancel_all=False,
+            pyramiding=2,
+            when=True,
+            round_decimals=None,
+            callback=None,
+            trigger_by='LastPrice',
+            split=1,
+            interval=0
+            ):
         """
         places an entry order, works as equivalent to tradingview pine script implementation with pyramiding
         https://tradingview.com/study-script-reference/#fun_strategy{dot}entry
@@ -915,7 +1000,8 @@ class Bybit:
         if (long and pos_size + qty > pyramiding*qty) or (not long and pos_size - qty < -pyramiding*qty):
             ord_qty = pyramiding*qty - abs(pos_size)
      
-        # make sure it doesnt spam small entries, which in most cases would trigger risk management orders evaluation, you can make this less than 2% if needed  
+        # make sure it doesnt spam small entries, which in most cases would trigger risk management orders evaluation,
+        # you can make this less than 2% if needed  
         if ord_qty < ((pyramiding*qty) / 100) * 2:
             return       
 
@@ -923,8 +1009,21 @@ class Bybit:
 
         self.order(id, long, ord_qty, limit, stop, post_only, reduce_only, when, callback, trigger_by, split, interval)
 
-    def order(self, id, long, qty, limit=0, stop=0, post_only=False, reduce_only=False, when=True,
-                 callback=None, trigger_by='LastPrice', split=1, interval=0):
+    def order(
+            self,
+            id,
+            long,
+            qty,
+            limit=0,
+            stop=0,
+            post_only=False,
+            reduce_only=False,
+            when=True,
+            callback=None,
+            trigger_by='LastPrice',
+            split=1,
+            interval=0
+            ):
         """
         places an order, works as equivalent to tradingview pine script implementation
         https://www.tradingview.com/pine-script-reference/#fun_strategy{dot}order
@@ -985,10 +1084,12 @@ class Bybit:
                         sub_ord_callback = type(self)(self.count+1)
                     
                     # Override stop for subsequent sub orders
-                    exchange.order(sub_ord_id, long, s_ord_qty, limit, 0, post_only, reduce_only, trigger_by=trigger_by, callback=sub_ord_callback)
+                    exchange.order(sub_ord_id, long, s_ord_qty, limit, 0, post_only,
+                                    reduce_only, trigger_by=trigger_by, callback=sub_ord_callback)
 
             sub_ord_id = f"{id}_sub1"
-            self.order(sub_ord_id, long, sub_ord_qty, limit, stop, post_only, reduce_only, trigger_by=trigger_by, callback=split_order(1))
+            self.order(sub_ord_id, long, sub_ord_qty, limit, stop, post_only,
+                        reduce_only, trigger_by=trigger_by, callback=split_order(1))
             return
 
         self.callbacks[ord_id] = callback
@@ -1071,7 +1172,10 @@ class Bybit:
                                 .query_conditional_order(symbol= self.pair))       
         
         orders = conditional_orders if only_conditional else active_orders if only_active else \
-                {'active_orders': active_orders, 'conditional_orders': conditional_orders} if separate else [*active_orders, *conditional_orders]
+                                    {
+                                    'active_orders': active_orders,
+                                    'conditional_orders': conditional_orders
+                                    } if separate else [*active_orders, *conditional_orders]
         
         if id is not None:
             if separate:
@@ -1089,7 +1193,17 @@ class Bybit:
         else:
             return None
 
-    def exit(self, profit=0, loss=0, trail_offset=0, profit_callback=None, loss_callback=None, trail_callback=None, split=1, interval=0):
+    def exit(
+            self,
+            profit=0,
+            loss=0,
+            trail_offset=0,
+            profit_callback=None,
+            loss_callback=None,
+            trail_callback=None,
+            split=1,
+            interval=0
+            ):
         """
         profit taking and stop loss and trailing, if both stop loss and trailing offset are set trailing_offset takes precedence
         :param profit: Profit (specified in ticks)
@@ -1097,18 +1211,32 @@ class Bybit:
         :param trail_offset: Trailing stop price (specified in ticks)
         """
         self.exit_order = {
-                            'profit': profit, 
-                            'loss': loss, 
-                            'trail_offset': trail_offset, 
-                            'profit_callback': profit_callback,
-                            'loss_callback': loss_callback,
-                            'trail_callback': trail_callback,
-                            'split': split,
-                            'interval': interval
-                            }
+                        'profit': profit, 
+                        'loss': loss, 
+                        'trail_offset': trail_offset, 
+                        'profit_callback': profit_callback,
+                        'loss_callback': loss_callback,
+                        'trail_callback': trail_callback,
+                        'split': split,
+                        'interval': interval
+                        }
 
-    def sltp(self, profit_long=0, profit_short=0, stop_long=0, stop_short=0, eval_tp_next_candle=False, round_decimals=None,
-                 profit_long_callback=None, profit_short_callback=None, stop_long_callback=None, stop_short_callback=None, trigger_by='LastPrice', split=1, interval = 0):
+    def sltp(
+            self,
+            profit_long=0,
+            profit_short=0,
+            stop_long=0,
+            stop_short=0,
+            eval_tp_next_candle=False,
+            round_decimals=None,
+            profit_long_callback=None,
+            profit_short_callback=None,
+            stop_long_callback=None,
+            stop_short_callback=None,
+            trigger_by='LastPrice',
+            split=1,
+            interval = 0
+            ):
         """
         Simple take profit and stop loss implementation, which sends a reduce only stop loss order upon entering a position.
         :param profit_long: profit target value in % for longs
@@ -1227,10 +1355,12 @@ class Bybit:
                     #time.sleep(0.05)                                         
                     self.cancel(id=tp_id)
                     #time.sleep(0.05)
-                    self.order("TP", False, abs(pos_size), limit=tp_price_long, reduce_only=True, callback=self.get_sltp_values()['profit_long_callback'], trigger_by=self.get_sltp_values()['trigger_by'], \
+                    self.order("TP", False, abs(pos_size), limit=tp_price_long, reduce_only=True,
+                                callback=self.get_sltp_values()['profit_long_callback'], trigger_by=self.get_sltp_values()['trigger_by'], \
                         split=self.get_sltp_values()['split'], interval=self.get_sltp_values()['interval'])
                 else:               
-                    self.order("TP", False, abs(pos_size), limit=tp_price_long, reduce_only=True, callback=self.get_sltp_values()['profit_long_callback'], trigger_by=self.get_sltp_values()['trigger_by'], \
+                    self.order("TP", False, abs(pos_size), limit=tp_price_long, reduce_only=True,
+                                callback=self.get_sltp_values()['profit_long_callback'], trigger_by=self.get_sltp_values()['trigger_by'], \
                         split=self.get_sltp_values()['split'], interval=self.get_sltp_values()['interval'])
         if tp_percent_short > 0 and is_tp_full_size == False:
             if pos_size < 0:                
@@ -1239,10 +1369,12 @@ class Bybit:
                     #time.sleep(0.05)                                                        
                     self.cancel(id=tp_id)
                     #time.sleep(0.05)
-                    self.order("TP", True, abs(pos_size), limit=tp_price_short, reduce_only=True, callback=self.get_sltp_values()['profit_short_callback'], trigger_by=self.get_sltp_values()['trigger_by'], \
+                    self.order("TP", True, abs(pos_size), limit=tp_price_short, reduce_only=True,
+                                callback=self.get_sltp_values()['profit_short_callback'], trigger_by=self.get_sltp_values()['trigger_by'], \
                         split=self.get_sltp_values()['split'], interval=self.get_sltp_values()['interval'])
                 else:
-                    self.order("TP", True, abs(pos_size), limit=tp_price_short, reduce_only=True, callback=self.get_sltp_values()['profit_short_callback'], trigger_by=self.get_sltp_values()['trigger_by'], \
+                    self.order("TP", True, abs(pos_size), limit=tp_price_short, reduce_only=True,
+                                callback=self.get_sltp_values()['profit_short_callback'], trigger_by=self.get_sltp_values()['trigger_by'], \
                         split=self.get_sltp_values()['split'], interval=self.get_sltp_values()['interval'])    
 
         # sl execution logic
@@ -1253,10 +1385,12 @@ class Bybit:
                     #time.sleep(0.05)                                    
                     self.cancel(id=sl_id)
                     #time.sleep(0.05)
-                    self.order("SL", False, abs(pos_size), stop=sl_price_long, reduce_only=True, callback=self.get_sltp_values()['stop_long_callback'], trigger_by=self.get_sltp_values()['trigger_by'], \
+                    self.order("SL", False, abs(pos_size), stop=sl_price_long, reduce_only=True,
+                                callback=self.get_sltp_values()['stop_long_callback'], trigger_by=self.get_sltp_values()['trigger_by'], \
                         split=self.get_sltp_values()['split'], interval=self.get_sltp_values()['interval'])
                 else:  
-                    self.order("SL", False, abs(pos_size), stop=sl_price_long, reduce_only=True, callback=self.get_sltp_values()['stop_long_callback'], trigger_by=self.get_sltp_values()['trigger_by'], \
+                    self.order("SL", False, abs(pos_size), stop=sl_price_long, reduce_only=True,
+                                callback=self.get_sltp_values()['stop_long_callback'], trigger_by=self.get_sltp_values()['trigger_by'], \
                         split=self.get_sltp_values()['split'], interval=self.get_sltp_values()['interval'])
         if sl_percent_short > 0 and is_sl_full_size == False:
             if pos_size < 0:
@@ -1265,10 +1399,12 @@ class Bybit:
                     #time.sleep(0.05)                                         
                     self.cancel(id=sl_id)
                     #time.sleep(0.05)
-                    self.order("SL", True, abs(pos_size), stop=sl_price_short, reduce_only=True, callback=self.get_sltp_values()['stop_short_callback'], trigger_by=self.get_sltp_values()['trigger_by'], \
+                    self.order("SL", True, abs(pos_size), stop=sl_price_short, reduce_only=True,
+                                callback=self.get_sltp_values()['stop_short_callback'], trigger_by=self.get_sltp_values()['trigger_by'], \
                         split=self.get_sltp_values()['split'], interval=self.get_sltp_values()['interval']) 
                 else:  
-                    self.order("SL", True, abs(pos_size), stop=sl_price_short, reduce_only=True, callback=self.get_sltp_values()['stop_short_callback'], trigger_by=self.get_sltp_values()['trigger_by'], \
+                    self.order("SL", True, abs(pos_size), stop=sl_price_short, reduce_only=True,
+                                callback=self.get_sltp_values()['stop_short_callback'], trigger_by=self.get_sltp_values()['trigger_by'], \
                         split=self.get_sltp_values()['split'], interval=self.get_sltp_values()['interval'])       
 
     def fetch_ohlcv(self, bin_size, start_time, end_time):
@@ -1295,9 +1431,12 @@ class Bybit:
 
             logger.info(f"fetching OHLCV data - {left_time}")  
 
-            source = retry(lambda: self.public_client.query_kline(symbol=self.pair, interval=fetch_bin_size if self.spot else bybit_bin_size_converted['bin_size'],
-                                                                        period=bybit_bin_size_converted['bin_size'], startTime=left_time_to_timestamp, # USDC perps args
-                                                                        from_time=left_time_to_timestamp, limit=1000 if self.spot else 200))
+            source = retry(lambda: self.public_client.query_kline(
+                                                    symbol=self.pair,
+                                                    interval=fetch_bin_size if self.spot else bybit_bin_size_converted['bin_size'],
+                                                    period=bybit_bin_size_converted['bin_size'], startTime=left_time_to_timestamp, # USDC perps args
+                                                    from_time=left_time_to_timestamp, limit=1000 if self.spot else 200)
+                                                    )
                                                                       
             if len(source) == 0:
                 break
@@ -1308,7 +1447,7 @@ class Bybit:
                 timestamp = s[0] if self.spot else s['openTime'] if self.pair.endswith('PERP') else s['open_time']
                 source_to_object_list.append({                        
                         "timestamp" : (datetime.fromtimestamp(int(timestamp / 1000 if len(str(timestamp)) == 13 else timestamp)) 
-                                    + timedelta(seconds= + bybit_bin_size_converted['seconds']) - timedelta(seconds=0.01)).astimezone(UTC),
+                            + timedelta(seconds= + bybit_bin_size_converted['seconds']) - timedelta(seconds=0.01)).astimezone(UTC),
                         "high" : float(s[1 if self.spot else 'high']),
                         "low" : float(s[2 if self.spot else 'low']),
                         "open" : float(s[3 if self.spot else 'open']),
@@ -1330,7 +1469,8 @@ class Bybit:
     
     def security(self, bin_size, data=None):
         """
-        Recalculate and obtain data of a timeframe higher than the current chart timeframe without looking into the furute that would cause undesired effects.
+        Recalculate and obtain data of a timeframe higher than the current chart timeframe
+        withou looking into the furute that would cause undesired effects.
         """     
         if data == None:   
             timeframe_list = [allowed_range_minute_granularity[t][3] for t in self.bin_size] # minute count of a timeframe for sorting when sorting is needed 
@@ -1351,15 +1491,15 @@ class Bybit:
                 start_time = end_time - self.ohlcv_len * delta(t)
                 self.timeframe_data[t] = self.fetch_ohlcv(t, start_time, end_time)
                 self.timeframe_info[t] = {
-                                        "allowed_range": allowed_range_minute_granularity[t][0] if self.minute_granularity else allowed_range[t][0], 
-                                        "ohlcv": self.timeframe_data[t][:-1], # Dataframe with closed candles                                                   
-                                        "last_action_time": None,#self.timeframe_data[t].iloc[-1].name, # Last strategy execution time
-                                        "last_candle": self.timeframe_data[t].iloc[-2].values,  # Store last complete candle
-                                        "partial_candle": self.timeframe_data[t].iloc[-1].values  # Store incomplete candle
-                                          }
+                                "allowed_range": allowed_range_minute_granularity[t][0] 
+                                                    if self.minute_granularity else allowed_range[t][0], 
+                                "ohlcv": self.timeframe_data[t][:-1], # Dataframe with closed candles                                                   
+                                "last_action_time": None,#self.timeframe_data[t].iloc[-1].name, # Last strategy execution time
+                                "last_candle": self.timeframe_data[t].iloc[-2].values,  # Store last complete candle
+                                "partial_candle": self.timeframe_data[t].iloc[-1].values  # Store incomplete candle
+                                }
                 # The last candle is an incomplete candle with timestamp in future                
-                if self.timeframe_data[t].iloc[-1].name > end_time:
-                    
+                if self.timeframe_data[t].iloc[-1].name > end_time:                    
                     last_candle = self.timeframe_data[t].iloc[-1].values # Store last candle
                     self.timeframe_data[t] = self.timeframe_data[t][:-1] # Exclude last candle
                     self.timeframe_data[t].loc[end_time.replace(microsecond=0)] = last_candle #set last candle to end_time
@@ -1492,7 +1632,8 @@ class Bybit:
         if len(orders) == 0:
             return
         for o in orders:
-            if(o['X' if self.spot else 'orderStatus'].upper() == "CANCELLED" or o['X' if self.spot else 'orderStatus'] == "EXPIRED") and self.order_update_log:
+            if(o['X' if self.spot else 'orderStatus'].upper() == "CANCELLED" or o['X' if self.spot else 'orderStatus'] == "EXPIRED") \
+                and self.order_update_log:
                 logger.info(f"========= Order Update ==============")
                 logger.info(f"ID     : {o['c' if self.spot else 'orderLinkId']}") # Clinet Order ID
                 logger.info(f"Type   : {o['o' if self.spot else 'orderType']}")
@@ -1508,8 +1649,10 @@ class Bybit:
                 logger.info(f"APrice : {None if self.spot else o['triggerPrice']}")
                 logger.info(f"======================================")             
                 #If stop price is set for a GTC Order and filled quanitity is 0 then EXPIRED means TRIGGERED
-                if(float(0 if self.spot else o['triggerPrice']) > 0 and (o['f' if self.spot else 'timeInForce'] == "GTC" or "GoodTillCancel") and \
-                    float(o['z' if self.spot else 'lastExecQty']) == 0 and o['X' if self.spot else 'orderStatus'] == "EXPIRED"):
+                if(float(0 if self.spot else o['triggerPrice']) > 0 \
+                   and (o['f' if self.spot else 'timeInForce'] == "GTC" or "GoodTillCancel") \
+                   and float(o['z' if self.spot else 'lastExecQty']) == 0 \
+                   and o['X' if self.spot else 'orderStatus'] == "EXPIRED"):
                     logger.info(f"========= Order Update ==============")
                     logger.info(f"ID     : {o['c' if self.spot else 'orderLinkId']}") # Clinet Order ID
                     logger.info(f"Type   : {o['o' if self.spot else 'orderType']}")                   
@@ -1525,7 +1668,8 @@ class Bybit:
                     logger.info(f"APrice : {None if self.spot else o['triggerPrice']}")                    
                     logger.info(f"======================================")
             #only after order if completely filled
-            elif(self.order_update_log and float(o['q' if self.spot else 'qty']) == float(o['z' if self.spot else 'lastExecQty'])) and o['X' if self.spot else 'orderStatus'].upper() != "CANCELLED": 
+            elif(self.order_update_log  and float(o['q' if self.spot else 'qty']) == float(o['z' if self.spot else 'lastExecQty'])) \
+                 and o['X' if self.spot else 'orderStatus'].upper() != "CANCELLED": 
                 logger.info(f"========= Order Fully Filled ==============")
                 logger.info(f"ID     : {o['c' if self.spot else 'orderLinkId']}") # Clinet Order ID
                 logger.info(f"Type   : {o['o' if self.spot else 'orderType']}")

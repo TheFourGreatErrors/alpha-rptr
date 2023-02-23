@@ -124,7 +124,8 @@ class BybitStub(Bybit):
     
     def close_all_at_price(self, price, callback=None):
         """
-        close the current position at price, for backtesting purposes its important to have a function that closes at given price
+        close the current position at price,
+        for backtesting purposes its important to have a function that closes at given price
         :param price: price
         """
         pos_size = self.position_size
@@ -143,7 +144,19 @@ class BybitStub(Bybit):
         self.open_orders = [o for o in self.open_orders if o["id"] != id]
         return True
     
-    def order(self, id, long, qty, limit=0, stop=0, post_only=False, reduce_only=False, when=True, callback=None, workingType="CONTRACT_PRICE"):
+    def order(
+            self,
+            id,
+            long,
+            qty,
+            limit=0,
+            stop=0,
+            post_only=False,
+            reduce_only=False,
+            when=True,
+            callback=None,
+            workingType="CONTRACT_PRICE"
+            ):
         """
         Places an order.         
         : param id: number of order
@@ -172,12 +185,31 @@ class BybitStub(Bybit):
         self.cancel(id)
 
         if limit > 0 or stop > 0:
-            self.open_orders.append({"id": id, "long": long, "qty": ord_qty, "limit": limit, "stop": stop, "post_only": post_only, "reduce_only": reduce_only, "callback": callback})
+            self.open_orders.append({"id": id,
+                                    "long": long,
+                                    "qty": ord_qty,
+                                    "limit": limit,
+                                    "stop": stop,
+                                    "post_only": post_only,
+                                    "reduce_only": reduce_only,
+                                    "callback": callback})
         else:
             self.commit(id, long, ord_qty, self.get_market_price(), True, callback, reduce_only)
             return
 
-    def close_partial(self, id, ord_qty, limit=0, stop=0, trailValue=0, post_only=False, when=True, need_commission=True, callback=None, workingType="CONTRACT_PRICE"):
+    def close_partial(
+            self,
+            id,
+            ord_qty,
+            limit=0,
+            stop=0,
+            trailValue=0,
+            post_only=False,
+            when=True,
+            need_commission=True,
+            callback=None,
+            workingType="CONTRACT_PRICE"
+            ):
         """
         """
         pos_size = self.get_position_size()
@@ -191,12 +223,30 @@ class BybitStub(Bybit):
             ord_qty = pos_size
 
         if limit > 0 or stop > 0:
-            self.open_orders.append({"id": id, "long": long, "qty": ord_qty, "limit": limit, "stop": stop, "post_only": post_only, "callback": callback})
+            self.open_orders.append({"id": id,
+                                     "long": long,
+                                     "qty": ord_qty,
+                                     "limit": limit,
+                                     "stop": stop,
+                                     "post_only": post_only,
+                                     "callback": callback})
         else:
             self.commit(id, long, abs(ord_qty), self.get_market_price(), True, callback)
             return
 
-    def entry(self, id, long, qty, limit=0, stop=0, post_only=False, when=True, round_decimals=None, callback=None, workingType="CONTRACT_PRICE"):
+    def entry(
+            self,
+            id,
+            long,
+            qty,
+            limit=0,
+            stop=0,
+            post_only=False,
+            when=True,
+            round_decimals=None,
+            callback=None,
+            workingType="CONTRACT_PRICE"
+            ):
         """
          I place an order. Equivalent function to pine's function.
          https://jp.tradingview.com/study-script-reference/#fun_strategy{dot}entry
@@ -225,12 +275,34 @@ class BybitStub(Bybit):
         ord_qty = round(ord_qty, round_decimals if round_decimals != None else self.asset_rounding)
 
         if limit > 0 or stop > 0:
-            self.open_orders.append({"id": id, "long": long, "qty": ord_qty, "limit": limit, "stop": stop, "post_only": post_only, "reduce_only": False, "callback": callback})
+            self.open_orders.append({"id": id,
+                                    "long": long,
+                                    "qty": ord_qty,
+                                    "limit": limit,
+                                    "stop": stop,
+                                    "post_only": post_only,
+                                    "reduce_only": False,
+                                    "callback": callback})
         else:
             self.commit(id, long, ord_qty, self.get_market_price(), True, callback)
             return
     
-    def entry_pyramiding(self, id, long, qty, limit=0, stop=0, trailValue= 0, post_only=False, reduce_only=False, ioc=False, cancel_all=False, pyramiding=2, when=True, round_decimals=None, callback=None, workingType="CONTRACT_PRICE"):
+    def entry_pyramiding(
+            self,
+            id,
+            long,
+            qty,
+            limit=0,
+            stop=0,
+            trailValue= 0,
+            post_only=False,
+            reduce_only=False,
+            ioc=False, cancel_all=False,
+            pyramiding=2, when=True,
+            round_decimals=None,
+            callback=None,
+            workingType="CONTRACT_PRICE"
+            ):
         """
         Places an entry order, works as equivalent to tradingview pine script implementation with pyramiding        
         :param id: Order id
@@ -239,7 +311,7 @@ class BybitStub(Bybit):
         :param limit: Limit price
         :param stop: Stop limit
         :param post_only: Post only
-        :param reduce_only: Reduce Only means that your existing position cannot be increased only reduced by this order
+        :param reduce_only: your existing position cannot be increased only reduced by this order
         :param cancell_all: cancell all open order before sending the entry order?
         :param pyramiding: number of entries you want in pyramiding
         :param when: Do you want to execute the order or not - True for live trading
@@ -280,12 +352,28 @@ class BybitStub(Bybit):
         ord_qty = round(ord_qty, round_decimals if round_decimals != None else self.asset_rounding)
 
         if limit > 0 or stop > 0:
-            self.open_orders.append({"id": id, "long": long, "qty": ord_qty, "limit": limit, "stop": stop, "post_only": post_only, "reduce_only": False, "callback": callback})
+            self.open_orders.append({"id": id,
+                                    "long": long,
+                                    "qty": ord_qty,
+                                    "limit": limit,
+                                    "stop": stop,
+                                    "post_only": post_only,
+                                    "reduce_only": False,
+                                    "callback": callback})
         else:
             self.commit(id, long, ord_qty, self.get_market_price(), True, callback)
             return
 
-    def commit(self, id, long, qty, price, need_commission=False, callback=None, reduce_only=False):        
+    def commit(
+            self,
+            id,
+            long,
+            qty,
+            price,
+            need_commission=False,
+            callback=None,
+            reduce_only=False
+            ):        
         """         
          : param id: order number
          : param long: long or short
@@ -342,7 +430,9 @@ class BybitStub(Bybit):
             self.drawdown = (self.balance_ath - self.balance) / self.balance_ath * 100
 
             # self.order_log.write("time,type,id,price,quantity,av_price,position,pnl,balance,drawdown\n") #header
-            self.order_log.write(f"{self.timestamp},{'BUY' if long else 'SELL'},{id if next_qty == 0 else 'Reversal'},{price:.2f},{-self.position_size if abs(next_qty) else order_qty:.2f},{self.position_avg_price:.2f},{0 if abs(next_qty) else self.position_size+order_qty:.2f},{profit:.2f},{self.get_balance():.2f},{self.drawdown:.2f}\n")
+            self.order_log.write(f"{self.timestamp},{'BUY' if long else 'SELL'},{id if next_qty == 0 else 'Reversal'},\
+                                 {price:.2f},{-self.position_size if abs(next_qty) else order_qty:.2f},{self.position_avg_price:.2f},\
+                                 {0 if abs(next_qty) else self.position_size+order_qty:.2f},{profit:.2f},{self.get_balance():.2f},{self.drawdown:.2f}\n")
             self.order_log.flush()
 
             self.position_size = self.get_position_size() + order_qty    
@@ -388,7 +478,10 @@ class BybitStub(Bybit):
             logger.info(f"current position size: {next_qty} at avg. price: {self.position_avg_price}")
 
             # self.order_log.write("time,type,id,price,quantity,av_price,position,pnl,balance,drawdown\n") #header
-            self.order_log.write(f"{self.timestamp},{'BUY' if long else 'SELL'},{id},{price:.2f},{next_qty if abs(order_qty) > abs(next_qty) else order_qty:.2f},{self.position_avg_price:.2f},{self.position_size:.2f},{'-'},{self.get_balance():.2f},{self.drawdown:.2f}\n")
+            self.order_log.write(f"{self.timestamp},{'BUY' if long else 'SELL'},{id},{price:.2f},\
+                                 {next_qty if abs(order_qty) > abs(next_qty) else order_qty:.2f},\
+                                 {self.position_avg_price:.2f},{self.position_size:.2f},{'-'},\
+                                 {self.get_balance():.2f},{self.drawdown:.2f}\n")
             self.order_log.flush()
 
             self.set_trail_price(price)
@@ -531,8 +624,10 @@ class BybitStub(Bybit):
                 reduce_only = order["reduce_only"]
                 callback = order["callback"]
 
-                if reduce_only == True and (self.position_size == 0 or (long and self.get_position_size() > 0) or (not long and self.get_position_size() < 0)):
-                    new_open_orders.append({"id": id, "long": long, "qty": qty, "limit": limit, "stop": 0, "post_only": post_only, "reduce_only": reduce_only, "callback": callback})
+                if reduce_only == True and (self.position_size == 0
+                                             or (long and self.get_position_size() > 0) or (not long and self.get_position_size() < 0)):
+                    new_open_orders.append({"id": id, "long": long, "qty": qty, "limit": limit,
+                                             "stop": 0, "post_only": post_only, "reduce_only": reduce_only, "callback": callback})
                     continue
 
                 if limit > 0 and stop > 0:
@@ -540,7 +635,8 @@ class BybitStub(Bybit):
                         self.commit(id, long, qty, limit, True, callback, reduce_only)
                         continue
                     elif (long and high[-1] > stop) or (not long and low[-1] < stop):
-                        new_open_orders.append({"id": id, "long": long, "qty": qty, "limit": limit, "stop": 0, "post_only": post_only, "reduce_only": reduce_only, "callback": callback})
+                        new_open_orders.append({"id": id, "long": long, "qty": qty, "limit": limit,
+                                                 "stop": 0, "post_only": post_only, "reduce_only": reduce_only, "callback": callback})
                         continue
                 elif limit > 0:
                     if (long and low[-1] < limit) or (not long and high[-1] > limit):
