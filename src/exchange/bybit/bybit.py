@@ -745,7 +745,7 @@ class Bybit:
             res = retry(lambda: place_conditional(symbol=self.pair, order_type=ord_type, orderType=ord_type,
                                                     order_link_id=ord_id, orderLinkId=ord_id, side=side,
                                                     qty=ord_qty, orderQty=ord_qty, price=limit, stop_px=stop, triggerPrice=stop,
-                                                    orderPrice=limit, base_price=base_price, basePrice=str(base_price),
+                                                    orderPrice=limit, base_price=base_price, basePrice=base_price,
                                                     reduce_only=reduce_only,  reduceOnly=reduce_only,
                                                     close_on_trigger=reduce_only,                                                                           
                                                     time_in_force='GoodTillCancel', timeInForce='GoodTillCancel',
@@ -782,7 +782,7 @@ class Bybit:
                                                     qty=ord_qty, orderQty=ord_qty, stop_px=stop, triggerPrice=stop,
                                                     reduce_only=reduce_only, reduceOnly=reduce_only,
                                                     close_on_trigger=reduce_only,
-                                                    orderPrice=limit, base_price=str(base_price),# basePrice=str(base_price),
+                                                    orderPrice=limit, base_price=str(base_price), basePrice=base_price,
                                                     time_in_force='GoodTillCancel', timeInForce='GoodTillCancel',
                                                     trigger_by=trigger_by, triggerBy=trigger_by,
                                                     orderFilter=orderFilter, position_idx=0))
@@ -1667,6 +1667,9 @@ class Bybit:
                     logger.info(f"Stop   : {None if self.spot else o['triggerPrice']}")
                     logger.info(f"APrice : {None if self.spot else o['triggerPrice']}")                    
                     logger.info(f"======================================")
+
+                self.callbacks.pop(o['c' if self.spot else 'orderLinkId'], None) # Removes the respective order callback
+
             #only after order if completely filled
             elif(self.order_update_log  and float(o['q' if self.spot else 'qty']) == float(o['z' if self.spot else 'lastExecQty'])) \
                  and o['X' if self.spot else 'orderStatus'].upper() != "CANCELLED": 
@@ -1683,9 +1686,7 @@ class Bybit:
                 logger.info(f"Limit  : {o['p' if self.spot else 'price']}")
                 logger.info(f"Stop   : {None if self.spot else o['triggerPrice']}")
                 logger.info(f"APrice : {None if self.spot else o['triggerPrice']}")
-                logger.info(f"======================================")
-
-                self.callbacks.pop(o['c' if self.spot else 'orderLinkId'], None)           
+                logger.info(f"======================================")      
                 
                 # Call the respective order callback                
                 callback = self.callbacks.pop(o['c' if self.spot else 'orderLinkId'], None)  # Removes the respective order callback and returns it

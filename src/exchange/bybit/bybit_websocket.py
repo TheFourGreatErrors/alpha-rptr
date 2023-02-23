@@ -49,26 +49,38 @@ class BybitWs:
         self.handlers = {}      
         # Endpoints    
         if self.spot:
-            self.endpoint = 'wss://stream-testnet.bybit.com/spot/public/v3' if self.testnet else  'wss://stream.bybit.com/spot/public/v3'
-            self.endpoint_private = 'wss://stream-testnet.bybit.com/spot/private/v3' if self.testnet else 'wss://stream.bybit.com/spot/private/v3'
+            self.endpoint = 'wss://stream-testnet.bybit.com/spot/public/v3' \
+                            if self.testnet else  'wss://stream.bybit.com/spot/public/v3'
+            self.endpoint_private = 'wss://stream-testnet.bybit.com/spot/private/v3' \
+                            if self.testnet else 'wss://stream.bybit.com/spot/private/v3'
         else:
             if self.unified_margin:
                 if self.pair.endswith("USDT"):
-                    self.endpoint = 'wss://stream-testnet.bybit.com/contract/usdt/public/v3' if self.testnet else 'wss://stream.bybit.com/contract/usdt/public/v3'
-                    self.endpoint_private = 'wss://stream-testnet.bybit.com/unified/private/v3' if self.testnet else 'wss://stream.bybit.com/unified/private/v3'
+                    self.endpoint = 'wss://stream-testnet.bybit.com/contract/usdt/public/v3' \
+                                    if self.testnet else 'wss://stream.bybit.com/contract/usdt/public/v3'
+                    self.endpoint_private = 'wss://stream-testnet.bybit.com/unified/private/v3' \
+                                    if self.testnet else 'wss://stream.bybit.com/unified/private/v3'
                 if self.pair.endswith("PERP"):
-                    self.endpoint = 'wss://stream-testnet.bybit.com/contract/usdc/public/v3' if self.testnet else 'wss://stream.bybit.com/contract/usdc/public/v3'
-                    self.endpoint_private = 'wss://stream-testnet.bybit.com/unified/private/v3' if self.testnet else 'wss://stream.bybit.com/unified/private/v3'
+                    self.endpoint = 'wss://stream-testnet.bybit.com/contract/usdc/public/v3' \
+                                    if self.testnet else 'wss://stream.bybit.com/contract/usdc/public/v3'
+                    self.endpoint_private = 'wss://stream-testnet.bybit.com/unified/private/v3' \
+                                    if self.testnet else 'wss://stream.bybit.com/unified/private/v3'
             else:
                 if self.pair.endswith("USDT"):
-                    self.endpoint = 'wss://stream-testnet.bybit.com/contract/usdt/public/v3' if self.testnet else 'wss://stream.bybit.com/contract/usdt/public/v3'
-                    self.endpoint_private = 'wss://stream-testnet.bybit.com/contract/private/v3' if self.testnet else 'wss://stream.bybit.com/contract/private/v3'
+                    self.endpoint = 'wss://stream-testnet.bybit.com/contract/usdt/public/v3' \
+                                    if self.testnet else 'wss://stream.bybit.com/contract/usdt/public/v3'
+                    self.endpoint_private = 'wss://stream-testnet.bybit.com/contract/private/v3' \
+                                    if self.testnet else 'wss://stream.bybit.com/contract/private/v3'
                 elif self.pair.endswith("PERP"):
-                    self.endpoint = 'wss://stream-testnet.bybit.com/contract/usdc/public/v3' if self.testnet else 'wss://stream.bybit.com/contract/usdc/public/v3'
-                    self.endpoint_private = 'wss://stream-testnet.bybit.com/contract/private/v3' if self.testnet else 'wss://stream.bybit.com/contract/private/v3'
+                    self.endpoint = 'wss://stream-testnet.bybit.com/contract/usdc/public/v3' \
+                                    if self.testnet else 'wss://stream.bybit.com/contract/usdc/public/v3'
+                    self.endpoint_private = 'wss://stream-testnet.bybit.com/contract/private/v3' \
+                                    if self.testnet else 'wss://stream.bybit.com/contract/private/v3'
                 else:
-                    self.endpoint = 'wss://stream-testnet.bybit.com/contract/inverse/public/v3' if self.testnet else 'wss://stream.bybit.com/contract/inverse/public/v3'
-                    self.endpoint_private = 'wss://stream-testnet.bybit.com/contract/private/v3' if self.testnet else 'wss://stream.bybit.com/contract/private/v3'           
+                    self.endpoint = 'wss://stream-testnet.bybit.com/contract/inverse/public/v3' \
+                                    if self.testnet else 'wss://stream.bybit.com/contract/inverse/public/v3'
+                    self.endpoint_private = 'wss://stream-testnet.bybit.com/contract/private/v3' \
+                                    if self.testnet else 'wss://stream.bybit.com/contract/private/v3'           
         
         # public ws 
         self.ws = websocket.WebSocketApp(self.endpoint,
@@ -267,7 +279,8 @@ class BybitWs:
                     if len(str(data[0]['timestamp'])) == 13:
                         data[0]['timestamp'] = data[0]['timestamp']  / 1000
           
-                    data[0]['timestamp'] = datetime.fromtimestamp(data[0]['timestamp'], tz=timezone.utc) + (timedelta(seconds=0.01) if self.spot else timedelta(seconds=0))   
+                    data[0]['timestamp'] = datetime.fromtimestamp(data[0]['timestamp'], tz=timezone.utc) \
+                                        + (timedelta(seconds=0.01) if self.spot else timedelta(seconds=0))   
                     self.__emit(action, action, to_data_frame([data[0]]))
                                            
                 elif table.startswith("tickers"):

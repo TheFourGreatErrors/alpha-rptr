@@ -8,8 +8,11 @@ import dateutil.parser
 
 import pandas as pd
 
-from src import logger, allowed_range, allowed_range_minute_granularity, retry, delta, load_data, resample, symlink, \
-    find_timeframe_string
+from src import (logger, allowed_range,
+                 allowed_range_minute_granularity,
+                 retry, delta, load_data,
+                 resample, symlink,
+                 find_timeframe_string)
 from src.exchange.bybit.bybit_stub import BybitStub
 
 OHLC_DIRNAME = os.path.join(os.path.dirname(__file__), "../ohlc/{}/{}/{}")
@@ -83,7 +86,19 @@ class BybitBackTest(BybitStub):
         """
         return self.time    
     
-    def entry(self, id, long, qty, limit=0, stop=0, post_only=False, when=True, round_decimals=None, callback=None, workingType="CONTRACT_PRICE"):
+    def entry(
+            self,
+            id,
+            long,
+            qty,
+            limit=0,
+            stop=0,
+            post_only=False,
+            when=True,
+            round_decimals=None,
+            callback=None,
+            workingType="CONTRACT_PRICE"
+            ):
         """
         places an entry order, works equivalent to tradingview pine script implementation
         https://jp.tradingview.com/study-script-reference/#fun_strategy{dot}entry
@@ -98,9 +113,19 @@ class BybitBackTest(BybitStub):
         :callback
         :return:
         """
-        BybitStub.entry(self, id, long, qty, limit, stop, post_only, when, round_decimals, callback)
+        BybitStub.entry(self, id, long, qty, limit, stop,
+                         post_only, when, round_decimals, callback)
 
-    def commit(self, id, long, qty, price, need_commission=False, callback=None, reduce_only=False):
+    def commit(
+            self,
+            id,
+            long,
+            qty,
+            price,
+            need_commission=False,
+            callback=None,
+            reduce_only=False
+            ):
         """
         Commit
         :param id: order
@@ -110,7 +135,16 @@ class BybitBackTest(BybitStub):
         :param need_commission: use commision or not?
         :param callback
         """
-        BybitStub.commit(self, id, long, qty, price, need_commission, callback, reduce_only)
+        BybitStub.commit(
+            self,
+            id,
+            long,
+            qty,
+            price,
+            need_commission,
+            callback,
+            reduce_only
+            )
 
         if long:
             self.buy_signals.append(self.index)
@@ -156,10 +190,10 @@ class BybitBackTest(BybitStub):
                     else self.df_ohlcv # if a single timeframe is used without minute_granularity it already resampled the data after downloading it 
 
                 self.timeframe_info[t] = {
-                                            "allowed_range": allowed_range_minute_granularity[t][0] if self.minute_granularity else self.bin_size[0], #allowed_range[t][0],
-                                            "ohlcv": self.timeframe_data[t][:-1], # Dataframe with closed candles,
-                                            "last_action_index": math.ceil(self.warmup_len / allowed_range_minute_granularity[t][3]) if self.minute_granularity \
-                                                else self.warmup_len
+                                    "allowed_range": allowed_range_minute_granularity[t][0] if self.minute_granularity else self.bin_size[0], #allowed_range[t][0],
+                                    "ohlcv": self.timeframe_data[t][:-1], # Dataframe with closed candles,
+                                    "last_action_index": math.ceil(self.warmup_len / allowed_range_minute_granularity[t][3]) \
+                                                                if self.minute_granularity else self.warmup_len
                                         }                     
 
         #logger.info(f"timeframe info: {self.timeframe_info}")
@@ -244,25 +278,6 @@ class BybitBackTest(BybitStub):
 
         BybitStub.on_update(self, bin_size, strategy)
         self.__crawler_run()
-
-    # def security(self, bin_size, data=None):
-    #     """
-    #     Recalculate and obtain different time frame data
-    #     """
-    #     if data == None and bin_size not in self.bin_size:   
-    #         timeframe_list = []
-
-    #         for t in self.bin_size:               
-    #                 # append minute count of a timeframe when sorting when sorting is needed 
-    #                 timeframe_list.append(allowed_range_minute_granularity[t][3]) 
-    #         timeframe_list.sort(reverse=True)
-    #         t = find_timeframe_string(timeframe_list[-1])   
-    #         data = self.timeframe_data[t]
-    #         self.resample_data[bin_size] = resample(data, bin_size)     
-    #         return self.resample_data[bin_size][:self.data.iloc[-1].name].iloc[-1 * self.ohlcv_len:, :] 
-    #     else:
-    #         self.resample_data[bin_size] = resample(data, bin_size)
-    #         return self.resample_data[bin_size][:self.data.iloc[-1].name].iloc[-1 * self.ohlcv_len:, :]
     
     def security(self, bin_size, data=None):
         """
@@ -337,8 +352,7 @@ class BybitBackTest(BybitStub):
         source = None
         is_last_fetch = False            
 
-        if self.minute_granularity == True:
-            #self.timeframe = bin_size.add('1m')  # add 1m timeframe to the set (sets wont allow duplicates) in case we need minute granularity 
+        if self.minute_granularity == True:            
             bin_size = '1m' 
         else:
             bin_size = bin_size[0]        
@@ -451,8 +465,8 @@ class BybitBackTest(BybitStub):
                 color = v['color']
                 plt.plot(self.df_ohlcv.index, self.df_ohlcv[k], color)
         plt.ylabel("Price(USD)")
-        ymin = min(self.df_ohlcv["low"]) - 0.5
-        ymax = max(self.df_ohlcv["high"]) + 0.5
+        ymin = min(self.df_ohlcv["low"]) - 0.05
+        ymax = max(self.df_ohlcv["high"]) + 0.05
         plt.vlines(self.buy_signals, ymin, ymax, "blue", linestyles='dashed', linewidth=1)
         plt.vlines(self.sell_signals, ymin, ymax, "red", linestyles='dashed', linewidth=1)
         plt.vlines(self.close_signals, ymin, ymax, "green", linestyles='dashed', linewidth=1)
