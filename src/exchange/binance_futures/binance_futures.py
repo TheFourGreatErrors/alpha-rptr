@@ -102,8 +102,8 @@ class BinanceFutures:
                         'profit_short_callback': None,
                         'stop_long_callback': None,
                         'stop_short_callback': None,
-						'split': 1,
-						'interval': 0
+                        'split': 1,
+                        'interval': 0
                         }         
          # Profit, Loss and Trail Offset
         self.exit_order = {
@@ -113,8 +113,8 @@ class BinanceFutures:
                         'profit_callback': None,
                         'loss_callback': None,
                         'trail_callbak': None,
-						'split': 1,
-						'interval': 0
+                        'split': 1,
+                        'interval': 0
                         }
         # Trailing Stop
         self.trail_price = 0   

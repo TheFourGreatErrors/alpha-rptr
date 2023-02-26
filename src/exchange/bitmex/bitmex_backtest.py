@@ -8,8 +8,10 @@ import dateutil.parser
 
 import pandas as pd
 
-from src import logger, allowed_range, allowed_range_minute_granularity, retry, delta, load_data, resample, \
-    find_timeframe_string
+from src import (logger, allowed_range,
+                 allowed_range_minute_granularity,
+                 retry, delta, load_data, resample, 
+                 find_timeframe_string)
 from src.exchange.bitmex.bitmex_stub import BitMexStub
 
 OHLC_DIRNAME = os.path.join(os.path.dirname(__file__), "../ohlc/{}/{}/{}")
@@ -85,7 +87,18 @@ class BitMexBackTest(BitMexStub):
         """
         return self.time
 
-    def entry(self, id, long, qty, limit=0, stop=0, post_only=False, when=True, round_decimals=0, callback=None):
+    def entry(
+            self,
+            id,
+            long,
+            qty,
+            limit=0,
+            stop=0,
+            post_only=False,
+            when=True,
+            round_decimals=0,
+            callback=None
+            ):
         """
         places an entry order, works equivalent to tradingview pine script implementation
         https://jp.tradingview.com/study-script-reference/#fun_strategy{dot}entry
@@ -98,9 +111,18 @@ class BitMexBackTest(BitMexStub):
         :param when: Do you want to execute the order or not - True for live trading
         :return:
         """
-        BitMexStub.entry(self, id, long, qty, limit, stop, post_only, when, round_decimals, callback)    
+        BitMexStub.entry(self, id, long, qty, limit, stop,
+                          post_only, when, round_decimals, callback)    
 
-    def commit(self, id, long, qty, price, need_commission=True, callback=None):
+    def commit(
+            self,
+            id,
+            long,
+            qty,
+            price,
+            need_commission=True,
+            callback=None
+            ):
         """
         Commit
         :param id: order
@@ -109,7 +131,8 @@ class BitMexBackTest(BitMexStub):
         :param price: price
         :param need_commission: use commision or not?
         """
-        BitMexStub.commit(self, id, long, qty, price, need_commission, callback)
+        BitMexStub.commit(self, id, long, qty,
+                           price, need_commission, callback)
 
         if long:
             self.buy_signals.append(self.index)
@@ -127,7 +150,8 @@ class BitMexBackTest(BitMexStub):
 
     def close_all_at_price(self, price, callback=None):
         """
-        close the current position at price, for backtesting purposes its important to have a function that closes at given price
+        close the current position at price,
+        for backtesting purposes its important to have a function that closes at given price
         :param price: price
         """
         if self.get_position_size() == 0:
@@ -151,15 +175,15 @@ class BitMexBackTest(BitMexStub):
         if self.timeframe_data is None: 
             self.timeframe_data = {}          
             for t in self.bin_size:            
-                self.timeframe_data[t] = resample(self.df_ohlcv, t, minute_granularity=self.minute_granularity) if self.minute_granularity \
-                    else self.df_ohlcv # if a single timeframe is used without minute_granularity it already resampled the data after downloading it 
-
+                self.timeframe_data[t] = resample(self.df_ohlcv, t, minute_granularity=self.minute_granularity) \
+                                        if self.minute_granularity else self.df_ohlcv # if a single timeframe is used without minute_granularity
+                                                                                      # it already resampled the data after downloading it 
                 self.timeframe_info[t] = {
-                                            "allowed_range": allowed_range_minute_granularity[t][0] if self.minute_granularity else self.bin_size[0], #allowed_range[t][0],
-                                            "ohlcv": self.timeframe_data[t][:-1], # Dataframe with closed candles,
-                                            "last_action_index": math.ceil(self.warmup_len / allowed_range_minute_granularity[t][3]) if self.minute_granularity \
-                                                else self.warmup_len
-                                        }                     
+                                "allowed_range": allowed_range_minute_granularity[t][0] if self.minute_granularity else self.bin_size[0], #allowed_range[t][0],
+                                "ohlcv": self.timeframe_data[t][:-1], # Dataframe with closed candles,
+                                "last_action_index": math.ceil(self.warmup_len / allowed_range_minute_granularity[t][3]) \
+                                                    if self.minute_granularity else self.warmup_len
+                                }                     
 
         #logger.info(f"timeframe info: {self.timeframe_info}")
         for i in range(self.warmup_len):
@@ -246,7 +270,8 @@ class BitMexBackTest(BitMexStub):
 
     def security(self, bin_size, data=None):
         """
-        Recalculate and obtain data of a timeframe higher than the current chart timeframe without looking into the furute that would cause undesired effects.
+        Recalculate and obtain data of a timeframe higher than the current timeframe
+        without looking into the furute that would cause undesired effects.
         """
         if data == None and bin_size not in self.bin_size:           
             timeframe_list = [allowed_range_minute_granularity[t][3] for t in self.bin_size] # minute count of a timeframe for sorting when sorting is needed 

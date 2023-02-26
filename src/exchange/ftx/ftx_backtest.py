@@ -245,7 +245,8 @@ class FtxBackTest(FtxStub):
 
     def security(self, bin_size, data=None):
         """
-        Recalculate and obtain data of a timeframe higher than the current chart timeframe without looking into the furute that would cause undesired effects.
+        Recalculate and obtain data of a timeframe higher than the current timeframe
+        without looking into the furute that would cause undesired effects.
         """
         if data == None and bin_size not in self.bin_size:           
             timeframe_list = [allowed_range_minute_granularity[t][3] for t in self.bin_size] # minute count of a timeframe for sorting when sorting is needed 

@@ -11,8 +11,11 @@ import pandas as pd
 from bravado.exception import HTTPNotFound
 from pytz import UTC
 
-from src import logger, retry, allowed_range, allowed_range_minute_granularity, find_timeframe_string, \
-    to_data_frame, resample, delta, FatalError, notify, ord_suffix
+from src import (logger, retry, allowed_range,
+                 allowed_range_minute_granularity,
+                 find_timeframe_string,
+                 to_data_frame, resample, delta,
+                 FatalError, notify, ord_suffix)
 from src.exchange.bitmex.bitmex_api import bitmex_api
 from src.config import config as conf
 from src.exchange.bitmex.bitmex_websocket import BitMexWs
@@ -114,8 +117,10 @@ class BitMex:
         if self.private_client is not None and self.public_client is not None:
             return
        
-        api_key =  conf['bitmex_test_keys'][self.account]['API_KEY'] if self.demo else conf['bitmex_keys'][self.account]['API_KEY']        
-        api_secret = conf['bitmex_test_keys'][self.account]['SECRET_KEY'] if self.demo else conf['bitmex_keys'][self.account]['SECRET_KEY']
+        api_key =  conf['bitmex_test_keys'][self.account]['API_KEY'] \
+                    if self.demo else conf['bitmex_keys'][self.account]['API_KEY']        
+        api_secret = conf['bitmex_test_keys'][self.account]['SECRET_KEY'] \
+                    if self.demo else conf['bitmex_keys'][self.account]['SECRET_KEY']
 
         self.private_client = bitmex_api(test=self.demo, api_key=api_key, api_secret=api_secret)
         self.public_client = bitmex_api(test=self.demo)
@@ -287,7 +292,16 @@ class BitMex:
         self.callbacks.pop(order['orderID'])
         return True
 
-    def __new_order(self, ord_id, side, ord_qty, limit=0, stop=0, post_only=False, reduce_only=False):
+    def __new_order(
+            self,
+            ord_id,
+            side,
+            ord_qty,
+            limit=0,
+            stop=0,
+            post_only=False,
+            reduce_only=False
+            ):
         """
         create an order
         """
@@ -361,7 +375,15 @@ class BitMex:
 
             notify(f"New Order\nType: {ord_type}\nSide: {side}\nQty: {ord_qty}\nLimit: {limit}\nStop: {stop}")
 
-    def __amend_order(self, ord_id, side, ord_qty, limit=0, stop=0, post_only=False):
+    def __amend_order(
+            self,
+            ord_id,
+            side,
+            ord_qty,
+            limit=0,
+            stop=0,
+            post_only=False
+            ):
         """
         Amend order
         """
@@ -400,7 +422,20 @@ class BitMex:
 
             notify(f"Amend Order\nType: {ord_type}\nSide: {side}\nQty: {ord_qty}\nLimit: {limit}\nStop: {stop}")
 
-    def entry(self, id, long, qty, limit=0, stop=0, post_only=False, reduce_only=False, allow_amend=False, when=True, round_decimals=0, callback=None):
+    def entry(
+            self,
+            id,
+            long,
+            qty,
+            limit=0,
+            stop=0,
+            post_only=False,
+            reduce_only=False,
+            allow_amend=False,
+            when=True,
+            round_decimals=0,
+            callback=None
+            ):
         """
         places an entry order, works as equivalent to tradingview pine script implementation
         https://tradingview.com/study-script-reference/#fun_strategy{dot}entry
@@ -436,7 +471,22 @@ class BitMex:
 
         self.order(id, long, ord_qty, limit, stop, post_only, reduce_only, allow_amend, when, callback)
 
-    def entry_pyramiding(self, id, long, qty, limit=0, stop=0, post_only=False, reduce_only=False, cancel_all=False, pyramiding=2, allow_amend=False, when=True, round_decimals=0, callback=None):
+    def entry_pyramiding(
+            self,
+            id,
+            long,
+            qty,
+            limit=0,
+            stop=0,
+            post_only=False,
+            reduce_only=False,
+            cancel_all=False,
+            pyramiding=2,
+            allow_amend=False,
+            when=True,
+            round_decimals=0,
+            callback=None
+            ):
         """
         places an entry order, works as equivalent to tradingview pine script implementation with pyramiding
         https://tradingview.com/study-script-reference/#fun_strategy{dot}entry
@@ -480,7 +530,8 @@ class BitMex:
         if (long and pos_size + qty > pyramiding*qty) or (not long and pos_size - qty < -pyramiding*qty):
             ord_qty = pyramiding*qty - abs(pos_size)
      
-        # make sure it doesnt spam small entries, which in most cases would trigger risk management orders evaluation, you can make this less than 2% if needed  
+        # make sure it doesnt spam small entries,
+        # which in most cases would trigger risk management orders evaluation, you can make this less than 2% if needed  
         if ord_qty < ((pyramiding*qty) / 100) * 2:
             return          
 
@@ -488,7 +539,19 @@ class BitMex:
 
         self.order(id, long, ord_qty, limit, stop, post_only, reduce_only, allow_amend, when, callback)
 
-    def order(self, id, long, qty, limit=0, stop=0, post_only=False, reduce_only=False, allow_amend=False, when=True, callback=None):
+    def order(
+            self,
+            id,
+            long,
+            qty,
+            limit=0,
+            stop=0,
+            post_only=False,
+            reduce_only=False,
+            allow_amend=False,
+            when=True,
+            callback=None
+            ):
         """
         places an order, works as equivalent to tradingview pine script implementation
         https://www.tradingview.com/pine-script-reference/#fun_strategy{dot}order
@@ -546,17 +609,30 @@ class BitMex:
 
     def exit(self, profit=0, loss=0, trail_offset=0):
         """
-        profit taking and stop loss and trailing, if both stop loss and trailing offset are set trailing_offset takes precedence
+        profit taking and stop loss and trailing,
+        if both stop loss and trailing offset are set trailing_offset takes precedence
         :param profit: Profit (specified in ticks)
         :param loss: Stop loss (specified in ticks)
         :param trail_offset: Trailing stop price (specified in ticks)
         """
         self.exit_order = {'profit': profit, 'loss': loss, 'trail_offset': trail_offset}
 
-    def sltp(self, profit_long=0, profit_short=0, stop_long=0, stop_short=0, eval_tp_next_candle=False, round_decimals=2,
-                 profit_long_callback=None, profit_short_callback=None, stop_long_callback=None, stop_short_callback=None):
+    def sltp(
+            self,
+            profit_long=0,
+            profit_short=0,
+            stop_long=0,
+            stop_short=0,
+            eval_tp_next_candle=False,
+            round_decimals=2,
+            profit_long_callback=None,
+            profit_short_callback=None,
+            stop_long_callback=None,
+            stop_short_callback=None
+            ):
         """
-        Simple take profit and stop loss implementation, which sends a reduce only stop loss order upon entering a position.
+        Simple take profit and stop loss implementation,
+         which sends a reduce only stop loss order upon entering a position.
         :param profit_long: profit target value in % for longs
         :param profit_short: profit target value in % for shorts
         :param stop_long: stop loss value for long position in %
@@ -622,7 +698,8 @@ class BitMex:
      
     def eval_sltp(self):
         """
-        Simple take profit and stop loss implementation, which sends a reduce only stop loss order upon entering a position.
+        Simple take profit and stop loss implementation,
+        which sends a reduce only stop loss order upon entering a position.
         - requires setting values with sltp() prior
         """
         pos_size = self.get_position_size()
@@ -657,7 +734,8 @@ class BitMex:
                     #time.sleep(2)                    
                     self.__amend_order(tp_order['clOrdID'], False, abs(pos_size), limit=tp_price_long)
                 else:               
-                    self.order("TP", False, abs(pos_size), limit=tp_price_long, reduce_only=True, allow_amend=False, callback=self.get_sltp_values()['profit_long_callback'])
+                    self.order("TP", False, abs(pos_size), limit=tp_price_long, reduce_only=True,
+                                allow_amend=False, callback=self.get_sltp_values()['profit_long_callback'])
         if tp_percent_short > 0 and is_tp_full_size == False:
             if pos_size < 0:                
                 tp_price_short = round(avg_entry -(avg_entry*tp_percent_short), self.round_decimals)
@@ -665,7 +743,8 @@ class BitMex:
                      #time.sleep(2)                   
                     self.__amend_order(tp_order['clOrdID'], True, abs(pos_size), limit=tp_price_short)
                 else:
-                    self.order("TP", True, abs(pos_size), limit=tp_price_short, reduce_only=True, allow_amend=False, callback=self.get_sltp_values()['profit_short_callback'])
+                    self.order("TP", True, abs(pos_size), limit=tp_price_short, reduce_only=True,
+                                allow_amend=False, callback=self.get_sltp_values()['profit_short_callback'])
         #sl
         sl_order = self.get_open_order('SL')
         if sl_order is not None:
@@ -685,20 +764,24 @@ class BitMex:
                 if sl_order is not None:                             
                     self.cancel(id=sl_order['clOrdID'])
                     time.sleep(2)
-                    self.order("SL", False, abs(pos_size), stop=sl_price_long, reduce_only=True, allow_amend=False, callback=self.get_sltp_values()['stop_long_callback'])
+                    self.order("SL", False, abs(pos_size), stop=sl_price_long, reduce_only=True,
+                                allow_amend=False, callback=self.get_sltp_values()['stop_long_callback'])
                     #self.__amend_order(sl_order['clOrdID'], False, abs(pos_size), stop=sl_price_long)
                 else:  
-                    self.order("SL", False, abs(pos_size), stop=sl_price_long, reduce_only=True, allow_amend=False, callback=self.get_sltp_values()['stop_long_callback'])
+                    self.order("SL", False, abs(pos_size), stop=sl_price_long, reduce_only=True,
+                                allow_amend=False, callback=self.get_sltp_values()['stop_long_callback'])
         if sl_percent_short > 0 and is_sl_full_size == False:
             if pos_size < 0:
                 sl_price_short = round(avg_entry + (avg_entry*sl_percent_short), self.round_decimals)
                 if sl_order is not None:                                  
                     self.cancel(id=sl_order['clOrdID'])
                     time.sleep(2)
-                    self.order("SL", True, abs(pos_size), stop=sl_price_short, reduce_only=True, allow_amend=False, callback=self.get_sltp_values()['stop_short_callback'])
+                    self.order("SL", True, abs(pos_size), stop=sl_price_short, reduce_only=True,
+                                allow_amend=False, callback=self.get_sltp_values()['stop_short_callback'])
                     #self.__amend_order(sl_order['clOrdID'], True, abs(pos_size), stop=sl_price_short)
                 else:  
-                    self.order("SL", True, abs(pos_size), stop=sl_price_short, reduce_only=True, allow_amend=False, callback=self.get_sltp_values()['stop_short_callback'])
+                    self.order("SL", True, abs(pos_size), stop=sl_price_short, reduce_only=True,
+                                allow_amend=False, callback=self.get_sltp_values()['stop_short_callback'])
 
     def fetch_ohlcv(self, bin_size, start_time, end_time):
         """
@@ -733,10 +816,11 @@ class BitMex:
 
     def security(self, bin_size, data=None):
         """
-        Recalculate and obtain data of a timeframe higher than the current chart timeframe without looking into the furute that would cause undesired effects.
+        Recalculate and obtain data of a timeframe higher than the current
+        timeframe without looking into the furute that would cause undesired effects.
         """     
-        if data == None:   
-            timeframe_list = [allowed_range_minute_granularity[t][3] for t in self.bin_size] # minute count of a timeframe for sorting when sorting is needed 
+        if data == None:  # minute count of a timeframe for sorting when sorting is needed   
+            timeframe_list = [allowed_range_minute_granularity[t][3] for t in self.bin_size]
             timeframe_list.sort(reverse=True)
             t = find_timeframe_string(timeframe_list[-1])     
             data = self.timeframe_data[t]      
@@ -754,12 +838,13 @@ class BitMex:
                 start_time = end_time - self.ohlcv_len * delta(t)
                 self.timeframe_data[t] = self.fetch_ohlcv(t, start_time, end_time)
                 self.timeframe_info[t] = {
-                                                    "allowed_range": allowed_range_minute_granularity[t][0] if self.minute_granularity else allowed_range[t][0], 
-                                                    "ohlcv": self.timeframe_data[t][:-1], # Dataframe with closed candles                                                   
-                                                    "last_action_time": None,#self.timeframe_data[t].iloc[-1].name, # Last strategy execution time
-                                                    "last_candle": self.timeframe_data[t].iloc[-2].values,  # Store last complete candle
-                                                    "partial_candle": self.timeframe_data[t].iloc[-1].values  # Store incomplete candle
-                                                }
+                            "allowed_range": allowed_range_minute_granularity[t][0]
+                                            if self.minute_granularity else allowed_range[t][0], 
+                            "ohlcv": self.timeframe_data[t][:-1], # Dataframe with closed candles                                                   
+                            "last_action_time": None,#self.timeframe_data[t].iloc[-1].name, # Last strategy execution time
+                            "last_candle": self.timeframe_data[t].iloc[-2].values,  # Store last complete candle
+                            "partial_candle": self.timeframe_data[t].iloc[-1].values  # Store incomplete candle
+                            }
                 # The last candle is an incomplete candle with timestamp in future                
                 if self.timeframe_data[t].iloc[-1].name > end_time:
                     last_candle = self.timeframe_data[t].iloc[-1].values # Store last candle
@@ -806,7 +891,7 @@ class BitMex:
             self.timeframe_info[t]['partial_candle'] = re_sample_data.iloc[-1].values # store partial candle data
             re_sample_data =re_sample_data[:-1] # exclude current candle data
 
-            logger.info(f"{self.timeframe_info[t]['last_action_time']} : {self.timeframe_data[t].iloc[-1].name} : {re_sample_data.iloc[-1].name}")  
+            #logger.info(f"{self.timeframe_info[t]['last_action_time']} : {self.timeframe_data[t].iloc[-1].name} : {re_sample_data.iloc[-1].name}")  
 
             if self.call_strat_on_start:
                 if self.timeframe_info[t]["last_action_time"] is not None and \

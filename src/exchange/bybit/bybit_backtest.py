@@ -186,15 +186,15 @@ class BybitBackTest(BybitStub):
         if self.timeframe_data is None: 
             self.timeframe_data = {}          
             for t in self.bin_size:            
-                self.timeframe_data[t] = resample(self.df_ohlcv, t, minute_granularity=self.minute_granularity) if self.minute_granularity \
-                    else self.df_ohlcv # if a single timeframe is used without minute_granularity it already resampled the data after downloading it 
-
+                self.timeframe_data[t] = resample(self.df_ohlcv, t, minute_granularity=self.minute_granularity) \
+                                        if self.minute_granularity else self.df_ohlcv # if a single timeframe is used without minute_granularity
+                                                                                      # it already resampled the data after downloading it 
                 self.timeframe_info[t] = {
                                     "allowed_range": allowed_range_minute_granularity[t][0] if self.minute_granularity else self.bin_size[0], #allowed_range[t][0],
                                     "ohlcv": self.timeframe_data[t][:-1], # Dataframe with closed candles,
                                     "last_action_index": math.ceil(self.warmup_len / allowed_range_minute_granularity[t][3]) \
                                                                 if self.minute_granularity else self.warmup_len
-                                        }                     
+                                    }                     
 
         #logger.info(f"timeframe info: {self.timeframe_info}")
         for i in range(self.warmup_len):

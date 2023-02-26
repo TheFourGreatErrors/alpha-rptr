@@ -297,8 +297,10 @@ class BybitStub(Bybit):
             trailValue= 0,
             post_only=False,
             reduce_only=False,
-            ioc=False, cancel_all=False,
-            pyramiding=2, when=True,
+            ioc=False,
+            cancel_all=False,
+            pyramiding=2,
+            when=True,
             round_decimals=None,
             callback=None,
             workingType="CONTRACT_PRICE"
@@ -345,7 +347,8 @@ class BybitStub(Bybit):
         if (long and pos_size + qty > pyramiding*qty) or (not long and pos_size - qty < -pyramiding*qty):
             ord_qty = pyramiding*qty - abs(pos_size)
      
-        # make sure it doesnt spam small entries, which in most cases would trigger risk management orders evaluation, you can make this less than 2% if needed  
+        # make sure it doesnt spam small entries,
+        # which in most cases would trigger risk management orders evaluation, you can make this less than 2% if needed  
         if ord_qty < ((pyramiding*qty) / 100) * 2:
             return       
 
@@ -370,9 +373,9 @@ class BybitStub(Bybit):
             long,
             qty,
             price,
-            need_commission=False,
-            callback=None,
-            reduce_only=False
+            need_commission=False,            
+            reduce_only=False,
+            callback=None
             ):        
         """         
          : param id: order number
@@ -534,7 +537,6 @@ class BybitStub(Bybit):
         """
         evaluate simple profit target and stop loss        
         """
-
         pos_size = self.get_position_size()
         if pos_size == 0:
             return
@@ -587,7 +589,8 @@ class BybitStub(Bybit):
     
     def on_update(self, bin_size, strategy):
         """
-        Register function of strategy.
+        Registering and updating strategy function.
+        :param bin_size:
         :param strategy:
         """
         def __override_strategy(action, open, close, high, low, volume):
@@ -630,20 +633,22 @@ class BybitStub(Bybit):
                                              "stop": 0, "post_only": post_only, "reduce_only": reduce_only, "callback": callback})
                     continue
 
-                if limit > 0 and stop > 0:
-                    if (long and high[-1] > stop and close[-1] < limit) or (not long and low[-1] < stop and close[-1] > limit):
-                        self.commit(id, long, qty, limit, True, callback, reduce_only)
-                        continue
-                    elif (long and high[-1] > stop) or (not long and low[-1] < stop):
+                if limit > 0 and stop > 0 and (high[-1] >= stop >= low[-1]):
                         new_open_orders.append({"id": id, "long": long, "qty": qty, "limit": limit,
                                                  "stop": 0, "post_only": post_only, "reduce_only": reduce_only, "callback": callback})
+                        if(not self.minute_granularity):
+                            logger.info("Simulating Stop-Limit orders on historical bars can be erroneous " +
+                                        "as there is no way to guess intra-bar price movement. " +
+                                        "Stop-Limit orders are coverted into Limit orders " +
+                                        "once the stop is hit and evaluated in successive candles. " +
+                                        "Switch on Minute Granularity for a more accurate simulation of Stop-limit orders.")
                         continue
                 elif limit > 0:
                     if (long and low[-1] < limit) or (not long and high[-1] > limit):
                         self.commit(id, long, qty, limit, True, callback, reduce_only)
                         continue
                 elif stop > 0:
-                    if (long and high[-1] > stop) or (not long and low[-1] < stop):
+                    if (high[-1] >= stop >= low[-1]):
                         self.commit(id, long, qty, stop, True, callback, reduce_only)
                         continue
 

@@ -116,7 +116,8 @@ class BitMexStub(BitMex):
     
     def close_all_at_price(self, price, callback=None):
         """
-        close the current position at price, for backtesting purposes its important to have a function that closes at given price
+        close the current position at price,
+        for backtesting purposes its important to have a function that closes at given price
         :param price: price
         """
         pos_size = self.position_size
@@ -135,7 +136,107 @@ class BitMexStub(BitMex):
         self.open_orders = [o for o in self.open_orders if o["id"] != id]
         return True
 
-    def entry(self, id, long, qty, limit=0, stop=0, post_only=False, when=True, round_decimals=0, callback=None):
+    def order(
+            self,
+            id,
+            long,
+            qty,
+            limit=0,
+            stop=0,
+            post_only=False,
+            reduce_only=False,
+            when=True,
+            callback=None
+            ):
+        """
+        places an order
+        : param id: number of order
+        : param long: long or short
+        : param qty: order quantity
+        : param limit: limit
+        : param stop: stop limit
+        : param post_only: post only
+        : param reduce_only: reduce only
+        : param when: Do you order?
+        : return:
+        """
+        if not when:
+            return
+
+        pos_size = self.get_position_size()
+        ord_qty = abs(qty)
+
+        if reduce_only \
+            and \
+            ((pos_size > 0 and (long == True or ord_qty > abs(pos_size))) \
+            or \
+            (pos_size < 0 and (long == False or ord_qty > abs(pos_size)))):
+            return
+
+        self.cancel(id)
+
+        if limit > 0 or stop > 0:
+            self.open_orders.append({"id": id,
+                                     "long": long,
+                                     "qty": ord_qty,
+                                     "limit": limit,
+                                     "stop": stop,
+                                     "post_only": post_only,
+                                     "reduce_only": reduce_only,
+                                     "callback": callback})
+        else:
+            self.commit(id, long, ord_qty, self.get_market_price(), True, callback)
+            return
+
+    def close_partial(
+            self,
+            id,
+            ord_qty,
+            limit=0,
+            stop=0,
+            trailValue=0,
+            post_only=False,
+            when=True,
+            need_commission=True,
+            callback=None
+            ):
+        """
+        """
+        pos_size = self.get_position_size()
+
+        if not when or pos_size == 0:
+            return
+
+        long = True if pos_size < 0 else False
+
+        if abs(ord_qty) > abs(pos_size):
+            ord_qty = pos_size
+
+        if limit > 0 or stop > 0:
+            self.open_orders.append({"id": id,
+                                     "long": long,
+                                     "qty": ord_qty,
+                                     "limit": limit,
+                                     "stop": stop,
+                                     "post_only": post_only,
+                                     "reduce_only": False,
+                                     "callback": callback})
+        else:
+            self.commit(id, long, abs(ord_qty), self.get_market_price(), True, callback)
+            return
+
+    def entry(
+            self,
+            id,
+            long,
+            qty,
+            limit=0,
+            stop=0,
+            post_only=False,
+            when=True,
+            round_decimals=0,
+            callback=None
+            ):
         """
          I place an order. Equivalent function to pine's function.
          https://jp.tradingview.com/study-script-reference/#fun_strategy{dot}entry
@@ -164,21 +265,43 @@ class BitMexStub(BitMex):
         ord_qty = round(ord_qty, round_decimals)
 
         if limit > 0 or stop > 0:
-            self.open_orders.append({"id": id, "long": long, "qty": ord_qty, "limit": limit, "stop": stop, "post_only": post_only, "reduce_only": False, "callback": callback})
+            self.open_orders.append({"id": id,
+                                     "long": long,
+                                     "qty": ord_qty,
+                                     "limit": limit,
+                                     "stop": stop,
+                                     "post_only": post_only,
+                                     "reduce_only": False,
+                                     "callback": callback})
         else:
             self.commit(id, long, ord_qty, self.get_market_price(), True, callback)
             return
 
-    def entry_pyramiding(self, id, long, qty, limit=0, stop=0, post_only=False, reduce_only=False, cancel_all=False, pyramiding=2, when=True, round_decimals=0, callback=None):
+    def entry_pyramiding(
+            self,
+            id,
+            long,
+            qty,
+            limit=0,
+            stop=0,
+            post_only=False,
+            reduce_only=False,
+            cancel_all=False,
+            pyramiding=2,
+            when=True,
+            round_decimals=0,
+            callback=None
+            ):
         """
-        places an entry order, works as equivalent to tradingview pine script implementation with pyramiding        
+        places an entry orders,
+        works as equivalent to tradingview pine script implementation with pyramiding        
         :param id: Order id
         :param long: Long or Short
         :param qty: Quantity
         :param limit: Limit price
         :param stop: Stop limit
         :param post_only: Post only
-        :param reduce_only: Reduce Only means that your existing position cannot be increased only reduced by this order
+        :param reduce_only: your existing position cannot be increased only reduced by this order
         :param cancell_all: cancell all open order before sending the entry order?
         :param pyramiding: number of entries you want in pyramiding
         :param when: Do you want to execute the order or not - True for live trading
@@ -212,72 +335,36 @@ class BitMexStub(BitMex):
         if (long and pos_size + qty > pyramiding*qty) or (not long and pos_size - qty < -pyramiding*qty):
             ord_qty = pyramiding*qty - abs(pos_size)
      
-        # make sure it doesnt spam small entries, which in most cases would trigger risk management orders evaluation, you can make this less than 2% if needed  
+        # make sure it doesnt spam small entries,
+        # which in most cases would trigger risk management orders evaluation, you can make this less than 2% if needed  
         if ord_qty < ((pyramiding*qty) / 100) * 2:
             return       
 
         ord_qty = round(ord_qty, round_decimals)
         
         if limit > 0 or stop > 0:
-            self.open_orders.append({"id": id, "long": long, "qty": ord_qty, "limit": limit, "stop": stop, "post_only": post_only, "reduce_only": False, "callback": callback})
+            self.open_orders.append({"id": id,
+                                     "long": long,
+                                     "qty": ord_qty,
+                                     "limit": limit,
+                                     "stop": stop,
+                                     "post_only": post_only,
+                                     "reduce_only": False,
+                                     "callback": callback})
         else:
             self.commit(id, long, ord_qty, self.get_market_price(), True, callback)
             return
 
-    def order(self, id, long, qty, limit=0, stop=0, post_only=False, reduce_only=False, when=True, callback=None):
-        """
-        places an order
-        : param id: number of order
-        : param long: long or short
-        : param qty: order quantity
-        : param limit: limit
-        : param stop: stop limit
-        : param post_only: post only
-        : param reduce_only: reduce only
-        : param when: Do you order?
-        : return:
-        """
-        if not when:
-            return
-
-        pos_size = self.get_position_size()
-        ord_qty = abs(qty)
-
-        if reduce_only \
-            and \
-            ((pos_size > 0 and (long == True or ord_qty > abs(pos_size))) \
-            or \
-            (pos_size < 0 and (long == False or ord_qty > abs(pos_size)))):
-            return
-
-        self.cancel(id)
-
-        if limit > 0 or stop > 0:
-            self.open_orders.append({"id": id, "long": long, "qty": ord_qty, "limit": limit, "stop": stop, "post_only": post_only, "reduce_only": reduce_only, "callback": callback})
-        else:
-            self.commit(id, long, ord_qty, self.get_market_price(), True, callback)
-            return
-
-    def close_partial(self, id, ord_qty, limit=0, stop=0, trailValue=0, post_only=False, when=True, need_commission=True, callback=None):
-        """
-        """
-        pos_size = self.get_position_size()
-
-        if not when or pos_size == 0:
-            return
-
-        long = True if pos_size < 0 else False
-
-        if abs(ord_qty) > abs(pos_size):
-            ord_qty = pos_size
-
-        if limit > 0 or stop > 0:
-            self.open_orders.append({"id": id, "long": long, "qty": ord_qty, "limit": limit, "stop": stop, "post_only": post_only, "callback": callback})
-        else:
-            self.commit(id, long, abs(ord_qty), self.get_market_price(), True, callback)
-            return
-
-    def commit(self, id, long, qty, price, need_commission=False, callback=None):
+    def commit(
+            self,
+            id,
+            long,
+            qty,
+            price,
+            need_commission=False,
+            reduce_only=False,
+            callback=None
+            ):
         """         
          : param id: order number
          : param long: long or short
@@ -287,6 +374,7 @@ class BitMexStub(BitMex):
         """
         self.order_count += 1
 
+        qty = abs(self.get_position_size()) if abs(qty) > abs(self.get_position_size()) and reduce_only == True else abs(qty)
         order_qty = qty if long else -qty
 
         if self.get_position_size()*order_qty > 0:
@@ -333,7 +421,9 @@ class BitMexStub(BitMex):
             self.drawdown = (self.balance_ath - self.balance) / self.balance_ath * 100
 
             # self.order_log.write("time,type,id,price,quantity,av_price,position,pnl,balance,drawdown\n") #header
-            self.order_log.write(f"{self.timestamp},{'BUY' if long else 'SELL'},{id if next_qty == 0 else 'Reversal'},{price:.2f},{-self.position_size if abs(next_qty) else order_qty:.2f},{self.position_avg_price:.2f},{0 if abs(next_qty) else self.position_size+order_qty:.2f},{profit:.2f},{self.get_balance():.2f},{self.drawdown:.2f}\n")
+            self.order_log.write(f"{self.timestamp},{'BUY' if long else 'SELL'},{id if next_qty == 0 else 'Reversal'},\
+                                 {price:.2f},{-self.position_size if abs(next_qty) else order_qty:.2f},{self.position_avg_price:.2f},\
+                                 {0 if abs(next_qty) else self.position_size+order_qty:.2f},{profit:.2f},{self.get_balance():.2f},{self.drawdown:.2f}\n")
             self.order_log.flush()
 
             self.position_size = self.get_position_size() + order_qty                                   
@@ -379,7 +469,10 @@ class BitMexStub(BitMex):
             logger.info(f"current position size: {next_qty} at avg. price: {self.position_avg_price}")
 
             # self.order_log.write("time,type,id,price,quantity,av_price,position,pnl,balance,drawdown\n") #header
-            self.order_log.write(f"{self.timestamp},{'BUY' if long else 'SELL'},{id},{price:.2f},{next_qty if abs(order_qty) > abs(next_qty) else order_qty:.2f},{self.position_avg_price:.2f},{self.position_size:.2f},{'-'},{self.get_balance():.2f},{self.drawdown:.2f}\n")
+            self.order_log.write(f"{self.timestamp},{'BUY' if long else 'SELL'},{id},{price:.2f},\
+                                 {next_qty if abs(order_qty) > abs(next_qty) else order_qty:.2f},\
+                                 {self.position_avg_price:.2f},{self.position_size:.2f},{'-'},\
+                                 {self.get_balance():.2f},{self.drawdown:.2f}\n")
             self.order_log.flush()
            
             self.set_trail_price(price)
@@ -432,7 +525,6 @@ class BitMexStub(BitMex):
         """
         evaluate simple profit target and stop loss        
         """
-
         pos_size = self.get_position_size()
         if pos_size == 0:
             return
@@ -485,7 +577,8 @@ class BitMexStub(BitMex):
 
     def on_update(self, bin_size, strategy):
         """
-        Register function of strategy.
+        Registering and updating strategy function.
+        :param bin_size:
         :param strategy:
         """
         def __override_strategy(action, open, close, high, low, volume):
@@ -522,25 +615,29 @@ class BitMexStub(BitMex):
                 reduce_only = order["reduce_only"]
                 callback = order["callback"]
 
-                if reduce_only == True and (self.position_size == 0 or (long and self.get_position_size() > 0) or (not long and self.get_position_size() < 0)):
-                    new_open_orders.append({"id": id, "long": long, "qty": qty, "limit": limit, "stop": 0, "post_only": post_only, "reduce_only": reduce_only, "callback": callback})
+                if reduce_only == True and (self.position_size == 0
+                                             or (long and self.get_position_size() > 0) or (not long and self.get_position_size() < 0)):
+                    new_open_orders.append({"id": id, "long": long, "qty": qty, "limit": limit,
+                                             "stop": 0, "post_only": post_only, "reduce_only": reduce_only, "callback": callback})
                     continue
 
                 if limit > 0 and stop > 0 and (high[-1] >= stop >= low[-1]):
-                        new_open_orders.append({"id": id, "long": long, "qty": qty, "limit": limit, "stop": 0, "post_only": post_only, "reduce_only": reduce_only, "callback": callback})
+                        new_open_orders.append({"id": id, "long": long, "qty": qty, "limit": limit,
+                                                 "stop": 0, "post_only": post_only, "reduce_only": reduce_only, "callback": callback})
                         if(not self.minute_granularity):
                             logger.info("Simulating Stop-Limit orders on historical bars can be erroneous " +
                                         "as there is no way to guess intra-bar price movement. " +
-                                        "Stop-Limit orders are converted into Limit orders once the stop is hit and evaluated in successive candles. " +
+                                        "Stop-Limit orders are coverted into Limit orders " +
+                                        "once the stop is hit and evaluated in successive candles. " +
                                         "Switch on Minute Granularity for a more accurate simulation of Stop-limit orders.")
                         continue
                 elif limit > 0:
                     if (long and low[-1] < limit) or (not long and high[-1] > limit):
-                        self.commit(id, long, qty, limit, True, callback)
+                        self.commit(id, long, qty, limit, True, callback, reduce_only)
                         continue
                 elif stop > 0:
                     if (high[-1] >= stop >= low[-1]):
-                        self.commit(id, long, qty, stop, True, callback)
+                        self.commit(id, long, qty, stop, True, callback, reduce_only)
                         continue
 
                 new_open_orders.append(order)
