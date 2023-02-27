@@ -181,50 +181,67 @@ class BinanceFutures:
         maintenance margin
         :return:
         """
-        return 0.8
+        return 0.04
 
-    def lot_leverage(self):
-        """
-        get leverage
-        :return:  
-        """         
-        return 20
-
-    def get_lot(self, round_decimals=None):
+    def get_lot(self, lot_leverage=1, only_available_balance=True, round_decimals=None):
         """        
         lot calculation
         :param round_decimals: round decimals
+        :param lot_leverage: use None to automatically use your preset leverage
         :return:
         """
-        account_information = self.get_account_information()        
-        return round(float(account_information['totalMarginBalance']) / self.get_market_price() * self.lot_leverage(),
-                 round_decimals if round_decimals != None else self.asset_rounding)    
+        if lot_leverage is None:
+            lot_leverage = self.get_leverage()
 
-    def get_balance(self):
+        #account_information = self.get_account_information()  
+
+        balance = self.get_available_balance() if only_available_balance else self.get_balance() 
+      
+        if balance is None:
+            logger.info(f"Can't Get Balance!")
+            return balance
+
+        return round((1 - self.get_retain_rate()) * balance #* float(account_information['totalMarginBalance'])
+                      / (1 if self.qty_in_usdt else  self.get_market_price()) * lot_leverage,
+                      round_decimals if round_decimals != None else self.asset_rounding)    
+
+    def get_balance(self, asset=None):
         """
         get balance
+        :param asset: asset - default quote asset
         :return:
         """
         self.__init_client()
-        ret = self.get_margin()
+        res = self.get_margin()
 
-        if len(ret) > 0:
-            balances = [p for p in ret if p["asset"] == self.quote_asset]            
-            return float(balances[0]["balance"])
-        else: return None
+        asset = asset if asset else self.quote_asset
+        #logger.info(f"kkkkkkkkkkkkkkk {res}")
+        if len(res) > 0:
+            balances = [p for p in res if p["asset"] == asset]     
+            if len(balances) > 0:      
+                return float(balances[0]["balance"])
+            else:
+                logger.info(f"Couldnt find balance for asset: {asset}")                
+        return None
 
-    def get_available_balance(self):
+    def get_available_balance(self, asset=None):
         """
-        get available balance
+        get available balance, since some might be already used as a collateral for margin etc.
+        :param asset: asset - default quote asset
         :return:
         """
         self.__init_client()
-        ret = self.get_margin()
+        res = self.get_margin()
 
-        if len(ret) > 0:
-            balances = [p for p in ret if p["asset"] == self.quote_asset]            
-            return float(balances[0]["availableBalance"])
-        else: return None
+        asset = asset if asset else self.quote_asset
+        #logger.info(f"kkkkkkkkkkkkkkk {res}")
+        if len(res) > 0:
+            balances = [p for p in res if p["asset"] == asset]     
+            if len(balances) > 0:            
+                return float(balances[0]["availableBalance"])
+            else:
+                logger.info(f"Couldnt find available balance for asset: {asset}")               
+        return None
 
     def get_margin(self):
         """
@@ -246,6 +263,19 @@ class BinanceFutures:
         """
         self.__init_client()
         return float(self.get_position()["leverage"])
+    
+
+    def set_leverage(self, leverage, symbol=None):
+        """
+        set leverage
+        :return:
+        """
+        self.__init_client()
+
+        symbol = self.pair if symbol is None else symbol
+        leverage = retry(lambda: self.client.futures_change_leverage(symbol=symbol, leverage=leverage)) 
+        logger.info(f"Setting Leverage: {leverage}")
+        #return self.get_leverage(symbol)
 
     def get_account_information(self):
         """
