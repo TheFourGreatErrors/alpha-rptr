@@ -108,8 +108,10 @@ class BybitWs:
         """ 
         logger.info(f"authenticating websocket")
         # API keys
-        api_key =  conf['bybit_test_keys'][self.account]['API_KEY'] if self.testnet else conf['bybit_keys'][self.account]['API_KEY']       
-        api_secret = conf['bybit_test_keys'][self.account]['SECRET_KEY'] if self.testnet else conf['bybit_keys'][self.account]['SECRET_KEY']   
+        api_key =  conf['bybit_test_keys'][self.account]['API_KEY'] \
+                    if self.testnet else conf['bybit_keys'][self.account]['API_KEY']       
+        api_secret = conf['bybit_test_keys'][self.account]['SECRET_KEY'] \
+                    if self.testnet else conf['bybit_keys'][self.account]['SECRET_KEY']   
         
         if len(api_key) and len(api_secret) == 0:           
             logger.info("WebSocket is not able to authenticate, make sure you added api key and secret to config.py") 

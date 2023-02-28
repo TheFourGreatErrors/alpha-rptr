@@ -8,8 +8,10 @@ import dateutil.parser
 
 import pandas as pd
 
-from src import logger, allowed_range, allowed_range_minute_granularity, retry, delta, load_data, resample, symlink, \
-    find_timeframe_string
+from src import (logger, allowed_range,
+                 allowed_range_minute_granularity, 
+                 retry, delta, load_data, resample, symlink,
+                find_timeframe_string)
 from src.exchange.binance_futures.binance_futures_stub import BinanceFuturesStub
 
 OHLC_DIRNAME = os.path.join(os.path.dirname(__file__), "../ohlc/{}/{}/{}")
@@ -83,7 +85,19 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
         """
         return self.time    
     
-    def entry(self, id, long, qty, limit=0, stop=0, post_only=False, when=True, round_decimals=None, callback=None, workingType="CONTRACT_PRICE"):
+    def entry(
+            self, 
+            id, 
+            long, 
+            qty, 
+            limit=0, 
+            stop=0, 
+            post_only=False, 
+            when=True, 
+            round_decimals=None, 
+            callback=None, 
+            workingType="CONTRACT_PRICE"
+            ):
         """
         places an entry order, works equivalent to tradingview pine script implementation
         https://jp.tradingview.com/study-script-reference/#fun_strategy{dot}entry
@@ -98,9 +112,19 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
         :callback
         :return:
         """
-        BinanceFuturesStub.entry(self, id, long, qty, limit, stop, post_only, when, round_decimals, callback)
+        BinanceFuturesStub.entry(self, id, long, qty, limit, stop, 
+                                 post_only, when, round_decimals, callback)
 
-    def commit(self, id, long, qty, price, need_commission=False, callback=None, reduce_only=False):
+    def commit(
+            self, 
+            id, 
+            long, 
+            qty, 
+            price, 
+            need_commission=False, 
+            callback=None, 
+            reduce_only=False
+            ):
         """
         Commit
         :param id: order
@@ -110,7 +134,8 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
         :param need_commission: use commision or not?
         :param callback
         """
-        BinanceFuturesStub.commit(self, id, long, qty, price, need_commission, callback, reduce_only)
+        BinanceFuturesStub.commit(self, id, long, qty, price, 
+                                  need_commission, callback, reduce_only)
 
         if long:
             self.buy_signals.append(self.index)
@@ -128,7 +153,8 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
     
     def close_all_at_price(self, price, callback=None):
         """
-        close the current position at price, for backtesting purposes its important to have a function that closes at given price
+        close the current position at price,
+        for backtesting purposes its important to have a function that closes at given price
         :param price: price
         """
         if self.get_position_size() == 0:
@@ -152,19 +178,19 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
         if self.timeframe_data is None: 
             self.timeframe_data = {}          
             for t in self.bin_size:            
-                self.timeframe_data[t] = resample(self.df_ohlcv, t, minute_granularity=self.minute_granularity) if self.minute_granularity \
-                    else self.df_ohlcv # if a single timeframe is used without minute_granularity it already resampled the data after downloading it 
-
+                self.timeframe_data[t] = resample(self.df_ohlcv, t, minute_granularity=self.minute_granularity) \
+                                        if self.minute_granularity else self.df_ohlcv # if a single timeframe is used without minute_granularity
+                                                                                      # it already resampled the data after downloading it 
                 self.timeframe_info[t] = {
-                                            "allowed_range": allowed_range_minute_granularity[t][0] if self.minute_granularity else self.bin_size[0], #allowed_range[t][0],
-                                            "ohlcv": self.timeframe_data[t][:-1], # Dataframe with closed candles,
-                                            "last_action_index": math.ceil(self.warmup_len / allowed_range_minute_granularity[t][3]) if self.minute_granularity \
-                                                else self.warmup_len
-                                        }                     
+                            "allowed_range": allowed_range_minute_granularity[t][0] if self.minute_granularity else self.bin_size[0], #allowed_range[t][0],
+                            "ohlcv": self.timeframe_data[t][:-1], # Dataframe with closed candles,
+                            "last_action_index": math.ceil(self.warmup_len / allowed_range_minute_granularity[t][3]) \
+                                                if self.minute_granularity else self.warmup_len
+                            }                     
 
         #logger.info(f"timeframe info: {self.timeframe_info}")
         for i in range(self.warmup_len):
-            self.balance_history.append((self.get_balance() - self.start_balance))#/100000000*self.get_market_price())
+            self.balance_history.append((self.get_balance() - self.start_balance))
             self.draw_down_history.append(self. max_draw_down_session_perc)
 
         for i in range(len(self.df_ohlcv) - self.warmup_len):
@@ -221,14 +247,14 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
                                 }
             
                     self.index = index
-                    self.balance_history.append((self.get_balance() - self.start_balance)) #/ 100000000 * self.get_market_price())    
+                    self.balance_history.append((self.get_balance() - self.start_balance)) 
 
                 #self.eval_sltp()
                 self.timestamp = tf_ohlcv_data.iloc[-1].name.isoformat().replace("T"," ")
                 self.strategy(t, open, close, high, low, volume)      
                 self.timeframe_info[t]['last_action_index'] += 1           
 
-                #self.balance_history.append((self.get_balance() - self.start_balance)) #/ 100000000 * self.get_market_price())
+                #self.balance_history.append((self.get_balance() - self.start_balance)) 
                 #self.eval_exit()
                 #self.eval_sltp()
 
@@ -434,8 +460,8 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
                 color = v['color']
                 plt.plot(self.df_ohlcv.index, self.df_ohlcv[k], color)
         plt.ylabel("Price(USD)")
-        ymin = min(self.df_ohlcv["low"]) - 0.5
-        ymax = max(self.df_ohlcv["high"]) + 0.5
+        ymin = min(self.df_ohlcv["low"]) - 0.05
+        ymax = max(self.df_ohlcv["high"]) + 0.05
         plt.vlines(self.buy_signals, ymin, ymax, "blue", linestyles='dashed', linewidth=1)
         plt.vlines(self.sell_signals, ymin, ymax, "red", linestyles='dashed', linewidth=1)
         plt.vlines(self.close_signals, ymin, ymax, "green", linestyles='dashed', linewidth=1)

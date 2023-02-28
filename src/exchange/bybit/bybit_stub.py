@@ -433,9 +433,9 @@ class BybitStub(Bybit):
             self.drawdown = (self.balance_ath - self.balance) / self.balance_ath * 100
 
             # self.order_log.write("time,type,id,price,quantity,av_price,position,pnl,balance,drawdown\n") #header
-            self.order_log.write(f"{self.timestamp},{'BUY' if long else 'SELL'},{id if next_qty == 0 else 'Reversal'},\
-                                 {price:.2f},{-self.position_size if abs(next_qty) else order_qty:.2f},{self.position_avg_price:.2f},\
-                                 {0 if abs(next_qty) else self.position_size+order_qty:.2f},{profit:.2f},{self.get_balance():.2f},{self.drawdown:.2f}\n")
+            self.order_log.write(f"{self.timestamp},{'BUY' if long else 'SELL'},{id if next_qty == 0 else 'Reversal'},"\
+                                 f"{price:.2f},{-self.position_size if abs(next_qty) else order_qty:.2f},{self.position_avg_price:.2f},"\
+                                 f"{0 if abs(next_qty) else self.position_size+order_qty:.2f},{profit:.2f},{self.get_balance():.2f},{self.drawdown:.2f}\n")
             self.order_log.flush()
 
             self.position_size = self.get_position_size() + order_qty    
@@ -481,10 +481,10 @@ class BybitStub(Bybit):
             logger.info(f"current position size: {next_qty} at avg. price: {self.position_avg_price}")
 
             # self.order_log.write("time,type,id,price,quantity,av_price,position,pnl,balance,drawdown\n") #header
-            self.order_log.write(f"{self.timestamp},{'BUY' if long else 'SELL'},{id},{price:.2f},\
-                                 {next_qty if abs(order_qty) > abs(next_qty) else order_qty:.2f},\
-                                 {self.position_avg_price:.2f},{self.position_size:.2f},{'-'},\
-                                 {self.get_balance():.2f},{self.drawdown:.2f}\n")
+            self.order_log.write(f"{self.timestamp},{'BUY' if long else 'SELL'},{id},{price:.2f},"\
+                                 f"{next_qty if abs(order_qty) > abs(next_qty) else order_qty:.2f},"\
+                                 f"{self.position_avg_price:.2f},{self.position_size:.2f},{'-'},"\
+                                 f"{self.get_balance():.2f},{self.drawdown:.2f}\n")
             self.order_log.flush()
 
             self.set_trail_price(price)
@@ -535,7 +535,9 @@ class BybitStub(Bybit):
 
     def eval_sltp(self):
         """
-        evaluate simple profit target and stop loss        
+        Simple take profit and stop loss implementation
+        - sends a reduce only stop loss order upon entering a position.
+        - requires setting values with sltp() prior      
         """
         pos_size = self.get_position_size()
         if pos_size == 0:
@@ -628,14 +630,27 @@ class BybitStub(Bybit):
                 callback = order["callback"]
 
                 if reduce_only == True and (self.position_size == 0
-                                             or (long and self.get_position_size() > 0) or (not long and self.get_position_size() < 0)):
-                    new_open_orders.append({"id": id, "long": long, "qty": qty, "limit": limit,
-                                             "stop": 0, "post_only": post_only, "reduce_only": reduce_only, "callback": callback})
+                                             or (long and self.get_position_size() > 0)
+                                               or (not long and self.get_position_size() < 0)):
+                    new_open_orders.append({"id": id, 
+                                            "long": long, 
+                                            "qty": qty, 
+                                            "limit": limit, 
+                                            "stop": 0, 
+                                            "post_only": post_only, 
+                                            "reduce_only": reduce_only, 
+                                            "callback": callback})
                     continue
 
                 if limit > 0 and stop > 0 and (high[-1] >= stop >= low[-1]):
-                        new_open_orders.append({"id": id, "long": long, "qty": qty, "limit": limit,
-                                                 "stop": 0, "post_only": post_only, "reduce_only": reduce_only, "callback": callback})
+                        new_open_orders.append({"id": id, 
+                                                "long": long, 
+                                                "qty": qty, 
+                                                "limit": limit, 
+                                                "stop": 0, 
+                                                "post_only": post_only, 
+                                                "reduce_only": reduce_only, 
+                                                "callback": callback})
                         if(not self.minute_granularity):
                             logger.info("Simulating Stop-Limit orders on historical bars can be erroneous " +
                                         "as there is no way to guess intra-bar price movement. " +

@@ -151,8 +151,10 @@ class Bybit:
         if self.private_client is not None and self.public_client is not None:
             return
         
-        api_key = conf['bybit_test_keys'][self.account]['API_KEY'] if self.demo else conf['bybit_keys'][self.account]['API_KEY']        
-        api_secret = conf['bybit_test_keys'][self.account]['SECRET_KEY'] if self.demo else conf['bybit_keys'][self.account]['SECRET_KEY']
+        api_key = conf['bybit_test_keys'][self.account]['API_KEY'] \
+                    if self.demo else conf['bybit_keys'][self.account]['API_KEY']        
+        api_secret = conf['bybit_test_keys'][self.account]['SECRET_KEY'] \
+                    if self.demo else conf['bybit_keys'][self.account]['SECRET_KEY']
 
         endpoint = 'https://api-testnet.bybit.com' if self.demo else 'https://api.bybit.com'
         # spot 
@@ -209,10 +211,12 @@ class Bybit:
 
         self.sync()
 
-        logger.info(f"Asset: {self.base_asset} Rounding: {self.asset_rounding} - Quote: {self.quote_asset} Rounding: {self.quote_rounding}")
+        logger.info(f"Asset: {self.base_asset} Rounding: {self.asset_rounding}"\
+                    f"- Quote: {self.quote_asset} Rounding: {self.quote_rounding}")
+         
+        logger.info(f"Position Size: {self.position_size:.3f} Entry Price: {self.entry_price:.2f}")
 
     def sync(self):
-
         # Position
         self.position = self.get_position()
         # Position size
@@ -230,24 +234,32 @@ class Bybit:
         """
         return datetime.now().astimezone(UTC)
         
-    # def get_retain_rate(self):
-    #     """
-    #     maintenance margin
-    #     :return:
-    #     """
-    #     return 0.8
-
-    def get_lot(self, only_available_balance=True, round_decimals=None):
-        """        
-        lot calculation
-        :param only_available_balance: calculate using only available balance
-        :param round_decimals: round decimals
+    def get_retain_rate(self):
+        """
+        maintenance margin
         :return:
         """
-        account_information = self.get_account_information()        
-        return round(float(self.get_balance(return_available=only_available_balance)) 
-                     / (1 if self.qty_in_usdt else self.get_market_price()) * self.get_leverage(),
-                                round_decimals if round_decimals != None else self.asset_rounding)    
+        return 0.005
+
+    def get_lot(self, lot_leverage=1, only_available_balance=True, round_decimals=None):
+        """        
+        lot calculation
+        :param round_decimals: round decimals
+        :param lot_leverage: use None to automatically use your preset leverage
+        :return:
+        """
+        if lot_leverage is None:
+            lot_leverage = self.get_leverage()        
+
+        balance = self.get_available_balance() if only_available_balance else self.get_balance() 
+      
+        if balance is None:
+            logger.info(f"Can't Get Balance!")
+            return balance
+
+        return round((1 - self.get_retain_rate()) * balance
+                      / (1 if self.qty_in_usdt else  self.get_market_price()) * lot_leverage,
+                      round_decimals if round_decimals != None else self.asset_rounding)    
 
     def get_balance(self, asset=None, return_available=False):
         """
@@ -320,7 +332,6 @@ class Bybit:
     #         self.margin = retry(lambda: self.private_client
     #                             .User.User_getMargin(currency="XBt").result())
     #         return self.margin        
-
     
     def set_leverage(self, leverage, symbol=None):
         """
@@ -331,9 +342,9 @@ class Bybit:
 
         symbol = self.pair if symbol is None else symbol
         leverage = retry(lambda: self.private_client.set_leverage(symbol=symbol,
-                                                                    leverage=leverage,
-                                                                    buy_leverage=leverage,
-                                                                    sell_leverage=leverage)) 
+                                                                  leverage=leverage,
+                                                                  buy_leverage=leverage,
+                                                                  sell_leverage=leverage)) 
         return #self.get_leverage(symbol)
 
     def get_leverage(self, symbol=None):
@@ -778,14 +789,14 @@ class Bybit:
             limit = str(limit) if self.pair.endswith('PERP') else limit   
             stop = str(stop) if self.pair.endswith('PERP') else stop    
             res = retry(lambda: place_conditional(symbol=self.pair, order_type=ord_type, orderType=ord_type,
-                                                    order_link_id=ord_id, orderLinkId=ord_id, side=side,
-                                                    qty=ord_qty, orderQty=ord_qty, stop_px=stop, triggerPrice=stop,
-                                                    reduce_only=reduce_only, reduceOnly=reduce_only,
-                                                    close_on_trigger=reduce_only,
-                                                    orderPrice=limit, base_price=str(base_price), basePrice=base_price,
-                                                    time_in_force='GoodTillCancel', timeInForce='GoodTillCancel',
-                                                    trigger_by=trigger_by, triggerBy=trigger_by,
-                                                    orderFilter=orderFilter, position_idx=0))
+                                                  order_link_id=ord_id, orderLinkId=ord_id, side=side,
+                                                  qty=ord_qty, orderQty=ord_qty, stop_px=stop, triggerPrice=stop,
+                                                  reduce_only=reduce_only, reduceOnly=reduce_only,
+                                                  close_on_trigger=reduce_only,
+                                                  orderPrice=limit, base_price=str(base_price), basePrice=base_price,
+                                                  time_in_force='GoodTillCancel', timeInForce='GoodTillCancel',
+                                                  trigger_by=trigger_by, triggerBy=trigger_by,
+                                                  orderFilter=orderFilter, position_idx=0))
         elif post_only: # limit order with post only loop
             logger.info(f"Limit chasing currently not supported")
         else:
@@ -1007,7 +1018,8 @@ class Bybit:
 
         ord_qty = round(ord_qty, round_decimals if round_decimals != None else self.asset_rounding)
 
-        self.order(id, long, ord_qty, limit, stop, post_only, reduce_only, when, callback, trigger_by, split, interval)
+        self.order(id, long, ord_qty, limit, stop, post_only, 
+                   reduce_only, when, callback, trigger_by, split, interval)
 
     def order(
             self,
@@ -1238,7 +1250,8 @@ class Bybit:
             interval = 0
             ):
         """
-        Simple take profit and stop loss implementation, which sends a reduce only stop loss order upon entering a position.
+        Simple take profit and stop loss implementation,
+        - sends a reduce only stop loss order upon entering a position.
         :param profit_long: profit target value in % for longs
         :param profit_short: profit target value in % for shorts
         :param stop_long: stop loss value for long position in %
@@ -1288,28 +1301,33 @@ class Bybit:
             if self.get_position_size() > 0 and \
                     self.get_market_price() - self.get_exit_order()['trail_offset'] < self.get_trail_price():
                 logger.info(f"Loss cut by trailing stop: {self.get_exit_order()['trail_offset']}")
-                self.close_all(self.get_exit_order()['trail_callback'], self.get_exit_order()['split'], self.get_exit_order()['interval'])
+                self.close_all(self.get_exit_order()['trail_callback'],
+                                self.get_exit_order()['split'], self.get_exit_order()['interval'])
             elif self.get_position_size() < 0 and \
                     self.get_market_price() + self.get_exit_order()['trail_offset'] > self.get_trail_price():
                 logger.info(f"Loss cut by trailing stop: {self.get_exit_order()['trail_offset']}")
-                self.close_all(self.get_exit_order()['trail_callback'], self.get_exit_order()['split'], self.get_exit_order()['interval'])
+                self.close_all(self.get_exit_order()['trail_callback'],
+                                self.get_exit_order()['split'], self.get_exit_order()['interval'])
 
         #stop loss
         if unrealised_pnl < 0 and \
                 0 < self.get_exit_order()['loss'] < abs(unrealised_pnl):
             logger.info(f"Loss cut by stop loss: {self.get_exit_order()['loss']}")
-            self.close_all(self.get_exit_order()['loss_callback'], self.get_exit_order()['split'], self.get_exit_order()['interval'])
+            self.close_all(self.get_exit_order()['loss_callback'],
+                            self.get_exit_order()['split'], self.get_exit_order()['interval'])
 
         # profit take
         if unrealised_pnl > 0 and \
                 0 < self.get_exit_order()['profit'] < abs(unrealised_pnl):
             logger.info(f"Take profit by stop profit: {self.get_exit_order()['profit']}")
-            self.close_all(self.get_exit_order()['profit_callback'], self.get_exit_order()['split'], self.get_exit_order()['interval'])
+            self.close_all(self.get_exit_order()['profit_callback'],
+                            self.get_exit_order()['split'], self.get_exit_order()['interval'])
 
     def eval_sltp(self):
         """
-        Simple take profit and stop loss implementation, which sends a reduce only stop loss order upon entering a position.
-        - requires setting values with sltp() prior
+        Simple take profit and stop loss implementation
+        - sends a reduce only stop loss order upon entering a position.
+        - requires setting values with sltp() prior      
         """
         pos_size = float(self.get_position_size())
         if pos_size == 0:
@@ -1356,12 +1374,16 @@ class Bybit:
                     self.cancel(id=tp_id)
                     #time.sleep(0.05)
                     self.order("TP", False, abs(pos_size), limit=tp_price_long, reduce_only=True,
-                                callback=self.get_sltp_values()['profit_long_callback'], trigger_by=self.get_sltp_values()['trigger_by'], \
-                        split=self.get_sltp_values()['split'], interval=self.get_sltp_values()['interval'])
+                                callback=self.get_sltp_values()['profit_long_callback'],
+                                trigger_by=self.get_sltp_values()['trigger_by'], 
+                                split=self.get_sltp_values()['split'],
+                                interval=self.get_sltp_values()['interval'])
                 else:               
                     self.order("TP", False, abs(pos_size), limit=tp_price_long, reduce_only=True,
-                                callback=self.get_sltp_values()['profit_long_callback'], trigger_by=self.get_sltp_values()['trigger_by'], \
-                        split=self.get_sltp_values()['split'], interval=self.get_sltp_values()['interval'])
+                               callback=self.get_sltp_values()['profit_long_callback'],
+                               trigger_by=self.get_sltp_values()['trigger_by'],
+                               split=self.get_sltp_values()['split'],
+                               interval=self.get_sltp_values()['interval'])
         if tp_percent_short > 0 and is_tp_full_size == False:
             if pos_size < 0:                
                 tp_price_short = round(avg_entry -(avg_entry*tp_percent_short), self.quote_rounding)
@@ -1370,12 +1392,16 @@ class Bybit:
                     self.cancel(id=tp_id)
                     #time.sleep(0.05)
                     self.order("TP", True, abs(pos_size), limit=tp_price_short, reduce_only=True,
-                                callback=self.get_sltp_values()['profit_short_callback'], trigger_by=self.get_sltp_values()['trigger_by'], \
-                        split=self.get_sltp_values()['split'], interval=self.get_sltp_values()['interval'])
+                               callback=self.get_sltp_values()['profit_short_callback'], 
+                               trigger_by=self.get_sltp_values()['trigger_by'], 
+                               split=self.get_sltp_values()['split'], 
+                               interval=self.get_sltp_values()['interval'])
                 else:
                     self.order("TP", True, abs(pos_size), limit=tp_price_short, reduce_only=True,
-                                callback=self.get_sltp_values()['profit_short_callback'], trigger_by=self.get_sltp_values()['trigger_by'], \
-                        split=self.get_sltp_values()['split'], interval=self.get_sltp_values()['interval'])    
+                               callback=self.get_sltp_values()['profit_short_callback'], 
+                               trigger_by=self.get_sltp_values()['trigger_by'],
+                               split=self.get_sltp_values()['split'],
+                               interval=self.get_sltp_values()['interval'])    
 
         # sl execution logic
         if sl_percent_long > 0 and is_sl_full_size == False:
@@ -1386,12 +1412,16 @@ class Bybit:
                     self.cancel(id=sl_id)
                     #time.sleep(0.05)
                     self.order("SL", False, abs(pos_size), stop=sl_price_long, reduce_only=True,
-                                callback=self.get_sltp_values()['stop_long_callback'], trigger_by=self.get_sltp_values()['trigger_by'], \
-                        split=self.get_sltp_values()['split'], interval=self.get_sltp_values()['interval'])
+                                callback=self.get_sltp_values()['stop_long_callback'], 
+                                trigger_by=self.get_sltp_values()['trigger_by'],
+                                split=self.get_sltp_values()['split'],
+                                interval=self.get_sltp_values()['interval'])
                 else:  
                     self.order("SL", False, abs(pos_size), stop=sl_price_long, reduce_only=True,
-                                callback=self.get_sltp_values()['stop_long_callback'], trigger_by=self.get_sltp_values()['trigger_by'], \
-                        split=self.get_sltp_values()['split'], interval=self.get_sltp_values()['interval'])
+                                callback=self.get_sltp_values()['stop_long_callback'],
+                                trigger_by=self.get_sltp_values()['trigger_by'],
+                                split=self.get_sltp_values()['split'], 
+                                interval=self.get_sltp_values()['interval'])
         if sl_percent_short > 0 and is_sl_full_size == False:
             if pos_size < 0:
                 sl_price_short = round(avg_entry + (avg_entry*sl_percent_short), self.quote_rounding)
@@ -1400,12 +1430,16 @@ class Bybit:
                     self.cancel(id=sl_id)
                     #time.sleep(0.05)
                     self.order("SL", True, abs(pos_size), stop=sl_price_short, reduce_only=True,
-                                callback=self.get_sltp_values()['stop_short_callback'], trigger_by=self.get_sltp_values()['trigger_by'], \
-                        split=self.get_sltp_values()['split'], interval=self.get_sltp_values()['interval']) 
+                                callback=self.get_sltp_values()['stop_short_callback'], 
+                                trigger_by=self.get_sltp_values()['trigger_by'],
+                                split=self.get_sltp_values()['split'], 
+                                interval=self.get_sltp_values()['interval']) 
                 else:  
                     self.order("SL", True, abs(pos_size), stop=sl_price_short, reduce_only=True,
-                                callback=self.get_sltp_values()['stop_short_callback'], trigger_by=self.get_sltp_values()['trigger_by'], \
-                        split=self.get_sltp_values()['split'], interval=self.get_sltp_values()['interval'])       
+                                callback=self.get_sltp_values()['stop_short_callback'], 
+                                trigger_by=self.get_sltp_values()['trigger_by'],
+                                split=self.get_sltp_values()['split'], 
+                                interval=self.get_sltp_values()['interval'])       
 
     def fetch_ohlcv(self, bin_size, start_time, end_time):
         """
@@ -1472,8 +1506,8 @@ class Bybit:
         Recalculate and obtain data of a timeframe higher than the current chart timeframe
         withou looking into the furute that would cause undesired effects.
         """     
-        if data == None:   
-            timeframe_list = [allowed_range_minute_granularity[t][3] for t in self.bin_size] # minute count of a timeframe for sorting when sorting is needed 
+        if data == None: # minute count of a timeframe for sorting when sorting is needed   
+            timeframe_list = [allowed_range_minute_granularity[t][3] for t in self.bin_size] 
             timeframe_list.sort(reverse=True)
             t = find_timeframe_string(timeframe_list[-1])     
             data = self.timeframe_data[t]      
@@ -1491,13 +1525,13 @@ class Bybit:
                 start_time = end_time - self.ohlcv_len * delta(t)
                 self.timeframe_data[t] = self.fetch_ohlcv(t, start_time, end_time)
                 self.timeframe_info[t] = {
-                                "allowed_range": allowed_range_minute_granularity[t][0] 
-                                                    if self.minute_granularity else allowed_range[t][0], 
-                                "ohlcv": self.timeframe_data[t][:-1], # Dataframe with closed candles                                                   
-                                "last_action_time": None,#self.timeframe_data[t].iloc[-1].name, # Last strategy execution time
-                                "last_candle": self.timeframe_data[t].iloc[-2].values,  # Store last complete candle
-                                "partial_candle": self.timeframe_data[t].iloc[-1].values  # Store incomplete candle
-                                }
+                            "allowed_range": allowed_range_minute_granularity[t][0] 
+                                                if self.minute_granularity else allowed_range[t][0], 
+                            "ohlcv": self.timeframe_data[t][:-1], # Dataframe with closed candles                                                   
+                            "last_action_time": None,#self.timeframe_data[t].iloc[-1].name, # Last strategy execution time
+                            "last_candle": self.timeframe_data[t].iloc[-2].values,  # Store last complete candle
+                            "partial_candle": self.timeframe_data[t].iloc[-1].values  # Store incomplete candle
+                            }
                 # The last candle is an incomplete candle with timestamp in future                
                 if self.timeframe_data[t].iloc[-1].name > end_time:                    
                     last_candle = self.timeframe_data[t].iloc[-1].values # Store last candle
@@ -1508,8 +1542,8 @@ class Bybit:
         #logger.info(f"timeframe_data: {self.timeframe_data}") 
 
         # Timeframes to be updated
-        timeframes_to_update = [allowed_range_minute_granularity[t][3] if self.timeframes_sorted != None else 
-                                t for t in self.timeframe_info if self.timeframe_info[t]['allowed_range'] == action]
+        timeframes_to_update = [allowed_range_minute_granularity[t][3] if self.timeframes_sorted != None 
+                                else t for t in self.timeframe_info if self.timeframe_info[t]['allowed_range'] == action]
         # Sorting timeframes that will be updated
         if self.timeframes_sorted == True:
             timeframes_to_update.sort(reverse=True)
@@ -1530,7 +1564,9 @@ class Bybit:
             #self.timeframe_data[t] = pd.concat([self.timeframe_data[t], new_data]) 
 
             # exclude current candle data and store partial candle data
-            re_sample_data = resample(self.timeframe_data[t], t, minute_granularity=True if self.minute_granularity else False)
+            re_sample_data = resample(self.timeframe_data[t], 
+                                      t, 
+                                      minute_granularity=True if self.minute_granularity else False)
             self.timeframe_info[t]['partial_candle'] = re_sample_data.iloc[-1].values # store partial candle data
             re_sample_data =re_sample_data[:-1].dropna()  # exclude current candle data
 
@@ -1550,7 +1586,8 @@ class Bybit:
             # The last candle in the buffer needs to be preserved 
             # while resetting the buffer as it may be incomlete
             # or contains latest data from WS
-            self.timeframe_data[t] = pd.concat([re_sample_data.iloc[-1 * self.ohlcv_len:, :], self.timeframe_data[t].iloc[[-1]]])
+            self.timeframe_data[t] = pd.concat([re_sample_data.iloc[-1 * self.ohlcv_len:, :], 
+                                                self.timeframe_data[t].iloc[[-1]]])
             #store ohlcv dataframe to timeframe_info dictionary
             self.timeframe_info[t]["ohlcv"] = re_sample_data
             #logger.info(f"Buffer Right Edge: {self.data.iloc[-1]}")
@@ -1632,7 +1669,8 @@ class Bybit:
         if len(orders) == 0:
             return
         for o in orders:
-            if(o['X' if self.spot else 'orderStatus'].upper() == "CANCELLED" or o['X' if self.spot else 'orderStatus'] == "EXPIRED") \
+            if(o['X' if self.spot else 'orderStatus'].upper() == "CANCELLED"
+               or o['X' if self.spot else 'orderStatus'] == "EXPIRED") \
                 and self.order_update_log:
                 logger.info(f"========= Order Update ==============")
                 logger.info(f"ID     : {o['c' if self.spot else 'orderLinkId']}") # Clinet Order ID
@@ -1671,7 +1709,8 @@ class Bybit:
                 self.callbacks.pop(o['c' if self.spot else 'orderLinkId'], None) # Removes the respective order callback
 
             #only after order if completely filled
-            elif(self.order_update_log  and float(o['q' if self.spot else 'qty']) == float(o['z' if self.spot else 'lastExecQty'])) \
+            elif(self.order_update_log  
+                 and float(o['q' if self.spot else 'qty']) == float(o['z' if self.spot else 'lastExecQty'])) \
                  and o['X' if self.spot else 'orderStatus'].upper() != "CANCELLED": 
                 logger.info(f"========= Order Fully Filled ==============")
                 logger.info(f"ID     : {o['c' if self.spot else 'orderLinkId']}") # Clinet Order ID
@@ -1763,7 +1802,8 @@ class Bybit:
         else:
             self.bookticker.update(bookticker)
 
-        if ('bp' in  self.bookticker and 'ap'in self.bookticker) or ('b' in self.bookticker and 'a' in self.bookticker):
+        if ('bp' in  self.bookticker and 'ap'in self.bookticker) \
+            or ('b' in self.bookticker and 'a' in self.bookticker):
             self.best_bid_price = float(self.bookticker['bp']) if self.spot else float(self.bookticker['b'][0][0])
             self.best_ask_price = float(self.bookticker['ap']) if self.spot else float(self.bookticker['a'][0][0])
             self.bid_quantity_L1 = float(self.bookticker['bq']) if self.spot else float(self.bookticker['b'][0][1])          
@@ -1795,8 +1835,10 @@ class Bybit:
 
             if len(self.bin_size) > 0: 
                 for t in self.bin_size:                                        
-                    self.ws.bind(allowed_range_minute_granularity[t][0] if self.minute_granularity else allowed_range[t][0] \
-                        , self.__update_ohlcv)      
+                    self.ws.bind(
+                        allowed_range_minute_granularity[t][0] if self.minute_granularity else allowed_range[t][0],
+                        self.__update_ohlcv
+                        )      
             #self.ws.bind("trade", self.__update_ohlcv) # tick data
             self.ws.bind('instrument', self.__on_update_instrument)
             self.ws.bind('wallet', self.__on_update_wallet)

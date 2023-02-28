@@ -698,9 +698,9 @@ class BitMex:
      
     def eval_sltp(self):
         """
-        Simple take profit and stop loss implementation,
-        which sends a reduce only stop loss order upon entering a position.
-        - requires setting values with sltp() prior
+        Simple take profit and stop loss implementation
+        - sends a reduce only stop loss order upon entering a position.
+        - requires setting values with sltp() prior      
         """
         pos_size = self.get_position_size()
         # sl_order = self.get_open_order('SL')
@@ -863,8 +863,8 @@ class BitMex:
         #logger.info(f"{self.timeframe_data}") 
 
         # Timeframes to be updated
-        timeframes_to_update = [allowed_range_minute_granularity[t][3] if self.timeframes_sorted != None else 
-                                t for t in self.timeframe_info if self.timeframe_info[t]['allowed_range'] == action]        
+        timeframes_to_update = [allowed_range_minute_granularity[t][3] if self.timeframes_sorted != None 
+                                else t for t in self.timeframe_info if self.timeframe_info[t]['allowed_range'] == action]        
         #logger.info(f"timeframes to update: {timeframes_to_update}")
 
         # Sorting timeframes that will be updated
@@ -887,7 +887,9 @@ class BitMex:
                 self.timeframe_data[t] = pd.concat([self.timeframe_data[t], new_data])      
 
             # exclude current candle data and store partial candle data
-            re_sample_data = resample(self.timeframe_data[t], t, minute_granularity=True if self.minute_granularity else False)
+            re_sample_data = resample(self.timeframe_data[t], 
+                                      t, 
+                                      minute_granularity=True if self.minute_granularity else False)
             self.timeframe_info[t]['partial_candle'] = re_sample_data.iloc[-1].values # store partial candle data
             re_sample_data =re_sample_data[:-1] # exclude current candle data
 
@@ -907,7 +909,8 @@ class BitMex:
             # The last candle in the buffer needs to be preserved 
             # while resetting the buffer as it may be incomlete
             # or contains latest data from WS
-            self.timeframe_data[t] = pd.concat([re_sample_data.iloc[-1 * self.ohlcv_len:, :], self.timeframe_data[t].iloc[[-1]]]) 
+            self.timeframe_data[t] = pd.concat([re_sample_data.iloc[-1 * self.ohlcv_len:, :], 
+                                                self.timeframe_data[t].iloc[[-1]]]) 
             #store ohlcv dataframe to timeframe_info dictionary
             self.timeframe_info[t]["ohlcv"] = re_sample_data
             #logger.info(f"Buffer Right Edge: {self.data.iloc[-1]}")
@@ -1049,8 +1052,10 @@ class BitMex:
 
             if len(self.bin_size) > 0: 
                 for t in self.bin_size:                                        
-                    self.ws.bind(allowed_range_minute_granularity[t][0] if self.minute_granularity else allowed_range[t][0] \
-                        , self.__update_ohlcv)                              
+                    self.ws.bind(
+                        allowed_range_minute_granularity[t][0] if self.minute_granularity else allowed_range[t][0],
+                        self.__update_ohlcv
+                        )                              
             self.ws.bind('instrument', self.__on_update_instrument)
             self.ws.bind('wallet', self.__on_update_wallet)
             self.ws.bind('position', self.__on_update_position)

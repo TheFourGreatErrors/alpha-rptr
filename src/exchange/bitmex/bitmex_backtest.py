@@ -494,8 +494,8 @@ class BitMexBackTest(BitMexStub):
                 color = v['color']
                 plt.plot(self.df_ohlcv.index, self.df_ohlcv[k], color)
         plt.ylabel("Price(USD)")
-        ymin = min(self.df_ohlcv["low"]) - 200
-        ymax = max(self.df_ohlcv["high"]) + 200
+        ymin = min(self.df_ohlcv["low"]) - 0.05
+        ymax = max(self.df_ohlcv["high"]) + 0.05
         plt.vlines(self.buy_signals, ymin, ymax, "blue", linestyles='dashed', linewidth=1)
         plt.vlines(self.sell_signals, ymin, ymax, "red", linestyles='dashed', linewidth=1)
         plt.vlines(self.close_signals, ymin, ymax, "green", linestyles='dashed', linewidth=1)

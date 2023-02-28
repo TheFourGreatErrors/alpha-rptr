@@ -55,8 +55,10 @@ class BinanceFuturesWs:
         # listen key
         self.listenKey = None
         # API keys
-        self.api_key = conf['binance_test_keys'][self.account]['API_KEY'] if self.testnet else conf['binance_keys'][self.account]['API_KEY']
-        self.api_secret = conf['binance_test_keys'][self.account]['SECRET_KEY'] if self.testnet else conf['binance_keys'][self.account]['SECRET_KEY']        
+        self.api_key = conf['binance_test_keys'][self.account]['API_KEY'] \
+                            if self.testnet else conf['binance_keys'][self.account]['API_KEY']
+        self.api_secret = conf['binance_test_keys'][self.account]['SECRET_KEY'] \
+                            if self.testnet else conf['binance_keys'][self.account]['SECRET_KEY']        
         if test:
             self.domain = 'stream.binancefuture.com'
         else:

@@ -12,8 +12,9 @@ import pandas as pd
 from bravado.exception import HTTPNotFound
 from pytz import UTC
 
-from src import logger, allowed_range, allowed_range_minute_granularity, \
-    find_timeframe_string, to_data_frame, resample, delta, FatalError, notify, ord_suffix
+from src import (logger, allowed_range, allowed_range_minute_granularity,
+                 find_timeframe_string, to_data_frame, resample, delta,
+                 FatalError, notify, ord_suffix)
 from src import retry_binance_futures as retry
 from src.config import config as conf
 from src.exchange.binance_futures.binance_futures_api import Client
@@ -51,13 +52,13 @@ class BinanceFutures:
         self.account = account
         # Pair
         self.pair = pair
-		# Base Asset
+        # Base Asset
         self.base_asset = None
-	    # Asset Rounding
+        # Asset Rounding
         self.asset_rounding = None
-	    # Quote Asset
+        # Quote Asset
         self.quote_asset = None
-	    # Quote Rounding
+        # Quote Rounding
         self.quote_rounding = None
         # Use testnet?
         self.demo = demo
@@ -135,8 +136,10 @@ class BinanceFutures:
         """
         if self.client is not None:
             return        
-        api_key = conf['binance_test_keys'][self.account]['API_KEY'] if self.demo else conf['binance_keys'][self.account]['API_KEY']        
-        api_secret = conf['binance_test_keys'][self.account]['SECRET_KEY'] if self.demo else conf['binance_keys'][self.account]['SECRET_KEY']
+        api_key = conf['binance_test_keys'][self.account]['API_KEY'] \
+                    if self.demo else conf['binance_keys'][self.account]['API_KEY']        
+        api_secret = conf['binance_test_keys'][self.account]['SECRET_KEY'] \
+                    if self.demo else conf['binance_keys'][self.account]['SECRET_KEY']
         
         self.client = Client(api_key=api_key, api_secret=api_secret, testnet=self.demo)
 
@@ -153,20 +156,22 @@ class BinanceFutures:
             self.quote_asset = symbol[0]['quoteAsset']
             self.quote_rounding = symbol[0]['pricePrecision']      
 
-            logger.info(f"Asset: {self.base_asset} Rounding: {self.asset_rounding} - Quote: {self.quote_asset} Rounding: {self.quote_rounding}")      
-        
         self.sync()  
+
+        logger.info(f"Asset: {self.base_asset} Rounding: {self.asset_rounding}"\
+                    f"- Quote: {self.quote_asset} Rounding: {self.quote_rounding}") 
 
         logger.info(f"Position Size: {self.position_size:.3f} Entry Price: {self.entry_price:.2f}")
         
     def sync(self):
-
         # Position
         self.position = self.get_position()
         # Position size
         self.position_size = self.get_position_size()
         # Entry price
         self.entry_price = self.get_position_avg_price()
+        # Market price
+        self.market_price = self.get_market_price()
         # Margin
         self.margin = self.get_margin()
     
@@ -181,7 +186,7 @@ class BinanceFutures:
         maintenance margin
         :return:
         """
-        return 0.04
+        return 0.004
 
     def get_lot(self, lot_leverage=1, only_available_balance=True, round_decimals=None):
         """        
@@ -191,9 +196,7 @@ class BinanceFutures:
         :return:
         """
         if lot_leverage is None:
-            lot_leverage = self.get_leverage()
-
-        #account_information = self.get_account_information()  
+            lot_leverage = self.get_leverage()        
 
         balance = self.get_available_balance() if only_available_balance else self.get_balance() 
       
@@ -201,7 +204,7 @@ class BinanceFutures:
             logger.info(f"Can't Get Balance!")
             return balance
 
-        return round((1 - self.get_retain_rate()) * balance #* float(account_information['totalMarginBalance'])
+        return round((1 - self.get_retain_rate()) * balance
                       / (1 if self.qty_in_usdt else  self.get_market_price()) * lot_leverage,
                       round_decimals if round_decimals != None else self.asset_rounding)    
 
@@ -293,7 +296,8 @@ class BinanceFutures:
         """
         self.__init_client()
 
-        #Unfortunately we cannot rely just on the WebSocket updates (for instance PnL) since binance is not pushing updates for the ACCOUNT_UPDATE stream often enough
+        # Unfortunately we cannot rely just on the WebSocket updates
+        # (for instance PnL) since binance is not pushing updates for the ACCOUNT_UPDATE stream often enough
         #read more here https://binance-docs.github.io/apidocs/futures/en/#event-balance-and-position-update
 
         # if self.position is not None:
@@ -372,7 +376,8 @@ class BinanceFutures:
         elif (position_size < 0):
             close_rate = ((avg_entry_price - close)/avg_entry_price) - commission
 
-        profit = round(abs(position_size) * close_rate * (1 if self.qty_in_usdt else avg_entry_price), self.quote_rounding)
+        profit = round(abs(position_size)
+                        * close_rate * (1 if self.qty_in_usdt else avg_entry_price), self.quote_rounding)
 
         return profit
         
@@ -438,7 +443,8 @@ class BinanceFutures:
             return False
 
         try:
-            retry(lambda: self.client.futures_cancel_order(symbol=self.pair, origClientOrderId=order['clientOrderId']))
+            retry(lambda: self.client.futures_cancel_order(symbol=self.pair,
+                                                           origClientOrderId=order['clientOrderId']))
         except HTTPNotFound:
             return False
         logger.info(f"Cancel Order : (clientOrderId, type, side, quantity, price, stop) = "
@@ -447,40 +453,59 @@ class BinanceFutures:
         self.callbacks.pop(order['clientOrderId'])
         return True
 
-    def __new_order(self, ord_id, side, ord_qty, limit=0, stop=0, post_only=False, reduce_only=False, trailing_stop=0, activationPrice=0, workingType="CONTRACT_PRICE"):
+    def __new_order(
+            self,
+            ord_id,
+            side,
+            ord_qty,
+            limit=0,
+            stop=0,
+            post_only=False,
+            reduce_only=False,
+            trailing_stop=0,
+            activationPrice=0,
+            workingType="CONTRACT_PRICE"
+            ):
         """
         create an order
         """
         #removes "+" from order suffix, because of the new regular expression rule for newClientOrderId updated as ^[\.A-Z\:/a-z0-9_-]{1,36}$ (2021-01-26)
         ord_id = ord_id.replace("+", "k") 
+
+        reduce_only = "true" if reduce_only else "false"
         
         if  trailing_stop > 0 and activationPrice > 0:
             ord_type = "TRAILING_STOP_MARKET"
             retry(lambda: self.client.futures_create_order(symbol=self.pair, type=ord_type, newClientOrderId=ord_id,
-                                                              side=side, quantity=ord_qty, activationPrice=activationPrice,
-                                                              callbackRate=trailing_stop, reduceOnly="true" if reduce_only else "false", workingType=workingType))
+                                                           side=side, quantity=ord_qty, activationPrice=activationPrice,
+                                                           callbackRate=trailing_stop, reduceOnly=reduce_only,
+                                                           workingType=workingType))
         elif trailing_stop > 0:
             ord_type = "TRAILING_STOP_MARKET"
             retry(lambda: self.client.futures_create_order(symbol=self.pair, type=ord_type, newClientOrderId=ord_id,
-                                                              side=side, quantity=ord_qty, callbackRate=trailing_stop, reduceOnly="true" if reduce_only else "false", workingType=workingType))
+                                                            side=side, quantity=ord_qty, callbackRate=trailing_stop,
+                                                            reduceOnly=reduce_only, workingType=workingType))
         elif limit > 0 and post_only:
             ord_type = "LIMIT"
             retry(lambda: self.client.futures_create_order(symbol=self.pair, type=ord_type, newClientOrderId=ord_id,
-                                                              side=side, quantity=ord_qty, price=limit,
-                                                              timeInForce="GTX", reduceOnly="true" if reduce_only else "false"))
+                                                           side=side, quantity=ord_qty, price=limit,
+                                                           timeInForce="GTX", reduceOnly=reduce_only))
         elif limit > 0 and stop > 0:
             ord_type = "STOP"
             retry(lambda: self.client.futures_create_order(symbol=self.pair, type=ord_type, newClientOrderId=ord_id,
-                                                              side=side, quantity=ord_qty, price=limit,
-                                                              stopPrice=stop, reduceOnly="true" if reduce_only else "false", workingType=workingType))
+                                                           side=side, quantity=ord_qty, price=limit,
+                                                           stopPrice=stop, reduceOnly=reduce_only,
+                                                           workingType=workingType))
         elif limit > 0:   
             ord_type = "LIMIT"
             retry(lambda: self.client.futures_create_order(symbol=self.pair, type=ord_type, newClientOrderId=ord_id,
-                                                              side=side, quantity=ord_qty, price=limit, timeInForce="GTC", reduceOnly="true" if reduce_only else "false"))   
+                                                           side=side, quantity=ord_qty, price=limit, timeInForce="GTC",
+                                                           reduceOnly=reduce_only))   
         elif stop > 0:
             ord_type = "STOP_MARKET"
             retry(lambda: self.client.futures_create_order(symbol=self.pair, type=ord_type, newClientOrderId=ord_id,
-                                                              side=side, quantity=ord_qty, stopPrice=stop, reduceOnly="true" if reduce_only else "false", workingType=workingType))        
+                                                           side=side, quantity=ord_qty, stopPrice=stop,
+                                                           reduceOnly=reduce_only, workingType=workingType))        
         elif post_only: # limit order with post only
             ord_type = "LIMIT"
             i = 0            
@@ -488,8 +513,8 @@ class BinanceFutures:
                 prices = self.get_orderbook_ticker()
                 limit = float(prices['bidPrice']) if side == "Buy" else float(prices['askPrice'])                
                 retry(lambda: self.client.futures_create_order(symbol=self.pair, type=ord_type, newClientOrderId=ord_id,
-                                                                  side=side, quantity=ord_qty, price=limit,
-                                                                  timeInForce="GTX", reduceOnly="true" if reduce_only else "false"))
+                                                               side=side, quantity=ord_qty, price=limit,
+                                                               timeInForce="GTX", reduceOnly=reduce_only))
                 time.sleep(4)
 
                 self.cancel(ord_id)
@@ -505,7 +530,7 @@ class BinanceFutures:
         else:
             ord_type = "MARKET"
             retry(lambda: self.client.futures_create_order(symbol=self.pair, type=ord_type, newClientOrderId=ord_id,
-                                                              side=side, quantity=ord_qty, reduceOnly="true" if reduce_only else "false"))
+                                                           side=side, quantity=ord_qty, reduceOnly=reduce_only))
 
         if self.enable_trade_log:
             logger.info(f"========= New Order ==============")
@@ -538,8 +563,22 @@ class BinanceFutures:
 
     #         notify(f"Amend Order\nType: {ord_type}\nSide: {side}\nQty: {ord_qty}\nLimit: {limit}\nStop: {stop}")
 
-    def entry(self, id, long, qty, limit=0, stop=0, post_only=False, reduce_only=False, when=True, round_decimals=None,
-                 callback=None, workingType="CONTRACT_PRICE", split=1, interval=0):
+    def entry(
+            self,
+            id,
+            long,
+            qty,
+            limit=0,
+            stop=0,
+            post_only=False,
+            reduce_only=False,
+            when=True,
+            round_decimals=None,
+            callback=None,
+            workingType="CONTRACT_PRICE",
+            split=1,
+            interval=0
+            ):
         """
         places an entry order, works as equivalent to tradingview pine script implementation
         https://tradingview.com/study-script-reference/#fun_strategy{dot}entry
@@ -576,10 +615,28 @@ class BinanceFutures:
         trailing_stop=0
         activationPrice=0
 
-        self.order(id, long, ord_qty, limit, stop, post_only, reduce_only, trailing_stop, activationPrice, when, callback, workingType, split, interval)
+        self.order(id, long, ord_qty, limit, stop, post_only, reduce_only,
+                    trailing_stop, activationPrice, when, callback, workingType, split, interval)
 
-    def entry_pyramiding(self, id, long, qty, limit=0, stop=0, trailValue= 0, post_only=False, reduce_only=False, cancel_all=False, pyramiding=2, when=True, round_decimals=None,
-                             callback=None, workingType="CONTRACT_PRICE", split=1, interval=0):
+    def entry_pyramiding(
+            self,
+            id,
+            long,
+            qty,
+            limit=0,
+            stop=0,
+            trailValue= 0,
+            post_only=False,
+            reduce_only=False,
+            cancel_all=False,
+            pyramiding=2,
+            when=True,
+            round_decimals=None,
+            callback=None,
+            workingType="CONTRACT_PRICE",
+            split=1,
+            interval=0
+            ):
         """
         places an entry order, works as equivalent to tradingview pine script implementation with pyramiding
         https://tradingview.com/study-script-reference/#fun_strategy{dot}entry
@@ -623,7 +680,8 @@ class BinanceFutures:
         if (long and pos_size + qty > pyramiding*qty) or (not long and pos_size - qty < -pyramiding*qty):
             ord_qty = pyramiding*qty - abs(pos_size)
      
-        # make sure it doesnt spam small entries, which in most cases would trigger risk management orders evaluation, you can make this less than 2% if needed  
+        # make sure it doesnt spam small entries, which in most cases would trigger risk management orders evaluation,
+        # you can make this less than 2% if needed  
         if ord_qty < ((pyramiding*qty) / 100) * 2:
             return       
 
@@ -632,10 +690,26 @@ class BinanceFutures:
 
         ord_qty = round(ord_qty, round_decimals if round_decimals != None else self.asset_rounding)
 
-        self.order(id, long, ord_qty, limit, stop, post_only, reduce_only, trailing_stop, activationPrice, when, callback, workingType, split, interval)
+        self.order(id, long, ord_qty, limit, stop, post_only, reduce_only,
+                    trailing_stop, activationPrice, when, callback, workingType, split, interval)
 
-    def order(self, id, long, qty, limit=0, stop=0, post_only=False, reduce_only=False, trailing_stop=0, activationPrice=0, when=True,
-                 callback=None, workingType="CONTRACT_PRICE", split=1, interval=0):
+    def order(
+            self,
+            id,
+            long,
+            qty,
+            limit=0, 
+            stop=0, 
+            post_only=False, 
+            reduce_only=False,
+            trailing_stop=0, 
+            activationPrice=0, 
+            when=True, 
+            callback=None,
+            workingType="CONTRACT_PRICE", 
+            split=1, 
+            interval=0
+            ):
         """
         places an order, works as equivalent to tradingview pine script implementation
         https://www.tradingview.com/pine-script-reference/#fun_strategy{dot}order
@@ -698,18 +772,22 @@ class BinanceFutures:
                         sub_ord_callback = type(self)(self.count+1)
                     
                     # Override stop for subsequent sub orders
-                    exchange.order(sub_ord_id, long, s_ord_qty, limit, 0, post_only, reduce_only, trailing_stop, activationPrice, workingType=workingType, callback=sub_ord_callback)
+                    exchange.order(sub_ord_id, long, s_ord_qty, limit, 0, post_only, reduce_only,
+                                    trailing_stop, activationPrice, workingType=workingType, callback=sub_ord_callback)
 
             sub_ord_id = f"{id}_sub1"
-            self.order(sub_ord_id, long, sub_ord_qty, limit, stop, post_only, reduce_only, trailing_stop, activationPrice, workingType=workingType, callback=split_order(1))
+            self.order(sub_ord_id, long, sub_ord_qty, limit, stop, post_only, reduce_only,
+                        trailing_stop, activationPrice, workingType=workingType, callback=split_order(1))
             return
 
         self.callbacks[ord_id] = callback
 
         if order is None:
-            self.__new_order(ord_id, side, ord_qty, limit, stop, post_only, reduce_only, trailing_stop, activationPrice, workingType)
+            self.__new_order(ord_id, side, ord_qty, limit, stop, post_only, reduce_only,
+                              trailing_stop, activationPrice, workingType)
         else:
-            self.__new_order(ord_id, side, ord_qty, limit, stop, post_only, reduce_only, trailing_stop, activationPrice, workingType)
+            self.__new_order(ord_id, side, ord_qty, limit, stop, post_only, reduce_only,
+                              trailing_stop, activationPrice, workingType)
             #self.__amend_order(ord_id, side, ord_qty, limit, stop, post_only)
             return    
 
@@ -761,7 +839,17 @@ class BinanceFutures:
         orderbook_ticker = retry(lambda: self.client.futures_orderbook_ticker(symbol=self.pair))
         return orderbook_ticker
 
-    def exit(self, profit=0, loss=0, trail_offset=0, profit_callback=None, loss_callback=None, trail_callback=None, split=1, interval=0):
+    def exit(
+            self, 
+            profit=0, 
+            loss=0, 
+            trail_offset=0, 
+            profit_callback=None, 
+            loss_callback=None, 
+            trail_callback=None, 
+            split=1, 
+            interval=0
+            ):
         """
         profit taking and stop loss and trailing, if both stop loss and trailing offset are set trailing_offset takes precedence
         :param profit: Profit (specified in ticks)
@@ -779,10 +867,25 @@ class BinanceFutures:
                             'interval': interval
                             }
 
-    def sltp(self, profit_long=0, profit_short=0, stop_long=0, stop_short=0, eval_tp_next_candle=False, round_decimals=None,
-                 profit_long_callback=None, profit_short_callback=None, stop_long_callback=None, stop_short_callback=None, workingType="CONTRACT_PRICE", split=1, interval = 0):
+    def sltp(
+            self, 
+            profit_long=0, 
+            profit_short=0, 
+            stop_long=0, 
+            stop_short=0, 
+            eval_tp_next_candle=False, 
+            round_decimals=None,
+            profit_long_callback=None, 
+            profit_short_callback=None, 
+            stop_long_callback=None, 
+            stop_short_callback=None, 
+            workingType="CONTRACT_PRICE", 
+            split=1, 
+            interval = 0
+            ):
         """
-        Simple take profit and stop loss implementation, which sends a reduce only stop loss order upon entering a position.
+        Simple take profit and stop loss implementation,
+        - sends a reduce only stop loss order upon entering a position.
         :param profit_long: profit target value in % for longs
         :param profit_short: profit target value in % for shorts
         :param stop_long: stop loss value for long position in %
@@ -832,30 +935,35 @@ class BinanceFutures:
             if self.get_position_size() > 0 and \
                     self.get_market_price() - self.get_exit_order()['trail_offset'] < self.get_trail_price():
                 logger.info(f"Loss cut by trailing stop: {self.get_exit_order()['trail_offset']}")
-                self.close_all(self.get_exit_order()['trail_callback'], self.get_exit_order()['split'], self.get_exit_order()['interval'])
+                self.close_all(self.get_exit_order()['trail_callback'],
+                                self.get_exit_order()['split'], self.get_exit_order()['interval'])
             elif self.get_position_size() < 0 and \
                     self.get_market_price() + self.get_exit_order()['trail_offset'] > self.get_trail_price():
                 logger.info(f"Loss cut by trailing stop: {self.get_exit_order()['trail_offset']}")
-                self.close_all(self.get_exit_order()['trail_callback'], self.get_exit_order()['split'], self.get_exit_order()['interval'])
+                self.close_all(self.get_exit_order()['trail_callback'],
+                                self.get_exit_order()['split'], self.get_exit_order()['interval'])
 
         #stop loss
         if unrealised_pnl < 0 and \
                 0 < self.get_exit_order()['loss'] < abs(unrealised_pnl):
             logger.info(f"Loss cut by stop loss: {self.get_exit_order()['loss']}")
-            self.close_all(self.get_exit_order()['loss_callback'], self.get_exit_order()['split'], self.get_exit_order()['interval'])
+            self.close_all(self.get_exit_order()['loss_callback'],
+                            self.get_exit_order()['split'], self.get_exit_order()['interval'])
 
         # profit take
         if unrealised_pnl > 0 and \
                 0 < self.get_exit_order()['profit'] < abs(unrealised_pnl):
             logger.info(f"Take profit by stop profit: {self.get_exit_order()['profit']}")
-            self.close_all(self.get_exit_order()['profit_callback'], self.get_exit_order()['split'], self.get_exit_order()['interval'])
+            self.close_all(self.get_exit_order()['profit_callback'],
+                            self.get_exit_order()['split'], self.get_exit_order()['interval'])
 
     # simple TP implementation
 
     def eval_sltp(self):
         """
-        Simple take profit and stop loss implementation, which sends a reduce only stop loss order upon entering a position.
-        - requires setting values with sltp() prior
+        Simple take profit and stop loss implementation
+        - sends a reduce only stop loss order upon entering a position.
+        - requires setting values with sltp() prior      
         """
 
         pos_size = float(self.get_position()['positionAmt'])
@@ -883,26 +991,37 @@ class BinanceFutures:
             if pos_size > 0:                
                 tp_price_long = round(avg_entry +(avg_entry*tp_percent_long), self.quote_rounding) 
                 if tp_order is not None:
-                    time.sleep(2)                                         
+                    time.sleep(1)                                         
                     self.cancel(id=tp_order['clientOrderId'])
-                    time.sleep(2)
-                    self.order("TP", False, abs(pos_size), limit=tp_price_long, reduce_only=True, callback=self.get_sltp_values()['profit_long_callback'], workingType=self.get_sltp_values()['sltp_working_type'], \
-                        split=self.get_sltp_values()['split'], interval=self.get_sltp_values()['interval'])
+                    time.sleep(1)
+                    self.order("TP", False, abs(pos_size), limit=tp_price_long, reduce_only=True, 
+                               callback=self.get_sltp_values()['profit_long_callback'], 
+                               workingType=self.get_sltp_values()['sltp_working_type'],
+                               split=self.get_sltp_values()['split'], 
+                               interval=self.get_sltp_values()['interval'])
                 else:               
-                    self.order("TP", False, abs(pos_size), limit=tp_price_long, reduce_only=True, callback=self.get_sltp_values()['profit_long_callback'], workingType=self.get_sltp_values()['sltp_working_type'], \
-                        split=self.get_sltp_values()['split'], interval=self.get_sltp_values()['interval'])
+                    self.order("TP", False, abs(pos_size), limit=tp_price_long, reduce_only=True, 
+                               callback=self.get_sltp_values()['profit_long_callback'], 
+                               workingType=self.get_sltp_values()['sltp_working_type'],
+                               split=self.get_sltp_values()['split'], 
+                               interval=self.get_sltp_values()['interval'])
         if tp_percent_short > 0 and is_tp_full_size == False:
             if pos_size < 0:                
                 tp_price_short = round(avg_entry -(avg_entry*tp_percent_short), self.quote_rounding)
                 if tp_order is not None:
-                    time.sleep(2)                                                        
+                    time.sleep(1)                                                        
                     self.cancel(id=tp_order['clientOrderId'])
-                    time.sleep(2)
-                    self.order("TP", True, abs(pos_size), limit=tp_price_short, reduce_only=True, callback=self.get_sltp_values()['profit_short_callback'], workingType=self.get_sltp_values()['sltp_working_type'], \
-                        split=self.get_sltp_values()['split'], interval=self.get_sltp_values()['interval'])
+                    time.sleep(1)
+                    self.order("TP", True, abs(pos_size), limit=tp_price_short, reduce_only=True, 
+                               callback=self.get_sltp_values()['profit_short_callback'], 
+                               workingType=self.get_sltp_values()['sltp_working_type'],
+                               split=self.get_sltp_values()['split'], interval=self.get_sltp_values()['interval'])
                 else:
-                    self.order("TP", True, abs(pos_size), limit=tp_price_short, reduce_only=True, callback=self.get_sltp_values()['profit_short_callback'], workingType=self.get_sltp_values()['sltp_working_type'], \
-                        split=self.get_sltp_values()['split'], interval=self.get_sltp_values()['interval'])
+                    self.order("TP", True, abs(pos_size), limit=tp_price_short, reduce_only=True, 
+                               callback=self.get_sltp_values()['profit_short_callback'], 
+                               workingType=self.get_sltp_values()['sltp_working_type'],
+                               split=self.get_sltp_values()['split'], 
+                               interval=self.get_sltp_values()['interval'])
         #sl
         sl_order = self.get_open_order('SL')
         if sl_order is not None:
@@ -920,26 +1039,38 @@ class BinanceFutures:
             if pos_size > 0:
                 sl_price_long = round(avg_entry - (avg_entry*sl_percent_long), self.quote_rounding)
                 if sl_order is not None:
-                    time.sleep(2)                                    
+                    time.sleep(1)                                    
                     self.cancel(id=sl_order['clientOrderId'])
-                    time.sleep(2)
-                    self.order("SL", False, abs(pos_size), stop=sl_price_long, reduce_only=True, callback=self.get_sltp_values()['stop_long_callback'], workingType=self.get_sltp_values()['sltp_working_type'], \
-                        split=self.get_sltp_values()['split'], interval=self.get_sltp_values()['interval'])
+                    time.sleep(1)
+                    self.order("SL", False, abs(pos_size), stop=sl_price_long, reduce_only=True, 
+                               callback=self.get_sltp_values()['stop_long_callback'], 
+                               workingType=self.get_sltp_values()['sltp_working_type'], 
+                               split=self.get_sltp_values()['split'], 
+                               interval=self.get_sltp_values()['interval'])
                 else:  
-                    self.order("SL", False, abs(pos_size), stop=sl_price_long, reduce_only=True, callback=self.get_sltp_values()['stop_long_callback'], workingType=self.get_sltp_values()['sltp_working_type'], \
-                        split=self.get_sltp_values()['split'], interval=self.get_sltp_values()['interval'])
+                    self.order("SL", False, abs(pos_size), stop=sl_price_long, reduce_only=True, 
+                               callback=self.get_sltp_values()['stop_long_callback'], 
+                               workingType=self.get_sltp_values()['sltp_working_type'],
+                               split=self.get_sltp_values()['split'], 
+                               interval=self.get_sltp_values()['interval'])
         if sl_percent_short > 0 and is_sl_full_size == False:
             if pos_size < 0:
                 sl_price_short = round(avg_entry + (avg_entry*sl_percent_short), self.quote_rounding)
                 if sl_order is not None: 
-                    time.sleep(2)                                         
+                    time.sleep(1)                                         
                     self.cancel(id=sl_order['clientOrderId'])
-                    time.sleep(2)
-                    self.order("SL", True, abs(pos_size), stop=sl_price_short, reduce_only=True, callback=self.get_sltp_values()['stop_short_callback'], workingType=self.get_sltp_values()['sltp_working_type'], \
-                        split=self.get_sltp_values()['split'], interval=self.get_sltp_values()['interval']) 
+                    time.sleep(1)
+                    self.order("SL", True, abs(pos_size), stop=sl_price_short, reduce_only=True, 
+                               callback=self.get_sltp_values()['stop_short_callback'], 
+                               workingType=self.get_sltp_values()['sltp_working_type'], 
+                               split=self.get_sltp_values()['split'], 
+                               interval=self.get_sltp_values()['interval']) 
                 else:  
-                    self.order("SL", True, abs(pos_size), stop=sl_price_short, reduce_only=True, callback=self.get_sltp_values()['stop_short_callback'], workingType=self.get_sltp_values()['sltp_working_type'], \
-                        split=self.get_sltp_values()['split'], interval=self.get_sltp_values()['interval'])                         
+                    self.order("SL", True, abs(pos_size), stop=sl_price_short, reduce_only=True, 
+                               callback=self.get_sltp_values()['stop_short_callback'], 
+                               workingType=self.get_sltp_values()['sltp_working_type'],
+                               split=self.get_sltp_values()['split'], 
+                               interval=self.get_sltp_values()['interval'])                         
         
     def fetch_ohlcv(self, bin_size, start_time, end_time):
         """
@@ -963,9 +1094,11 @@ class BinanceFutures:
 
             logger.info(f"fetching OHLCV data - {left_time}")         
 
-            source = retry(lambda: self.client.futures_klines(symbol=self.pair, interval=fetch_bin_size,
-                                                                              startTime=left_time_to_timestamp, endTime=right_time_to_timestamp,
-                                                                              limit=1500))
+            source = retry(lambda: self.client.futures_klines(symbol=self.pair, 
+                                                              interval=fetch_bin_size,
+                                                              startTime=left_time_to_timestamp, 
+                                                              endTime=right_time_to_timestamp,
+                                                              limit=1500))
             if len(source) == 0:
                 break
             
@@ -996,10 +1129,11 @@ class BinanceFutures:
 
     def security(self, bin_size, data=None):
         """
-        Recalculate and obtain data of a timeframe higher than the current chart timeframe without looking into the furute that would cause undesired effects.
+        Recalculate and obtain data of a timeframe higher than the current chart timeframe
+        withou looking into the furute that would cause undesired effects.
         """     
-        if data == None:   
-            timeframe_list = [allowed_range_minute_granularity[t][3] for t in self.bin_size] # minute count of a timeframe for sorting when sorting is needed 
+        if data == None:  # minute count of a timeframe for sorting when sorting is needed   
+            timeframe_list = [allowed_range_minute_granularity[t][3] for t in self.bin_size]
             timeframe_list.sort(reverse=True)
             t = find_timeframe_string(timeframe_list[-1])     
             data = self.timeframe_data[t]      
@@ -1023,12 +1157,13 @@ class BinanceFutures:
                 logger.info(f"timeframe_data: {self.timeframe_data}") 
 
                 self.timeframe_info[t] = {
-                                        "allowed_range": allowed_range_minute_granularity[t][0] if self.minute_granularity else allowed_range[t][0], 
-                                        "ohlcv": self.timeframe_data[t][:-1], # Dataframe with closed candles                                                   
-                                        "last_action_time": None,#self.timeframe_data[t].iloc[-1].name, # Last strategy execution time
-                                        "last_candle": self.timeframe_data[t].iloc[-2].values,  # Store last complete candle
-                                        "partial_candle": self.timeframe_data[t].iloc[-1].values  # Store incomplete candle
-                                          }
+                            "allowed_range": allowed_range_minute_granularity[t][0] 
+                                            if self.minute_granularity else allowed_range[t][0], 
+                            "ohlcv": self.timeframe_data[t][:-1], # Dataframe with closed candles                                                   
+                            "last_action_time": None,#self.timeframe_data[t].iloc[-1].name, # Last strategy execution time
+                            "last_candle": self.timeframe_data[t].iloc[-2].values,  # Store last complete candle
+                            "partial_candle": self.timeframe_data[t].iloc[-1].values  # Store incomplete candle
+                            }
                 # The last candle is an incomplete candle with timestamp in future                
                 if self.timeframe_data[t].iloc[-1].name > end_time:
                     
@@ -1040,8 +1175,8 @@ class BinanceFutures:
         #logger.info(f"timeframe_data: {self.timeframe_data}") 
 
         # Timeframes to be updated
-        timeframes_to_update = [allowed_range_minute_granularity[t][3] if self.timeframes_sorted != None else 
-                                t for t in self.timeframe_info if self.timeframe_info[t]['allowed_range'] == action]        
+        timeframes_to_update = [allowed_range_minute_granularity[t][3] if self.timeframes_sorted != None 
+                                else t for t in self.timeframe_info if self.timeframe_info[t]['allowed_range'] == action]        
         #logger.info(f"timeframes to update: {timeframes_to_update}")
 
         # Sorting timeframes that will be updated
@@ -1064,7 +1199,9 @@ class BinanceFutures:
                 self.timeframe_data[t] = pd.concat([self.timeframe_data[t], new_data])      
 
             # exclude current candle data and store partial candle data
-            re_sample_data = resample(self.timeframe_data[t], t, minute_granularity=True if self.minute_granularity else False)
+            re_sample_data = resample(self.timeframe_data[t], 
+                                      t, 
+                                      minute_granularity=True if self.minute_granularity else False)
             self.timeframe_info[t]['partial_candle'] = re_sample_data.iloc[-1].values # store partial candle data
             re_sample_data =re_sample_data[:-1] # exclude current candle data
 
@@ -1084,7 +1221,8 @@ class BinanceFutures:
             # The last candle in the buffer needs to be preserved 
             # while resetting the buffer as it may be incomlete
             # or contains latest data from WS
-            self.timeframe_data[t] = pd.concat([re_sample_data.iloc[-1 * self.ohlcv_len:, :], self.timeframe_data[t].iloc[[-1]]]) 
+            self.timeframe_data[t] = pd.concat([re_sample_data.iloc[-1 * self.ohlcv_len:, :], 
+                                                self.timeframe_data[t].iloc[[-1]]]) 
             #store ohlcv dataframe to timeframe_info dictionary
             self.timeframe_info[t]["ohlcv"] = re_sample_data
             #logger.info(f"Buffer Right Edge: {self.data.iloc[-1]}")
@@ -1154,7 +1292,10 @@ class BinanceFutures:
 
         if(order['X'] == "CANCELED" or order['X'] == "EXPIRED"):
             #If stop price is set for a GTC Order and filled quanitity is 0 then EXPIRED means TRIGGERED
-            if(float(order['sp']) > 0 and order['f'] == "GTC" and float(order['z']) == 0 and order['X'] == "EXPIRED"):
+            if(float(order['sp']) > 0 
+               and order['f'] == "GTC" 
+               and float(order['z']) == 0 
+               and order['X'] == "EXPIRED"):
                 logger.info(f"========= Order Update ==============")
                 logger.info(f"ID     : {order['c']}") # Clinet Order ID
                 logger.info(f"Type   : {order['o']}")
@@ -1307,8 +1448,10 @@ class BinanceFutures:
 
             if len(self.bin_size) > 0: 
                 for t in self.bin_size:                                        
-                    self.ws.bind(allowed_range_minute_granularity[t][0] if self.minute_granularity else allowed_range[t][0] \
-                        , self.__update_ohlcv)                              
+                    self.ws.bind(
+                        allowed_range_minute_granularity[t][0] if self.minute_granularity else allowed_range[t][0],
+                        self.__update_ohlcv
+                        )                              
             self.ws.bind('instrument', self.__on_update_instrument)
             self.ws.bind('wallet', self.__on_update_wallet)
             self.ws.bind('position', self.__on_update_position)

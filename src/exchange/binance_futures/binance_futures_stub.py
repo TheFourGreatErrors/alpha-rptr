@@ -124,7 +124,8 @@ class BinanceFuturesStub(BinanceFutures):
     
     def close_all_at_price(self, price, callback=None):
         """
-        close the current position at price, for backtesting purposes its important to have a function that closes at given price
+        close the current position at price,
+        for backtesting purposes its important to have a function that closes at given price
         :param price: price
         """
         pos_size = self.position_size
@@ -143,7 +144,19 @@ class BinanceFuturesStub(BinanceFutures):
         self.open_orders = [o for o in self.open_orders if o["id"] != id]
         return True
     
-    def order(self, id, long, qty, limit=0, stop=0, post_only=False, reduce_only=False, when=True, callback=None, workingType="CONTRACT_PRICE"):
+    def order(
+            self, 
+            id, 
+            long, 
+            qty, 
+            limit=0, 
+            stop=0, 
+            post_only=False, 
+            reduce_only=False, 
+            when=True, 
+            callback=None, 
+            workingType="CONTRACT_PRICE"
+            ):
         """
         Places an order.         
         : param id: number of order
@@ -172,12 +185,31 @@ class BinanceFuturesStub(BinanceFutures):
         self.cancel(id)
 
         if limit > 0 or stop > 0:
-            self.open_orders.append({"id": id, "long": long, "qty": ord_qty, "limit": limit, "stop": stop, "post_only": post_only, "reduce_only": reduce_only, "callback": callback})
+            self.open_orders.append({"id": id, 
+                                     "long": long, 
+                                     "qty": ord_qty, 
+                                     "limit": limit, 
+                                     "stop": stop, 
+                                     "post_only": post_only, 
+                                     "reduce_only": reduce_only, 
+                                     "callback": callback})
         else:
             self.commit(id, long, ord_qty, self.get_market_price(), True, callback, reduce_only)
             return
 
-    def close_partial(self, id, ord_qty, limit=0, stop=0, trailValue=0, post_only=False, when=True, need_commission=True, callback=None, workingType="CONTRACT_PRICE"):
+    def close_partial(
+            self, 
+            id, 
+            ord_qty, 
+            limit=0, 
+            stop=0, 
+            trailValue=0, 
+            post_only=False, 
+            when=True, 
+            need_commission=True, 
+            callback=None, 
+            workingType="CONTRACT_PRICE"
+            ):
         """
         """
         pos_size = self.get_position_size()
@@ -191,12 +223,30 @@ class BinanceFuturesStub(BinanceFutures):
             ord_qty = pos_size
 
         if limit > 0 or stop > 0:
-            self.open_orders.append({"id": id, "long": long, "qty": ord_qty, "limit": limit, "stop": stop, "post_only": post_only, "callback": callback})
+            self.open_orders.append({"id": id, 
+                                     "long": long, 
+                                     "qty": ord_qty, 
+                                     "limit": limit, 
+                                     "stop": stop, 
+                                     "post_only": post_only,
+                                     "callback": callback})
         else:
             self.commit(id, long, abs(ord_qty), self.get_market_price(), True, callback)
             return
 
-    def entry(self, id, long, qty, limit=0, stop=0, post_only=False, when=True, round_decimals=None, callback=None, workingType="CONTRACT_PRICE"):
+    def entry(
+            self, 
+            id, 
+            long,
+            qty, 
+            limit=0, 
+            stop=0, 
+            post_only=False, 
+            when=True, 
+            round_decimals=None, 
+            callback=None, 
+            workingType="CONTRACT_PRICE"
+            ):
         """
          I place an order. Equivalent function to pine's function.
          https://jp.tradingview.com/study-script-reference/#fun_strategy{dot}entry
@@ -225,13 +275,36 @@ class BinanceFuturesStub(BinanceFutures):
         ord_qty = round(ord_qty, round_decimals if round_decimals != None else self.asset_rounding)
 
         if limit > 0 or stop > 0:
-            self.open_orders.append({"id": id, "long": long, "qty": ord_qty, "limit": limit, "stop": stop, "post_only": post_only, "reduce_only": False, "callback": callback})
+            self.open_orders.append({"id": id, 
+                                     "long": long, 
+                                     "qty": ord_qty, 
+                                     "limit": limit, 
+                                     "stop": stop, 
+                                     "post_only": post_only, 
+                                     "reduce_only": False, 
+                                     "callback": callback})
         else:
             self.commit(id, long, ord_qty, self.get_market_price(), True, callback)
             return
     
-    def entry_pyramiding(self, id, long, qty, limit=0, stop=0, trailValue= 0, post_only=False, reduce_only=False, ioc=False, cancel_all=False, pyramiding=2, when=True,
-                        round_decimals=None, callback=None, workingType="CONTRACT_PRICE"):
+    def entry_pyramiding(
+            self, 
+            id, 
+            long, 
+            qty, 
+            limit=0, 
+            stop=0, 
+            trailValue= 0, 
+            post_only=False, 
+            reduce_only=False, 
+            ioc=False, 
+            cancel_all=False, 
+            pyramiding=2, 
+            when=True,
+            round_decimals=None,
+            callback=None, 
+            workingType="CONTRACT_PRICE"
+            ):
         """
         Places an entry order, works as equivalent to tradingview pine script implementation with pyramiding        
         :param id: Order id
@@ -274,19 +347,36 @@ class BinanceFuturesStub(BinanceFutures):
         if (long and pos_size + qty > pyramiding*qty) or (not long and pos_size - qty < -pyramiding*qty):
             ord_qty = pyramiding*qty - abs(pos_size)
      
-        # make sure it doesnt spam small entries, which in most cases would trigger risk management orders evaluation, you can make this less than 2% if needed  
+        # make sure it doesnt spam small entries, 
+        # which in most cases would trigger risk management orders evaluation, you can make this less than 2% if needed  
         if ord_qty < ((pyramiding*qty) / 100) * 2:
             return       
 
         ord_qty = round(ord_qty, round_decimals if round_decimals != None else self.asset_rounding)
 
         if limit > 0 or stop > 0:
-            self.open_orders.append({"id": id, "long": long, "qty": ord_qty, "limit": limit, "stop": stop, "post_only": post_only, "reduce_only": False, "callback": callback})
+            self.open_orders.append({"id": id, 
+                                     "long": long, 
+                                     "qty": ord_qty, 
+                                     "limit": limit, 
+                                     "stop": stop, 
+                                     "post_only": post_only, 
+                                     "reduce_only": False, 
+                                     "callback": callback})
         else:
             self.commit(id, long, ord_qty, self.get_market_price(), True, callback)
             return
 
-    def commit(self, id, long, qty, price, need_commission=False, callback=None, reduce_only=False):        
+    def commit(
+            self, 
+            id, 
+            long, 
+            qty, 
+            price, 
+            need_commission=False, 
+            callback=None, 
+            reduce_only=False
+            ):        
         """         
          : param id: order number
          : param long: long or short
@@ -343,7 +433,9 @@ class BinanceFuturesStub(BinanceFutures):
             self.drawdown = (self.balance_ath - self.balance) / self.balance_ath * 100
 
             # self.order_log.write("time,type,id,price,quantity,av_price,position,pnl,balance,drawdown\n") #header
-            self.order_log.write(f"{self.timestamp},{'BUY' if long else 'SELL'},{id if next_qty == 0 else 'Reversal'},{price:.2f},{-self.position_size if abs(next_qty) else order_qty:.2f},{self.position_avg_price:.2f},{0 if abs(next_qty) else self.position_size+order_qty:.2f},{profit:.2f},{self.get_balance():.2f},{self.drawdown:.2f}\n")
+            self.order_log.write(f"{self.timestamp},{'BUY' if long else 'SELL'},{id if next_qty == 0 else 'Reversal'},"\
+                                 f"{price:.2f},{-self.position_size if abs(next_qty) else order_qty:.2f},{self.position_avg_price:.2f},"
+                                 f"{0 if abs(next_qty) else self.position_size+order_qty:.2f},{profit:.2f},{self.get_balance():.2f},{self.drawdown:.2f}\n")
             self.order_log.flush()
 
             self.position_size = self.get_position_size() + order_qty    
@@ -389,7 +481,10 @@ class BinanceFuturesStub(BinanceFutures):
             logger.info(f"current position size: {next_qty} at avg. price: {self.position_avg_price}")
 
             # self.order_log.write("time,type,id,price,quantity,av_price,position,pnl,balance,drawdown\n") #header
-            self.order_log.write(f"{self.timestamp},{'BUY' if long else 'SELL'},{id},{price:.2f},{next_qty if abs(order_qty) > abs(next_qty) else order_qty:.2f},{self.position_avg_price:.2f},{self.position_size:.2f},{'-'},{self.get_balance():.2f},{self.drawdown:.2f}\n")
+            self.order_log.write(f"{self.timestamp},{'BUY' if long else 'SELL'},{id},{price:.2f},"
+                                 f"{next_qty if abs(order_qty) > abs(next_qty) else order_qty:.2f},"
+                                 f"{self.position_avg_price:.2f},{self.position_size:.2f},{'-'},"
+                                 f"{self.get_balance():.2f},{self.drawdown:.2f}\n")
             self.order_log.flush()
 
             self.set_trail_price(price)
@@ -440,7 +535,9 @@ class BinanceFuturesStub(BinanceFutures):
 
     def eval_sltp(self):
         """
-        evaluate simple profit target and stop loss        
+        Simple take profit and stop loss implementation
+        - sends a reduce only stop loss order upon entering a position.
+        - requires setting values with sltp() prior          
         """
 
         pos_size = self.get_position_size()
@@ -532,16 +629,33 @@ class BinanceFuturesStub(BinanceFutures):
                 reduce_only = order["reduce_only"]
                 callback = order["callback"]
 
-                if reduce_only == True and (self.position_size == 0 or (long and self.get_position_size() > 0) or (not long and self.get_position_size() < 0)):
-                    new_open_orders.append({"id": id, "long": long, "qty": qty, "limit": limit, "stop": 0, "post_only": post_only, "reduce_only": reduce_only, "callback": callback})
+                if reduce_only == True and (self.position_size == 0
+                                             or (long and self.get_position_size() > 0)
+                                               or (not long and self.get_position_size() < 0)):
+                    new_open_orders.append({"id": id, 
+                                            "long": long, 
+                                            "qty": qty, 
+                                            "limit": limit, 
+                                            "stop": 0, 
+                                            "post_only": post_only, 
+                                            "reduce_only": reduce_only, 
+                                            "callback": callback})
                     continue
 
                 if limit > 0 and stop > 0 and (high[-1] >= stop >= low[-1]):
-                        new_open_orders.append({"id": id, "long": long, "qty": qty, "limit": limit, "stop": 0, "post_only": post_only, "reduce_only": reduce_only, "callback": callback})
+                        new_open_orders.append({"id": id, 
+                                                "long": long, 
+                                                "qty": qty, 
+                                                "limit": limit, 
+                                                "stop": 0, 
+                                                "post_only": post_only, 
+                                                "reduce_only": reduce_only, 
+                                                "callback": callback})
                         if(not self.minute_granularity):
-                            logger.info("Simulating Stop-Limit orders on historical bars can be erroneous " +
+                          logger.info("Simulating Stop-Limit orders on historical bars can be erroneous " +
                                         "as there is no way to guess intra-bar price movement. " +
-                                        "Stop-Limit orders are coverted into Limit orders once the stop is hit and evaluated in successive candles. " +
+                                        "Stop-Limit orders are coverted into Limit orders " +
+                                        "once the stop is hit and evaluated in successive candles. " +
                                         "Switch on Minute Granularity for a more accurate simulation of Stop-limit orders.")
                         continue
                 elif limit > 0:
