@@ -120,7 +120,7 @@ class BybitStub(Bybit):
             return
         long = pos_size < 0
         ord_qty = abs(pos_size)
-        self.commit("Close", long, ord_qty, self.get_market_price(), True, callback)
+        self.commit("Close", long, ord_qty, self.get_market_price(), True, False, callback)
     
     def close_all_at_price(self, price, callback=None):
         """
@@ -133,7 +133,7 @@ class BybitStub(Bybit):
             return
         long = pos_size < 0 if True else False 
         ord_qty = abs(pos_size)
-        self.commit("Close", long, ord_qty, price, True, callback)
+        self.commit("Close", long, ord_qty, price, True, False, callback)
 
     def cancel(self, id):
         """
@@ -194,7 +194,7 @@ class BybitStub(Bybit):
                                     "reduce_only": reduce_only,
                                     "callback": callback})
         else:
-            self.commit(id, long, ord_qty, self.get_market_price(), True, callback, reduce_only)
+            self.commit(id, long, ord_qty, self.get_market_price(), True, reduce_only, callback)
             return
 
     def close_partial(
@@ -205,6 +205,7 @@ class BybitStub(Bybit):
             stop=0,
             trailValue=0,
             post_only=False,
+            reduce_only=False,
             when=True,
             need_commission=True,
             callback=None,
@@ -231,7 +232,7 @@ class BybitStub(Bybit):
                                      "post_only": post_only,
                                      "callback": callback})
         else:
-            self.commit(id, long, abs(ord_qty), self.get_market_price(), True, callback)
+            self.commit(id, long, abs(ord_qty), self.get_market_price(), True, reduce_only, callback)
             return
 
     def entry(
@@ -284,7 +285,7 @@ class BybitStub(Bybit):
                                     "reduce_only": False,
                                     "callback": callback})
         else:
-            self.commit(id, long, ord_qty, self.get_market_price(), True, callback)
+            self.commit(id, long, ord_qty, self.get_market_price(), True, False, callback)
             return
     
     def entry_pyramiding(
@@ -364,7 +365,7 @@ class BybitStub(Bybit):
                                     "reduce_only": False,
                                     "callback": callback})
         else:
-            self.commit(id, long, ord_qty, self.get_market_price(), True, callback)
+            self.commit(id, long, ord_qty, self.get_market_price(), True, reduce_only, callback)
             return
 
     def commit(
@@ -660,11 +661,11 @@ class BybitStub(Bybit):
                         continue
                 elif limit > 0:
                     if (long and low[-1] < limit) or (not long and high[-1] > limit):
-                        self.commit(id, long, qty, limit, True, callback, reduce_only)
+                        self.commit(id, long, qty, limit, True, reduce_only, callback)
                         continue
                 elif stop > 0:
                     if (high[-1] >= stop >= low[-1]):
-                        self.commit(id, long, qty, stop, True, callback, reduce_only)
+                        self.commit(id, long, qty, stop, True, reduce_only, callback)
                         continue
 
                 new_open_orders.append(order)
