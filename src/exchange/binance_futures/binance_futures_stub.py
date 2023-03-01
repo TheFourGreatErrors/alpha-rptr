@@ -652,7 +652,7 @@ class BinanceFuturesStub(BinanceFutures):
                                                 "post_only": post_only, 
                                                 "reduce_only": reduce_only, 
                                                 "callback": callback})
-                        if(not self.minute_granularity):
+                        if not self.minute_granularity:
                           logger.info("Simulating Stop-Limit orders on historical bars can be erroneous " +
                                         "as there is no way to guess intra-bar price movement. " +
                                         "Stop-Limit orders are coverted into Limit orders " +

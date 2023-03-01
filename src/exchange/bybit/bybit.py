@@ -722,8 +722,8 @@ class Bybit:
                     #market_price + market_price / 100 * 1 if stop > market_price else market_price - market_price / 100 * 1        
       
         # USDC perps dont have condittional orders API endpoints
-        place_conditional = self.private_client.place_active_order if self.pair.endswith('PERP') else self.private_client.place_conditional_order
-      
+        place_conditional = self.private_client.place_active_order \
+                                if self.pair.endswith('PERP') else self.private_client.place_conditional_order      
        
         if limit > 0 and post_only:            
             ord_type = "Limit" 
@@ -739,14 +739,15 @@ class Bybit:
                                                                            price=limit,
                                                                            timeInForce='GTC'))              
             else:
-                res = retry(lambda: self.private_client.place_active_order(symbol=self.pair, order_type=ord_type, orderType=ord_type, type=type,
-                                                                            order_link_id=ord_id, orderLinkId=ord_id, side=side, 
-                                                                            qty=ord_qty, orderQty=ord_qty,
-                                                                            price=limit, orderPrice=limit,
-                                                                            reduce_only=reduce_only, reduceOnly=reduce_only,
-                                                                            close_on_trigger=reduce_only,
-                                                                            time_in_force='PostOnly', timeInForce='PostOnly',
-                                                                            orderFilter=orderFilter, position_idx=0))                
+                res = retry(lambda: self.private_client
+                                            .place_active_order(symbol=self.pair, order_type=ord_type, orderType=ord_type, type=type,
+                                                                order_link_id=ord_id, orderLinkId=ord_id, side=side, 
+                                                                qty=ord_qty, orderQty=ord_qty,
+                                                                price=limit, orderPrice=limit,
+                                                                reduce_only=reduce_only, reduceOnly=reduce_only,
+                                                                close_on_trigger=reduce_only,
+                                                                time_in_force='PostOnly', timeInForce='PostOnly',
+                                                                orderFilter=orderFilter, position_idx=0))                
         elif limit > 0 and stop > 0:
             ord_type = "Limit" #"StopLimit"
             #type = "LIMIT" #Spot only
@@ -754,14 +755,14 @@ class Bybit:
             stop = str(stop) if self.pair.endswith('PERP') else stop 
             limit = str(limit) if self.pair.endswith('PERP') else limit 
             res = retry(lambda: place_conditional(symbol=self.pair, order_type=ord_type, orderType=ord_type,
-                                                    order_link_id=ord_id, orderLinkId=ord_id, side=side,
-                                                    qty=ord_qty, orderQty=ord_qty, price=limit, stop_px=stop, triggerPrice=stop,
-                                                    orderPrice=limit, base_price=base_price, basePrice=base_price,
-                                                    reduce_only=reduce_only,  reduceOnly=reduce_only,
-                                                    close_on_trigger=reduce_only,                                                                           
-                                                    time_in_force='GoodTillCancel', timeInForce='GoodTillCancel',
-                                                    trigger_by=trigger_by, triggerBy=trigger_by,
-                                                    orderFilter=orderFilter, position_idx=0))
+                                                  order_link_id=ord_id, orderLinkId=ord_id, side=side,
+                                                  qty=ord_qty, orderQty=ord_qty, price=limit, stop_px=stop, triggerPrice=stop,
+                                                  orderPrice=limit, base_price=base_price, basePrice=base_price,
+                                                  reduce_only=reduce_only,  reduceOnly=reduce_only,
+                                                  close_on_trigger=reduce_only,                                                                           
+                                                  time_in_force='GoodTillCancel', timeInForce='GoodTillCancel',
+                                                  trigger_by=trigger_by, triggerBy=trigger_by,
+                                                  orderFilter=orderFilter, position_idx=0))
         elif limit > 0:
             ord_type = "Limit" 
             type = "LIMIT"
@@ -775,13 +776,14 @@ class Bybit:
                                                                            price=limit, 
                                                                            timeInForce='GTC'))            
             else:
-                res = retry(lambda: self.private_client.place_active_order(symbol=self.pair, order_type=ord_type, orderType=ord_type, type=type,
-                                                                           order_link_id=ord_id, orderLinkId=ord_id, side=side,
-                                                                           qty=ord_qty, orderQty=ord_qty, price=limit, orderPrice=limit,
-                                                                           reduce_only=reduce_only, reduceOnly=reduce_only,
-                                                                           close_on_trigger=reduce_only,
-                                                                           time_in_force='GoodTillCancel', timeInForce='GoodTillCancel',
-                                                                           orderFilter=orderFilter, position_idx=0))
+                res = retry(lambda: self.private_client
+                                            .place_active_order(symbol=self.pair, order_type=ord_type, orderType=ord_type, type=type,
+                                                                order_link_id=ord_id, orderLinkId=ord_id, side=side,
+                                                                qty=ord_qty, orderQty=ord_qty, price=limit, orderPrice=limit,
+                                                                reduce_only=reduce_only, reduceOnly=reduce_only,
+                                                                close_on_trigger=reduce_only,
+                                                                time_in_force='GoodTillCancel', timeInForce='GoodTillCancel',
+                                                                orderFilter=orderFilter, position_idx=0))
         elif stop > 0:
             ord_type = "Market" #"Stop"
             #type = "MARKET" #Spot only
@@ -805,19 +807,21 @@ class Bybit:
             orderFilter = "Order" if self.pair.endswith('PERP') else None
             stop = str(stop) if self.pair.endswith('PERP') else stop      
             if self.spot:    
-                res = retry(lambda: self.private_client.place_active_order(symbol=self.pair, type=type,
-                                                                           orderLinkId=ord_id,
-                                                                           side=side,
-                                                                           qty=ord_qty,                                                                           
-                                                                           timeInForce='GTC'))   
+                res = retry(lambda: self.private_client
+                                            .place_active_order(symbol=self.pair, type=type,
+                                                                orderLinkId=ord_id,
+                                                                side=side,
+                                                                qty=ord_qty,                                                                           
+                                                                timeInForce='GTC'))   
             else:   
-                res = retry(lambda: self.private_client.place_active_order(symbol=self.pair, order_type=ord_type, type=type, orderType=ord_type,
-                                                                           order_link_id=ord_id, orderLinkId=ord_id, side=side,
-                                                                           qty=ord_qty, orderQty=ord_qty,
-                                                                           reduce_only=reduce_only, reduceOnly=reduce_only,
-                                                                           close_on_trigger=reduce_only,
-                                                                           time_in_force='GoodTillCancel', timeInForce='GoodTillCancel',
-                                                                           orderFilter=orderFilter, position_idx=0))
+                res = retry(lambda: self.private_client
+                                            .place_active_order(symbol=self.pair, order_type=ord_type, type=type, orderType=ord_type,
+                                                                order_link_id=ord_id, orderLinkId=ord_id, side=side,
+                                                                qty=ord_qty, orderQty=ord_qty,
+                                                                reduce_only=reduce_only, reduceOnly=reduce_only,
+                                                                close_on_trigger=reduce_only,
+                                                                time_in_force='GoodTillCancel', timeInForce='GoodTillCancel',
+                                                                orderFilter=orderFilter, position_idx=0))
 
         if self.enable_trade_log:
             logger.info(f"========= New Order ==============")
