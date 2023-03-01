@@ -66,8 +66,7 @@ class BitMexStub(BitMex):
         :return:
         """
         #return int((1 - self.get_retain_rate()) * self.get_balance() / self.get_leverage() * self.get_market_price() * 100000000)
-        return float( self.get_balance() * self.get_leverage()) / (1 if self.qty_in_usdt else self.get_market_price())
-
+        return float(self.get_balance() * self.get_leverage()) / (1 if self.qty_in_usdt else self.get_market_price())
 
     def get_balance(self):
         """
@@ -422,9 +421,11 @@ class BitMexStub(BitMex):
             self.drawdown = (self.balance_ath - self.balance) / self.balance_ath * 100
 
             # self.order_log.write("time,type,id,price,quantity,av_price,position,pnl,balance,drawdown\n") #header
-            self.order_log.write(f"{self.timestamp},{'BUY' if long else 'SELL'},{id if next_qty == 0 else 'Reversal'},"\
-                                 f"{price:.2f},{-self.position_size if abs(next_qty) else order_qty:.2f},{self.position_avg_price:.2f},"\
-                                 f"{0 if abs(next_qty) else self.position_size+order_qty:.2f},{profit:.2f},{self.get_balance():.2f},{self.drawdown:.2f}\n")
+            self.order_log.write(
+                f"{self.timestamp},{'BUY' if long else 'SELL'},{id if next_qty == 0 else 'Reversal'},"\
+                f"{price:.2f},{-self.position_size if abs(next_qty) else order_qty:.2f},{self.position_avg_price:.2f},"\
+                f"{0 if abs(next_qty) else self.position_size+order_qty:.2f},{profit:.2f},{self.get_balance():.2f},{self.drawdown:.2f}\n"
+                )
             self.order_log.flush()
 
             self.position_size = self.get_position_size() + order_qty                                   
@@ -507,7 +508,8 @@ class BitMexStub(BitMex):
             close_rate = ((self.get_position_avg_price() - price) / price - self.get_commission()) * self.get_leverage()
             unrealised_pnl = -1 * self.get_position_size() * close_rate
         else:
-            close_rate = ((price - self.get_position_avg_price()) / self.get_position_avg_price() - self.get_commission()) * self.get_leverage()
+            close_rate = ((price - self.get_position_avg_price())
+                           / self.get_position_avg_price() - self.get_commission()) * self.get_leverage()
             unrealised_pnl = self.get_position_size() * close_rate
 
         # If loss is set
