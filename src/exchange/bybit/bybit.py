@@ -436,7 +436,7 @@ class Bybit:
         else:  # when the WebSocket cant get it
             symbol_information = self.get_latest_symbol_information()
             if symbol_information is None:
-                return None
+                return 0
             if self.spot or self.pair.endswith('PERP'):
                 self.market_price = float(symbol_information['lastPrice'])       
             elif self.pair.endswith('USDT') or self.pair.endswith('USD'):
