@@ -606,6 +606,23 @@ class BitMex:
             return open_orders[0]
         else:
             return None
+    
+    def get_open_orders(self, id=None):
+        """
+        Get open orders
+        :param id: if provided it will return only those that start with the provided string
+        :return:
+        """
+        self.__init_client()
+        open_orders = retry(lambda: self.private_client
+                            .Order.Order_getOrders(filter=json.dumps({"symbol": self.pair, "open": True}))
+                            .result())  
+        if id is not None:
+                open_orders = [o for o in open_orders if o["clOrdID"].startswith(id)]      
+        if len(open_orders) > 0:           
+            return open_orders
+        else:
+            return None
 
     def exit(self, profit=0, loss=0, trail_offset=0):
         """
