@@ -997,7 +997,8 @@ class BitMex:
         Update position
         """
         # Was the position size changed?
-        is_update_pos_size = self.get_position()['currentQty'] != position['currentQty']
+        is_update_pos_size = 'currentQty' in position \
+                                and self.get_position()['currentQty'] != position['currentQty']
 
         # Reset trail to current price if position size changes
         if is_update_pos_size and position['currentQty'] != 0:
