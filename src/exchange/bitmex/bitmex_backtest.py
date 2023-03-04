@@ -96,7 +96,7 @@ class BitMexBackTest(BitMexStub):
             stop=0,
             post_only=False,
             when=True,
-            round_decimals=0,
+            round_decimals=None,
             callback=None
             ):
         """

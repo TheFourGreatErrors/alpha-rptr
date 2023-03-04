@@ -6,6 +6,7 @@ import math
 import traceback
 from datetime import datetime, timezone
 import time
+from decimal import Decimal
 
 import pandas as pd
 from bravado.exception import HTTPNotFound
@@ -34,8 +35,6 @@ class BitMex:
     enable_trade_log = True
     # OHLCV length
     ohlcv_len = 100    
-    # Round decimals
-    round_decimals = 0
     # Call strategy function on start, this can be useful
     # when you dont want to wait for the candle to close to trigger the strategy function
     # this also can be problematic for certain operations like sending orders or duplicates of orders 
@@ -54,6 +53,14 @@ class BitMex:
         self.account = account
         # Pair
         self.pair = pair
+        # Base Asset
+        self.base_asset = None
+	    # Asset Rounding
+        self.asset_rounding = None
+	    # Quote Asset
+        self.quote_asset = None
+	    # Quote Rounding
+        self.quote_rounding = None
         # Use testnet?
         self.demo = demo
         # Is bot running
@@ -124,6 +131,23 @@ class BitMex:
 
         self.private_client = bitmex_api(test=self.demo, api_key=api_key, api_secret=api_secret)
         self.public_client = bitmex_api(test=self.demo)
+
+        if self.quote_rounding == None or self.asset_rounding == None:
+            symbol = self.get_symbol_information()
+            tick_size = symbol['tickSize'] * 2 if '5' in str(symbol['tickSize']) else symbol['tickSize'] 
+            self.quote_asset = symbol['quoteCurrency']                                
+            self.quote_rounding = abs(Decimal(str(tick_size))
+                                      .as_tuple().exponent) if float(tick_size) < 1 else 0 
+            self.base_asset = symbol['underlying'] 
+            self.asset_rounding = abs(Decimal(str(symbol['lotSize']))
+                                      .as_tuple().exponent) if float(symbol['lotSize']) < 1 else 0  
+        
+        self.sync()
+
+        logger.info(f"Asset: {self.base_asset} Rounding: {self.asset_rounding} "\
+                    f"- Quote: {self.quote_asset} Rounding: {self.quote_rounding}")
+        
+        logger.info(f"Position Size: {self.position_size:.3f} Entry Price: {self.entry_price:.2f}")
         
     def sync(self):
         # Position
@@ -136,7 +160,7 @@ class BitMex:
         self.market_price = self.get_market_price()
         # Margin
         self.margin = self.get_margin()
-        
+
     def now_time(self):
         """
         current time
@@ -450,7 +474,7 @@ class BitMex:
             reduce_only=False,
             allow_amend=False,
             when=True,
-            round_decimals=0,
+            round_decimals=None,
             callback=None
             ):
         """
@@ -478,13 +502,13 @@ class BitMex:
 
         if long and pos_size > 0:
             return
-            logger.info(f"11")
+            
         if not long and pos_size < 0:
-            logger.info(f"11")
+            
             return
         
         ord_qty = qty + abs(pos_size)
-        ord_qty = round(ord_qty, round_decimals)
+        ord_qty = round(ord_qty, round_decimals if round_decimals != None else self.asset_rounding)
 
         self.order(id, long, ord_qty, limit, stop, post_only, reduce_only, allow_amend, when, callback)
 
@@ -501,7 +525,7 @@ class BitMex:
             pyramiding=2,
             allow_amend=False,
             when=True,
-            round_decimals=0,
+            round_decimals=None,
             callback=None
             ):
         """
@@ -552,7 +576,7 @@ class BitMex:
         if ord_qty < ((pyramiding*qty) / 100) * 2:
             return          
 
-        ord_qty = round(ord_qty, round_decimals)
+        ord_qty = round(ord_qty, round_decimals if round_decimals != None else self.asset_rounding)
 
         self.order(id, long, ord_qty, limit, stop, post_only, reduce_only, allow_amend, when, callback)
 
@@ -592,7 +616,7 @@ class BitMex:
             return
         
         side = "Buy" if long else "Sell"
-        ord_qty = qty             
+        ord_qty = abs(round(qty, self.asset_rounding))                  
 
         if allow_amend:
             order = self.get_open_order(id)
@@ -658,7 +682,7 @@ class BitMex:
             stop_long=0,
             stop_short=0,
             eval_tp_next_candle=False,
-            round_decimals=2,
+            round_decimals=None,
             profit_long_callback=None,
             profit_short_callback=None,
             stop_long_callback=None,
@@ -684,7 +708,8 @@ class BitMex:
                             'stop_long_callback': stop_long_callback,
                             'stop_short_callback': stop_short_callback
                             }        
-        self.round_decimals = round_decimals
+        if self.quote_rounding == None and round_decimals != None:
+            self.quote_rounding = round_decimals
 
     def get_exit_order(self):
         """
@@ -763,7 +788,7 @@ class BitMex:
         # tp execution logic                
         if tp_percent_long > 0 and is_tp_full_size == False:
             if pos_size > 0:                
-                tp_price_long = round(avg_entry +(avg_entry*tp_percent_long), self.round_decimals) 
+                tp_price_long = round(avg_entry +(avg_entry*tp_percent_long), self.quote_rounding) 
                 if tp_order is not None:
                     #time.sleep(2)                    
                     self.__amend_order(tp_order['clOrdID'], False, abs(pos_size), limit=tp_price_long)
@@ -772,7 +797,7 @@ class BitMex:
                                 allow_amend=False, callback=self.get_sltp_values()['profit_long_callback'])
         if tp_percent_short > 0 and is_tp_full_size == False:
             if pos_size < 0:                
-                tp_price_short = round(avg_entry -(avg_entry*tp_percent_short), self.round_decimals)
+                tp_price_short = round(avg_entry -(avg_entry*tp_percent_short), self.quote_rounding)
                 if tp_order is not None: 
                      #time.sleep(2)                   
                     self.__amend_order(tp_order['clOrdID'], True, abs(pos_size), limit=tp_price_short)
@@ -794,7 +819,7 @@ class BitMex:
         # sl execution logic
         if sl_percent_long > 0 and is_sl_full_size == False:
             if pos_size > 0:
-                sl_price_long = round(avg_entry - (avg_entry*sl_percent_long), self.round_decimals)
+                sl_price_long = round(avg_entry - (avg_entry*sl_percent_long), self.quote_rounding)
                 if sl_order is not None:                             
                     self.cancel(id=sl_order['clOrdID'])
                     time.sleep(2)
@@ -806,7 +831,7 @@ class BitMex:
                                 allow_amend=False, callback=self.get_sltp_values()['stop_long_callback'])
         if sl_percent_short > 0 and is_sl_full_size == False:
             if pos_size < 0:
-                sl_price_short = round(avg_entry + (avg_entry*sl_percent_short), self.round_decimals)
+                sl_price_short = round(avg_entry + (avg_entry*sl_percent_short), self.quote_rounding)
                 if sl_order is not None:                                  
                     self.cancel(id=sl_order['clOrdID'])
                     time.sleep(2)
