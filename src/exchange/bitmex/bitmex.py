@@ -210,7 +210,12 @@ class BitMex:
         :return:
         """
         self.__init_client()
-        return self.get_position()['avgEntryPrice']
+        pos = self.get_position()#['avgEntryPrice']
+      
+        if pos is None or 'avgEntryPrice' not in pos:
+            return 0
+        else:
+            return pos['avgEntryPrice']
 
     def get_market_price(self):
         """

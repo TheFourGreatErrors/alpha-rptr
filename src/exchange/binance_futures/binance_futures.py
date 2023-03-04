@@ -158,7 +158,7 @@ class BinanceFutures:
 
         self.sync()  
 
-        logger.info(f"Asset: {self.base_asset} Rounding: {self.asset_rounding}"\
+        logger.info(f"Asset: {self.base_asset} Rounding: {self.asset_rounding} "\
                     f"- Quote: {self.quote_asset} Rounding: {self.quote_rounding}") 
 
         logger.info(f"Position Size: {self.position_size:.3f} Entry Price: {self.entry_price:.2f}")
