@@ -125,6 +125,18 @@ class BitMex:
         self.private_client = bitmex_api(test=self.demo, api_key=api_key, api_secret=api_secret)
         self.public_client = bitmex_api(test=self.demo)
         
+    def sync(self):
+        # Position
+        self.position = self.get_position()
+        # Position size
+        self.position_size = self.get_position_size()
+        # Entry price
+        self.entry_price = self.get_position_avg_price()
+        # Market price
+        self.market_price = self.get_market_price()
+        # Margin
+        self.margin = self.get_margin()
+        
     def now_time(self):
         """
         current time
