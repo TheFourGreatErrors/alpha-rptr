@@ -55,11 +55,11 @@ class BitMex:
         self.pair = pair
         # Base Asset
         self.base_asset = None
-	    # Asset Rounding
+        # Asset Rounding
         self.asset_rounding = None
-	    # Quote Asset
+        # Quote Asset
         self.quote_asset = None
-	    # Quote Rounding
+        # Quote Rounding
         self.quote_rounding = None
         # Use testnet?
         self.demo = demo
@@ -415,6 +415,21 @@ class BitMex:
             logger.info(f"======================================")
 
             notify(f"New Order\nType: {ord_type}\nSide: {side}\nQty: {ord_qty}\nLimit: {limit}\nStop: {stop}")
+    
+    def amend_order(self, ord_id, ord_qty=0, limit=0, stop=0, post_only=False):
+        """
+        Amend order with querying the order prior verifying its existence.
+        """        
+        order = self.get_open_order(id=ord_id)
+
+        if order is None or len(order) == 0:
+            logger.info(f"Cannot Find An Order to Amend Id: {ord_id}")
+            return
+        
+        ord_id = order['clOrdID']
+
+        self.__amend_order(ord_id=ord_id, side="", ord_qty=ord_qty,
+                            limit=limit, stop=stop, post_only=post_only)       
 
     def __amend_order(
             self,

@@ -837,7 +837,7 @@ class Bybit:
 
     def amend_order(self, ord_id, ord_qty=0, limit=0, stop=0):
         """
-        Amend order with querying the order prior veryfying its existence and whether its active or conditional etc.
+        Amend order with querying the order prior verifying its existence and whether its active or conditional etc.
         """
         if self.spot:
             logger.info(f"Amending Orders Is Not Supported For Spot Yet.")
