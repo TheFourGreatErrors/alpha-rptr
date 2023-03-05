@@ -416,7 +416,14 @@ class BitMex:
 
             notify(f"New Order\nType: {ord_type}\nSide: {side}\nQty: {ord_qty}\nLimit: {limit}\nStop: {stop}")
     
-    def amend_order(self, ord_id, ord_qty=0, limit=0, stop=0, post_only=False):
+    def amend_order(
+            self, 
+            ord_id, 
+            ord_qty=0, 
+            limit=0, 
+            stop=0, 
+            post_only=False
+            ):
         """
         Amend order with querying the order prior verifying its existence.
         """        

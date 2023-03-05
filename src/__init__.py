@@ -273,7 +273,8 @@ def to_data_frame(data):
 
 
 def resample(data_frame, bin_size, minute_granularity=False, label="right", closed="right"):      
-    resample_time = allowed_range_minute_granularity[bin_size][1] if minute_granularity else allowed_range[bin_size][1]
+    resample_time = allowed_range_minute_granularity[bin_size][1] \
+                    if minute_granularity else allowed_range[bin_size][1]
     return data_frame.resample(resample_time, label=label, closed=closed).agg({
         "open": "first",
         "high": "max",

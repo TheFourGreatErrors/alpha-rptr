@@ -243,6 +243,17 @@ def sar(high, low, acceleration=0, maximum=0):
     return talib.SAR(high, low, acceleration, maximum)
 
 
+def sarext(high, low, startvalue=0, offsetonreverse=0,
+           accelerationinitlong=0.02, accelerationlong=0.02, accelerationmaxlong=0.2,
+           accelerationinitshort=0.02, accelerationshort=0.02, accelerationmaxshort=0.2):
+    """
+    Parabolic SAR - Extended
+    """
+    return abs(talib.SAREXT(high, low, startvalue, offsetonreverse,
+                        accelerationinitlong, accelerationlong, accelerationmaxlong,
+                        accelerationinitshort, accelerationshort, accelerationmaxshort))
+
+
 def crossover(a, b):
     return a[-2] < b[-2] and a[-1] > b[-1]
 
