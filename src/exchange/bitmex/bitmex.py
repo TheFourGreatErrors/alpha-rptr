@@ -212,6 +212,20 @@ class BitMex:
         """
         self.__init_client()
         return self.get_position()["leverage"]
+    
+    def set_leverage(self, leverage=1):
+        """
+        set leverage, this will automaticall set your position to isolated margin
+        :param  leverage: leverage
+        :return:
+        """
+        self.__init_client()
+
+        res = retry(lambda: self.private_client
+                             .Position.Position_updateLeverage(symbol=self.pair, 
+                                                               leverage=leverage).result())
+       
+        return res
 
     def get_position(self):
         """
