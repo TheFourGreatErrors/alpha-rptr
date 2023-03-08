@@ -1685,7 +1685,8 @@ class Bybit:
                 logger.info(f"RejecR.: {None if self.spot else o['rejectReason']}") # rejection reason
                 logger.info(f"TIF    : {o['f' if self.spot else 'timeInForce']}")
                 logger.info(f"Qty    : {o['q' if self.spot else 'qty']}")
-                logger.info(f"Filled : {o['z' if self.spot else 'lastExecQty']}")
+                logger.info(f"LstFill: {o['l' if self.spot else 'lastExecQty']}")
+                logger.info(f"Filled : {o['z' if self.spot else 'cumExecQty']}")
                 logger.info(f"Limit  : {o['p' if self.spot else 'price']}")
                 logger.info(f"Stop   : {None if self.spot else o['triggerPrice']}")
                 logger.info(f"APrice : {None if self.spot else o['triggerPrice']}")
@@ -1693,7 +1694,7 @@ class Bybit:
                 #If stop price is set for a GTC Order and filled quanitity is 0 then EXPIRED means TRIGGERED
                 if(float(0 if self.spot else o['triggerPrice']) > 0 \
                    and (o['f' if self.spot else 'timeInForce'] == "GTC" or "GoodTillCancel") \
-                   and float(o['z' if self.spot else 'lastExecQty']) == 0 \
+                   and float(o['z' if self.spot else 'cumExecQty']) == 0 \
                    and o['X' if self.spot else 'orderStatus'] == "EXPIRED"):
                     logger.info(f"========= Order Update ==============")
                     logger.info(f"ID     : {o['c' if self.spot else 'orderLinkId']}") # Clinet Order ID
@@ -1704,7 +1705,8 @@ class Bybit:
                     logger.info(f"RejecR.: {None if self.spot else o['rejectReason']}") # rejection reason
                     logger.info(f"TIF    : {o['f' if self.spot else 'timeInForce']}")
                     logger.info(f"Qty    : {o['q' if self.spot else 'qty']}")
-                    logger.info(f"Filled : {o['z' if self.spot else 'lastExecQty']}")
+                    logger.info(f"LstFill: {o['l' if self.spot else 'lastExecQty']}")
+                    logger.info(f"Filled : {o['z' if self.spot else 'cumExecQty']}")
                     logger.info(f"Limit  : {o['p' if self.spot else 'price']}")
                     logger.info(f"Stop   : {None if self.spot else o['triggerPrice']}")
                     logger.info(f"APrice : {None if self.spot else o['triggerPrice']}")                    
@@ -1714,7 +1716,7 @@ class Bybit:
 
             #only after order if completely filled
             elif(self.order_update_log  
-                 and float(o['q' if self.spot else 'qty']) == float(o['z' if self.spot else 'lastExecQty'])) \
+                 and float(o['q' if self.spot else 'qty']) == float(o['z' if self.spot else 'cumExecQty'])) \
                  and o['X' if self.spot else 'orderStatus'].upper() != "CANCELLED": 
                 logger.info(f"========= Order Fully Filled ==============")
                 logger.info(f"ID     : {o['c' if self.spot else 'orderLinkId']}") # Clinet Order ID
@@ -1725,7 +1727,8 @@ class Bybit:
                 logger.info(f"RejecR.: {None if self.spot else o['rejectReason']}") # rejection reason
                 logger.info(f"TIF    : {o['f' if self.spot else 'timeInForce']}")
                 logger.info(f"Qty    : {o['q' if self.spot else 'qty']}")
-                logger.info(f"Filled : {o['z' if self.spot else 'lastExecQty']}")
+                logger.info(f"LstFill: {o['l' if self.spot else 'lastExecQty']}")
+                logger.info(f"Filled : {o['z' if self.spot else 'cumExecQty']}")
                 logger.info(f"Limit  : {o['p' if self.spot else 'price']}")
                 logger.info(f"Stop   : {None if self.spot else o['triggerPrice']}")
                 logger.info(f"APrice : {None if self.spot else o['triggerPrice']}")
@@ -1745,7 +1748,8 @@ class Bybit:
                 logger.info(f"RejecR.: {None if self.spot else o['rejectReason']}") # rejection reason
                 logger.info(f"TIF    : {o['f' if self.spot else 'timeInForce']}")
                 logger.info(f"Qty    : {o['q' if self.spot else 'qty']}")
-                logger.info(f"Filled : {o['z' if self.spot else 'lastExecQty']}")
+                logger.info(f"LstFill: {o['l' if self.spot else 'lastExecQty']}")
+                logger.info(f"Filled : {o['z' if self.spot else 'cumExecQty']}")
                 logger.info(f"Limit  : {o['p' if self.spot else 'price']}")
                 logger.info(f"Stop   : {None if self.spot else o['triggerPrice']}")
                 logger.info(f"APrice : {None if self.spot else o['triggerPrice']}")
