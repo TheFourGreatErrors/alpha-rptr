@@ -135,6 +135,9 @@ class Bybit:
         self.trail_price = 0   
         # Order callbacks
         self.callbacks = {}    
+        # Limit chaser order
+        self.limit_chaser_ord = {'Buy': {},
+                                 'Sell': {}}    
         # Best bid price
         self.best_bid_price = None
         # Best ask price
@@ -740,14 +743,14 @@ class Bybit:
                                                                            timeInForce='GTC'))              
             else:
                 res = retry(lambda: self.private_client
-                                            .place_active_order(symbol=self.pair, order_type=ord_type, orderType=ord_type, type=type,
-                                                                order_link_id=ord_id, orderLinkId=ord_id, side=side, 
-                                                                qty=ord_qty, orderQty=ord_qty,
-                                                                price=limit, orderPrice=limit,
-                                                                reduce_only=reduce_only, reduceOnly=reduce_only,
-                                                                close_on_trigger=reduce_only,
-                                                                time_in_force='PostOnly', timeInForce='PostOnly',
-                                                                orderFilter=orderFilter, position_idx=0))                
+                                .place_active_order(symbol=self.pair, order_type=ord_type, orderType=ord_type, type=type,
+                                                    order_link_id=ord_id, orderLinkId=ord_id, side=side, 
+                                                    qty=ord_qty, orderQty=ord_qty,
+                                                    price=limit, orderPrice=limit,
+                                                    reduce_only=reduce_only, reduceOnly=reduce_only,
+                                                    close_on_trigger=reduce_only,
+                                                    time_in_force='PostOnly', timeInForce='PostOnly',
+                                                    orderFilter=orderFilter, position_idx=0))                
         elif limit > 0 and stop > 0:
             ord_type = "Limit" #"StopLimit"
             #type = "LIMIT" #Spot only
@@ -777,13 +780,13 @@ class Bybit:
                                                                            timeInForce='GTC'))            
             else:
                 res = retry(lambda: self.private_client
-                                            .place_active_order(symbol=self.pair, order_type=ord_type, orderType=ord_type, type=type,
-                                                                order_link_id=ord_id, orderLinkId=ord_id, side=side,
-                                                                qty=ord_qty, orderQty=ord_qty, price=limit, orderPrice=limit,
-                                                                reduce_only=reduce_only, reduceOnly=reduce_only,
-                                                                close_on_trigger=reduce_only,
-                                                                time_in_force='GoodTillCancel', timeInForce='GoodTillCancel',
-                                                                orderFilter=orderFilter, position_idx=0))
+                            .place_active_order(symbol=self.pair, order_type=ord_type, orderType=ord_type, type=type,
+                                                order_link_id=ord_id, orderLinkId=ord_id, side=side,
+                                                qty=ord_qty, orderQty=ord_qty, price=limit, orderPrice=limit,
+                                                reduce_only=reduce_only, reduceOnly=reduce_only,
+                                                close_on_trigger=reduce_only,
+                                                time_in_force='GoodTillCancel', timeInForce='GoodTillCancel',
+                                                orderFilter=orderFilter, position_idx=0))
         elif stop > 0:
             ord_type = "Market" #"Stop"
             #type = "MARKET" #Spot only
@@ -799,8 +802,61 @@ class Bybit:
                                                   time_in_force='GoodTillCancel', timeInForce='GoodTillCancel',
                                                   trigger_by=trigger_by, triggerBy=trigger_by,
                                                   orderFilter=orderFilter, position_idx=0))
-        elif post_only: # limit order with post only loop
-            logger.info(f"Limit chasing currently not supported")
+        elif post_only:  # Limit Chaser        
+            limit = self.best_bid_price if side == "Buy" else self.best_ask_price
+            ord_type = "Limit" 
+            type = "LIMIT_MAKER" # Spot only
+            orderFilter = "Order" if self.pair.endswith('PERP') else None             
+            limit = str(limit) if self.pair.endswith('PERP') else limit 
+           
+            def chaser(ord_id=ord_id):
+                i=0
+                while True:
+                    #logger.info(f"{self.limit_chaser_ord}")
+                    if self.limit_chaser_ord[side]['is_amend_active'] \
+                        or not self.limit_chaser_ord[side]['is_active']: 
+                        self.limit_chaser_ord[side]['active_counter'] = 0             
+                        return                    
+                    
+                    ord_id = self.limit_chaser_ord[side]['ID'].split('_')[0] \
+                             + '_' + str(i) + ord_suffix() if i>0 else ord_id              
+                    
+                    limit = self.best_bid_price if side == "Buy" else self.best_ask_price
+                    #logger.info(f"i: {i}   active_counter: {self.limit_chaser_ord[side]['active_counter']}")
+                    if limit is None \
+                        or self.limit_chaser_ord[side]['active_counter'] != i:
+                        time.sleep(0.05)
+                        continue
+                    limit = str(limit) if self.pair.endswith('PERP') else limit   
+                    #logger.info(f"best bid: {self.best_bid_price}     best ask: {self.best_ask_price} ")                   
+
+                    self.limit_chaser_ord[side]['ID'] = ord_id      
+                    ord_qty = abs(self.limit_chaser_ord[side]['Qty']) - self.limit_chaser_ord[side]['Filled']
+                    ord_qty = str(ord_qty) if self.pair.endswith('PERP') else ord_qty
+                    if self.spot:    
+                        res = retry(lambda: self.private_client
+                                    .place_active_order(symbol=self.pair, type=type,
+                                                        orderLinkId=ord_id,
+                                                        side=side,
+                                                        qty=ord_qty,
+                                                        price=limit,
+                                                        timeInForce='GTC'))      
+        
+                    else:
+                        res = retry(lambda: self.private_client
+                                    .place_active_order(symbol=self.pair, 
+                                                        order_type=ord_type, orderType=ord_type, type=type,
+                                                        order_link_id=ord_id, orderLinkId=ord_id, side=side, 
+                                                        qty=ord_qty, orderQty=ord_qty,
+                                                        price=limit, orderPrice=limit,
+                                                        reduce_only=reduce_only, reduceOnly=reduce_only,
+                                                        close_on_trigger=reduce_only,
+                                                        time_in_force='PostOnly', timeInForce='PostOnly',
+                                                        orderFilter=orderFilter, position_idx=0))
+                    time.sleep(0.1)
+                    i += 1   
+
+            threading.Timer(0.001, chaser).start()       
         else:
             ord_type = "Market"
             type = "MARKET"
@@ -815,13 +871,13 @@ class Bybit:
                                                                 timeInForce='GTC'))   
             else:   
                 res = retry(lambda: self.private_client
-                                            .place_active_order(symbol=self.pair, order_type=ord_type, type=type, orderType=ord_type,
-                                                                order_link_id=ord_id, orderLinkId=ord_id, side=side,
-                                                                qty=ord_qty, orderQty=ord_qty,
-                                                                reduce_only=reduce_only, reduceOnly=reduce_only,
-                                                                close_on_trigger=reduce_only,
-                                                                time_in_force='GoodTillCancel', timeInForce='GoodTillCancel',
-                                                                orderFilter=orderFilter, position_idx=0))
+                            .place_active_order(symbol=self.pair, order_type=ord_type, type=type, orderType=ord_type,
+                                                order_link_id=ord_id, orderLinkId=ord_id, side=side,
+                                                qty=ord_qty, orderQty=ord_qty,
+                                                reduce_only=reduce_only, reduceOnly=reduce_only,
+                                                close_on_trigger=reduce_only,
+                                                time_in_force='GoodTillCancel', timeInForce='GoodTillCancel',
+                                                orderFilter=orderFilter, position_idx=0))
 
         if self.enable_trade_log:
             logger.info(f"========= New Order ==============")
@@ -885,13 +941,15 @@ class Bybit:
         res = None
 
         if is_conditional:
-            res = retry(lambda: self.private_client.replace_conditional_order(symbol=self.pair, order_link_id=ord_id,
-                                                                              orderLinkId=ord_id, orderFilter='StopOrder',
-                                                                              **kwargs))
+            res = retry(lambda: self.private_client
+                        .replace_conditional_order(symbol=self.pair, order_link_id=ord_id,
+                                                   orderLinkId=ord_id, orderFilter='StopOrder',
+                                                   **kwargs))
         else:
-            res = retry(lambda: self.private_client.replace_active_order(symbol=self.pair, order_link_id=ord_id,
-                                                                         orderLinkId=ord_id, orderFilter='Order',
-                                                                         **kwargs))
+            res = retry(lambda: self.private_client
+                        .replace_active_order(symbol=self.pair, order_link_id=ord_id,
+                                              orderLinkId=ord_id, orderFilter='Order',
+                                              **kwargs))
 
         if self.enable_trade_log:
             logger.info(f"========= Amend Order ==============")
@@ -917,7 +975,10 @@ class Bybit:
             callback=None,
             trigger_by='LastPrice',
             split=1,
-            interval=0
+            interval=0,
+            limit_chase_init_delay=0.0001, 
+            chase_loop_filler_interval=0.05, 
+            limit_chase_interval=0
             ):
         """
         places an entry order, works as equivalent to tradingview pine script implementation
@@ -928,8 +989,16 @@ class Bybit:
         :param limit: Limit price
         :param stop: Stop limit
         :param post_only: Post only
-        :param reduce_only: Reduce Only means that your existing position cannot be increased only reduced by this order
+        :param reduce_only: your existing position cannot be increased only reduced by this order
         :param when: Do you want to execute the order or not - True for live trading
+        :param round_decimals: round_decimals - if not provided its rounded automatically
+        :param callback:
+        :param trigger_by: what price to use for triggers
+        :param split: for iceberg order
+        :param inerval: for iceberg order
+        :param limit_chase_init_delay: for limit order chasing
+        :param chase_loop_filler_interval: limit order chasing sleep interval between price updates etc
+        :param limit_chase_interval: has to be above 0 to start limit chasing along with `post_only`
         :return:
         """
         self.__init_client()
@@ -952,7 +1021,9 @@ class Bybit:
         ord_qty = abs(qty) + abs(pos_size)
         ord_qty = round(ord_qty, round_decimals if round_decimals != None else self.asset_rounding)
 
-        self.order(id, long, ord_qty, limit, stop, post_only, reduce_only, when, callback, trigger_by, split, interval)
+        self.order(id, long, ord_qty, limit, stop, post_only, 
+                   reduce_only, when, callback, trigger_by, split, interval,
+                   limit_chase_init_delay=0.0001, chase_loop_filler_interval=0.05, limit_chase_interval=0)
 
     def entry_pyramiding(
             self,
@@ -971,7 +1042,10 @@ class Bybit:
             callback=None,
             trigger_by='LastPrice',
             split=1,
-            interval=0
+            interval=0,
+            limit_chase_init_delay=0.0001, 
+            chase_loop_filler_interval=0.05, 
+            limit_chase_interval=0
             ):
         """
         places an entry order, works as equivalent to tradingview pine script implementation with pyramiding
@@ -986,6 +1060,14 @@ class Bybit:
         :param cancell_all: cancell all open order before sending the entry order?
         :param pyramiding: number of entries you want in pyramiding
         :param when: Do you want to execute the order or not - True for live trading
+        :param round_decimals: round_decimals - if not provided its rounded automatically
+        :param callback:
+        :param trigger_by: what price to use for triggers
+        :param split: for iceberg order
+        :param inerval: for iceberg order
+        :param limit_chase_init_delay: for limit order chasing
+        :param chase_loop_filler_interval: limit order chasing sleep interval between price updates etc
+        :param limit_chase_interval: has to be above 0 to start limit chasing along with `post_only`
         :return:
         """ 
         # if self.get_margin()['excessMargin'] <= 0 or qty <= 0:
@@ -1023,7 +1105,8 @@ class Bybit:
         ord_qty = round(ord_qty, round_decimals if round_decimals != None else self.asset_rounding)
 
         self.order(id, long, ord_qty, limit, stop, post_only, 
-                   reduce_only, when, callback, trigger_by, split, interval)
+                   reduce_only, when, callback, trigger_by, split, interval,
+                   limit_chase_init_delay, chase_loop_filler_interval, limit_chase_interval)
 
     def order(
             self,
@@ -1038,7 +1121,10 @@ class Bybit:
             callback=None,
             trigger_by='LastPrice',
             split=1,
-            interval=0
+            interval=0, 
+            limit_chase_init_delay=0.0001, 
+            chase_loop_filler_interval=0.05, 
+            limit_chase_interval=0
             ):
         """
         places an order, works as equivalent to tradingview pine script implementation
@@ -1049,8 +1135,15 @@ class Bybit:
         :param limit: Limit price
         :param stop: Stop limit
         :param post_only: Post only 
-        :param reduce_only: Reduce Only means that your existing position cannot be increased only reduced by this order       
+        :param reduce_only: your existing position cannot be increased only reduced by this order       
         :param when: Do you want to execute the order or not - True for live trading
+        :param callback:
+        :param trigger_by: what price to use for triggers
+        :param split: for iceberg order
+        :param inerval: for iceberg order
+        :param limit_chase_init_delay: for limit order chasing
+        :param chase_loop_filler_interval: limit order chasing sleep interval between price updates etc
+        :param limit_chase_interval: has to be above 0 to start limit chasing along with `post_only`
         :return:
         """
         self.__init_client()
@@ -1106,6 +1199,66 @@ class Bybit:
             sub_ord_id = f"{id}_sub1"
             self.order(sub_ord_id, long, sub_ord_qty, limit, stop, post_only,
                         reduce_only, trigger_by=trigger_by, callback=split_order(1))
+            return
+        
+        if limit_chase_interval>0:           
+            self.limit_chaser_ord[side] = {'ID': ord_id,
+                                           'Status': '',
+                                           'Qty': ord_qty,
+                                           'Filled': 0,
+                                           'Limit': 0,
+                                           'active_counter': 0,
+                                           'chase_counter': 0,
+                                           'is_active': True,
+                                           'is_amend_active': False,                                           
+                                           'callback': callback}
+            
+            first_ord_res = self.__new_order(ord_id=ord_id, 
+                                             side=side, 
+                                             ord_qty=ord_qty, 
+                                             post_only=post_only, 
+                                             reduce_only=reduce_only)           
+
+            def amend_chaser():      
+                i=1 
+                while True:                 
+                    if not self.limit_chaser_ord[side]['is_amend_active'] \
+                        and not self.limit_chaser_ord[side]['is_active']:
+                        return
+           
+                    ord_id = self.limit_chaser_ord[side]['ID']
+                    limit = self.best_bid_price if side == "Buy" else self.best_ask_price 
+                         
+                    if 'Status' in self.limit_chaser_ord[side] \
+                        and self.limit_chaser_ord[side]['Status'] == 'Cancelled' \
+                        and self.limit_chaser_ord[side]['chase_counter'] > 0:
+                        ord_qty = abs(self.limit_chaser_ord[side]['Qty']) #- self.limit_chaser_ord[side]['Filled']
+                        self.__new_order(ord_id=ord_id.split('_')[0] + ord_suffix(),  # Sending a replacement order 
+                                         side=side, ord_qty=ord_qty,                  # When amending fails
+                                         post_only=post_only, 
+                                         reduce_only=reduce_only)  
+                                               
+                        self.limit_chaser_ord[side]['callback'] = callback 
+                        self.limit_chaser_ord[side]['chase_counter'] = 0         
+                        i=1             
+                        #time.sleep(0.05)
+                        continue                        
+                    
+                    if limit == self.limit_chaser_ord[side]['Limit'] \
+                        or self.limit_chaser_ord[side]['chase_counter'] != i:  # Checking if the price has changed
+                        #logger.info(f"best bid: {self.best_bid_price}     best ask: {self.best_ask_price}")                      
+                        time.sleep(chase_loop_filler_interval)
+                        continue                   
+
+                    if not self.limit_chaser_ord[side]['is_amend_active']:
+                        time.sleep(chase_loop_filler_interval)
+                        continue
+
+                    limit = str(limit) if self.pair.endswith('PERP') else limit  
+                    res = self.__amend_order(ord_id, is_conditional=False, limit=limit) # Amend the order
+                    time.sleep(limit_chase_interval)
+                    i+=1
+            threading.Timer(limit_chase_init_delay, amend_chaser).start()
             return
 
         self.callbacks[ord_id] = callback
@@ -1469,12 +1622,11 @@ class Bybit:
 
             logger.info(f"fetching OHLCV data - {left_time}")  
 
-            source = retry(lambda: self.public_client.query_kline(
-                                                    symbol=self.pair,
-                                                    interval=fetch_bin_size if self.spot else bybit_bin_size_converted['bin_size'],
-                                                    period=bybit_bin_size_converted['bin_size'], startTime=left_time_to_timestamp, # USDC perps args
-                                                    from_time=left_time_to_timestamp, limit=1000 if self.spot else 200)
-                                                    )
+            source = retry(lambda: self.public_client
+                           .query_kline(symbol=self.pair,
+                                        interval=fetch_bin_size if self.spot else bybit_bin_size_converted['bin_size'],
+                                        period=bybit_bin_size_converted['bin_size'], startTime=left_time_to_timestamp, # USDC perps args
+                                        from_time=left_time_to_timestamp, limit=1000 if self.spot else 200))
                                                                       
             if len(source) == 0:
                 break
@@ -1484,13 +1636,13 @@ class Bybit:
             for s in source:
                 timestamp = s[0] if self.spot else s['openTime'] if self.pair.endswith('PERP') else s['open_time']
                 source_to_object_list.append({                        
-                        "timestamp" : (datetime.fromtimestamp(int(timestamp / 1000 if len(str(timestamp)) == 13 else timestamp)) 
-                            + timedelta(seconds= + bybit_bin_size_converted['seconds']) - timedelta(seconds=0.01)).astimezone(UTC),
-                        "high" : float(s[1 if self.spot else 'high']),
-                        "low" : float(s[2 if self.spot else 'low']),
-                        "open" : float(s[3 if self.spot else 'open']),
-                        "close" : float(s[4 if self.spot else 'close']),
-                        "volume" : float(s[5 if self.spot else 'volume'])
+                    "timestamp" : (datetime.fromtimestamp(int(timestamp / 1000 if len(str(timestamp)) == 13 else timestamp)) 
+                        + timedelta(seconds= + bybit_bin_size_converted['seconds']) - timedelta(seconds=0.01)).astimezone(UTC),
+                    "high" : float(s[1 if self.spot else 'high']),
+                    "low" : float(s[2 if self.spot else 'low']),
+                    "open" : float(s[3 if self.spot else 'open']),
+                    "close" : float(s[4 if self.spot else 'close']),
+                    "volume" : float(s[5 if self.spot else 'volume'])
                     })
 
             source = to_data_frame(source_to_object_list)
@@ -1673,6 +1825,13 @@ class Bybit:
         if len(orders) == 0:
             return
         for o in orders:
+            id = o['c' if self.spot else 'orderLinkId']
+            side = o['S' if self.spot else 'side']      
+            qty = float(o['q' if self.spot else 'qty'])
+            filled_qty =float(o['z' if self.spot else 'cumExecQty'])
+            status = o['X' if self.spot else 'orderStatus']
+            limit = float(o['p' if self.spot else 'price'])
+
             if(o['X' if self.spot else 'orderStatus'].upper() == "CANCELLED"
                or o['X' if self.spot else 'orderStatus'] == "EXPIRED") \
                 and self.order_update_log:
@@ -1734,8 +1893,14 @@ class Bybit:
                 logger.info(f"APrice : {None if self.spot else o['triggerPrice']}")
                 logger.info(f"======================================")      
                 
-                # Call the respective order callback                
-                callback = self.callbacks.pop(o['c' if self.spot else 'orderLinkId'], None)  # Removes the respective order callback and returns it
+                # Call the respective order callback       
+                if len(self.limit_chaser_ord[side]) > 0 \
+                    and id == self.limit_chaser_ord[side]['ID'] \
+                    and 'callback' in self.limit_chaser_ord[side]:
+                    callback = self.limit_chaser_ord[side].pop('callback', None)  # Removes the respective order callback and returns it   
+                    self.limit_chaser_ord[side]['active_counter'] = 0
+                else:
+                    callback = self.callbacks.pop(o['c' if self.spot else 'orderLinkId'], None)  # Removes the respective order callback and returns it
                 if callable(callback):
                     callback()
             else:
@@ -1754,6 +1919,26 @@ class Bybit:
                 logger.info(f"Stop   : {None if self.spot else o['triggerPrice']}")
                 logger.info(f"APrice : {None if self.spot else o['triggerPrice']}")
                 logger.info(f"======================================")             
+
+        if len(self.limit_chaser_ord[side]) > 0 and id == self.limit_chaser_ord[side]['ID']:           
+            is_active = status.upper() == "CANCELLED"
+            is_amend_active = status != 'Filled' \
+                                    and status.upper() != "CANCELLED"
+       
+            limit_chaser_ord = {'ID' : id,
+                                'Side' : side,
+                                'Status' : status,
+                                'Qty' : qty,
+                                'Filled' : filled_qty,
+                                'Limit': limit,
+                                'is_active':  is_active,
+                                'is_amend_active': is_amend_active}
+            
+            if not self.limit_chaser_ord[side]['is_amend_active'] and is_active: # if not flipping from amending to active
+                self.limit_chaser_ord[side]['active_counter'] += 1  
+            if is_amend_active:
+                self.limit_chaser_ord[side]['chase_counter'] += 1 
+            self.limit_chaser_ord[side].update(limit_chaser_ord) # Updating chaser order dict
 
         # Evaluation of profit and loss
         self.eval_exit()
