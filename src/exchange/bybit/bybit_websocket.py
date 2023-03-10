@@ -204,6 +204,13 @@ class BybitWs:
                     'args': ["outboundAccountInfo", "stopOrder", "order", "ticketInfo"]
                 }) 
             )            
+        elif self.pair.endswith('PERP') and not self.unified_margin:
+            ws.send(
+            json.dumps({
+                    'op': 'subscribe',
+                    'args': ["user.openapi.perp.position", "user.openapi.perp.trade", "user.openapi.perp.order", "user.service"]
+                }) 
+            )         
         else:           
             ws.send(
             json.dumps({
