@@ -1228,6 +1228,10 @@ class Bybit:
            
                     ord_id = self.limit_chaser_ord[side]['ID']
                     limit = self.best_bid_price if side == "Buy" else self.best_ask_price 
+
+                    if limit is None:
+                        time.sleep(chase_loop_filler_interval)
+                        continue
                          
                     if 'Status' in self.limit_chaser_ord[side] \
                         and self.limit_chaser_ord[side]['Status'] == 'Cancelled' \
