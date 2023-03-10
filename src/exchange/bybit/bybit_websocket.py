@@ -74,8 +74,8 @@ class BybitWs:
                 elif self.pair.endswith("PERP"):
                     self.endpoint = 'wss://stream-testnet.bybit.com/contract/usdc/public/v3' \
                                     if self.testnet else 'wss://stream.bybit.com/contract/usdc/public/v3'
-                    self.endpoint_private = 'wss://stream-testnet.bybit.com/contract/private/v3' \
-                                    if self.testnet else 'wss://stream.bybit.com/contract/private/v3'
+                    self.endpoint_private = 'wss://stream-testnet.bybit.com/trade/option/usdc/private/v1' \
+                                    if self.testnet else 'wss://stream.bybit.com/trade/option/usdc/private/v1'
                 else:
                     self.endpoint = 'wss://stream-testnet.bybit.com/contract/inverse/public/v3' \
                                     if self.testnet else 'wss://stream.bybit.com/contract/inverse/public/v3'
@@ -242,6 +242,8 @@ class BybitWs:
                 action = obj['topic'] #obj['type']
                 data = obj['data']  
 
+                data = data['result'] if table.startswith("user.openapi.") else data
+
                 if table.startswith("trade"): # Tick Data, we dont currently use it            
                     pass
 
@@ -291,17 +293,21 @@ class BybitWs:
                 elif table.startswith("orderbook.1") or table.startswith("bookticker"):
                     self.__emit("bookticker", obj['type'], data)      
 
-                elif table.startswith(("user." if not self.spot else "") + "position"):                    
+                elif 'position' in table:                            
                     self.__emit("position", action, data)                   
 
-                elif table.startswith(("user." if not self.spot else "") + "execution") or table.startswith("tickerInfo"):
+                elif table.startswith(("user." if not self.spot else "") + "execution") \
+                    or table.startswith("tickerInfo") or table == "user.openapi.perp.trade":                   
                     self.__emit("execution", action, data[0])
 
-                elif table.startswith("user.order") or table == "order" or table.startswith("stopOrder"):                    
+                elif table.startswith("user.order") \
+                    or table == "user.openapi.perp.order" \
+                    or table == "order" or table.startswith("stopOrder"):
                     self.__emit("order", action, data)
 
-                elif table.startswith("outboundAccountInfo") or table.startswith("user.wallet"):
-                    self.__emit("wallet", action, data[0])               
+                elif table.startswith("outboundAccountInfo") \
+                    or table.startswith("user.wallet") or table == "user.service":
+                    self.__emit("wallet", action, data[0])                    
 
         except Exception as e:
             logger.error(e)

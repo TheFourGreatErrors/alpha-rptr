@@ -60,13 +60,13 @@ class Bybit:
         self.pair = (pair.replace("-", "") if pair.upper().endswith("PERP") else pair).upper()
         # Spot market?
         self.spot = spot
-		# Base Asset
+        # Base Asset
         self.base_asset = None
-	    # Asset Rounding
+        # Asset Rounding
         self.asset_rounding = None
-	    # Quote Asset
+        # Quote Asset
         self.quote_asset = None
-	    # Quote Rounding
+        # Quote Rounding
         self.quote_rounding = None
         # Use testnet?
         self.demo = demo
@@ -1233,6 +1233,7 @@ class Bybit:
                         and self.limit_chaser_ord[side]['Status'] == 'Cancelled' \
                         and self.limit_chaser_ord[side]['chase_counter'] > 0:
                         ord_qty = abs(self.limit_chaser_ord[side]['Qty']) #- self.limit_chaser_ord[side]['Filled']
+                   
                         self.__new_order(ord_id=ord_id.split('_')[0] + ord_suffix(),  # Sending a replacement order 
                                          side=side, ord_qty=ord_qty,                  # When amending fails
                                          post_only=post_only, 
@@ -1831,6 +1832,8 @@ class Bybit:
             filled_qty =float(o['z' if self.spot else 'cumExecQty'])
             status = o['X' if self.spot else 'orderStatus']
             limit = float(o['p' if self.spot else 'price'])
+            last_fill = None if self.pair.endswith('PERP') else o['l' if self.spot else 'lastExecQty']
+            rejec_reason = None if self.spot or self.pair.endswith('PERP') else o['rejectReason']
 
             if(o['X' if self.spot else 'orderStatus'].upper() == "CANCELLED"
                or o['X' if self.spot else 'orderStatus'] == "EXPIRED") \
@@ -1841,10 +1844,10 @@ class Bybit:
                 #logger.info(f"Uses   : {o['wt']}")
                 logger.info(f"Side   : {o['S' if self.spot else 'side']}")
                 logger.info(f"Status : {o['X' if self.spot else 'orderStatus']}")
-                logger.info(f"RejecR.: {None if self.spot else o['rejectReason']}") # rejection reason
+                logger.info(f"RejecR.: {rejec_reason}") # rejection reason
                 logger.info(f"TIF    : {o['f' if self.spot else 'timeInForce']}")
                 logger.info(f"Qty    : {o['q' if self.spot else 'qty']}")
-                logger.info(f"LstFill: {o['l' if self.spot else 'lastExecQty']}")
+                logger.info(f"LstFill: {last_fill}")
                 logger.info(f"Filled : {o['z' if self.spot else 'cumExecQty']}")
                 logger.info(f"Limit  : {o['p' if self.spot else 'price']}")
                 logger.info(f"Stop   : {None if self.spot else o['triggerPrice']}")
@@ -1861,10 +1864,10 @@ class Bybit:
                     #logger.info(f"Uses   : {o['wt']}")
                     logger.info(f"Side   : {o['S' if self.spot else 'side']}")
                     logger.info(f"Status : TRIGGERED")
-                    logger.info(f"RejecR.: {None if self.spot else o['rejectReason']}") # rejection reason
+                    logger.info(f"RejecR.: {rejec_reason}") # rejection reason
                     logger.info(f"TIF    : {o['f' if self.spot else 'timeInForce']}")
                     logger.info(f"Qty    : {o['q' if self.spot else 'qty']}")
-                    logger.info(f"LstFill: {o['l' if self.spot else 'lastExecQty']}")
+                    logger.info(f"LstFill: {last_fill}")
                     logger.info(f"Filled : {o['z' if self.spot else 'cumExecQty']}")
                     logger.info(f"Limit  : {o['p' if self.spot else 'price']}")
                     logger.info(f"Stop   : {None if self.spot else o['triggerPrice']}")
@@ -1883,10 +1886,10 @@ class Bybit:
                 #logger.info(f"Uses   : {o['wt']}")
                 logger.info(f"Side   : {o['S' if self.spot else 'side']}")
                 logger.info(f"Status : {o['X' if self.spot else 'orderStatus']}")
-                logger.info(f"RejecR.: {None if self.spot else o['rejectReason']}") # rejection reason
+                logger.info(f"RejecR.: {rejec_reason}") # rejection reason
                 logger.info(f"TIF    : {o['f' if self.spot else 'timeInForce']}")
                 logger.info(f"Qty    : {o['q' if self.spot else 'qty']}")
-                logger.info(f"LstFill: {o['l' if self.spot else 'lastExecQty']}")
+                logger.info(f"LstFill: {last_fill}")
                 logger.info(f"Filled : {o['z' if self.spot else 'cumExecQty']}")
                 logger.info(f"Limit  : {o['p' if self.spot else 'price']}")
                 logger.info(f"Stop   : {None if self.spot else o['triggerPrice']}")
@@ -1910,10 +1913,10 @@ class Bybit:
                 #logger.info(f"Uses   : {o['wt']}")
                 logger.info(f"Side   : {o['S' if self.spot else 'side']}")
                 logger.info(f"Status : {o['X' if self.spot else 'orderStatus']}")
-                logger.info(f"RejecR.: {None if self.spot else o['rejectReason']}") # rejection reason
+                logger.info(f"RejecR.: {rejec_reason}") # rejection reason
                 logger.info(f"TIF    : {o['f' if self.spot else 'timeInForce']}")
                 logger.info(f"Qty    : {o['q' if self.spot else 'qty']}")
-                logger.info(f"LstFill: {o['l' if self.spot else 'lastExecQty']}")
+                logger.info(f"LstFill: {last_fill}")
                 logger.info(f"Filled : {o['z' if self.spot else 'cumExecQty']}")
                 logger.info(f"Limit  : {o['p' if self.spot else 'price']}")
                 logger.info(f"Stop   : {None if self.spot else o['triggerPrice']}")
