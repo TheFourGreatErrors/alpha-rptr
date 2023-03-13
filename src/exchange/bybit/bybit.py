@@ -374,7 +374,12 @@ class Bybit:
             #if len(ret) > 0:           
             self.position = ret['dataList'] if self.pair.endswith('PERP') else \
                                 ret if self.pair.endswith('USDT') else [ret]  
+            
             if self.position is None or len(self.position) == 0:
+                self.position = [{'entryPrice': 0,
+                                  'size': 0,
+                                  'liqPrice': 0,
+                                  'side': None}]   
                 return None                           
             # update so it shares certain keys between USDC perp and Inverse/Linear               
             if 'entry_price' in self.position[0]:                   
@@ -1273,7 +1278,7 @@ class Bybit:
         else:
             self.__new_order(ord_id, side, ord_qty, limit, stop, post_only, reduce_only, trigger_by)
             #self.__amend_order(ord_id, side, ord_qty, limit, stop, post_only)
-            return
+            return                                      
 
     def get_open_order_qty(self, id, only_active=False, only_conditional=False):
         """
