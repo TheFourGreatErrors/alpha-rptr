@@ -1278,7 +1278,7 @@ class Bybit:
         else:
             self.__new_order(ord_id, side, ord_qty, limit, stop, post_only, reduce_only, trigger_by)
             #self.__amend_order(ord_id, side, ord_qty, limit, stop, post_only)
-            return                                      
+            return        
 
     def get_open_order_qty(self, id, only_active=False, only_conditional=False):
         """
@@ -2052,8 +2052,7 @@ class Bybit:
             self.ws.bind('execution', self.__on_update_fills)
             self.ws.bind('order', self.__on_update_order)
             # TODO orderbook
-            # self.ob = OrderBook(self.ws)
-        logger.info(f" on_update(self, bin_size, strategy)")        
+            # self.ob = OrderBook(self.ws)        
 
     def stop(self):
         """

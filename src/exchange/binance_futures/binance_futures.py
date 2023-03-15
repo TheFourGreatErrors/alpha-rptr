@@ -1459,8 +1459,7 @@ class BinanceFutures:
             self.ws.bind('margin', self.__on_update_margin)
             self.ws.bind('bookticker', self.__on_update_bookticker)            
             #todo orderbook
-            #self.ob = OrderBook(self.ws)            
-        logger.info(f" on_update(self, bin_size, strategy)")       
+            #self.ob = OrderBook(self.ws)
 
     def stop(self):
         """

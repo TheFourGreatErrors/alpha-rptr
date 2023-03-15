@@ -1094,8 +1094,7 @@ class Ftx:
             self.ws.bind('ticker', self.__on_update_ticker)          
             self.ws.bind('orders', self.__on_update_order)
             self.ws.bind('fills', self.__on_update_fills)            
-            # self.ob = OrderBook(self.ws)
-        logger.info(f" on_update(self, bin_size, strategy)")        
+            # self.ob = OrderBook(self.ws)       
 
     def stop(self):
         """
