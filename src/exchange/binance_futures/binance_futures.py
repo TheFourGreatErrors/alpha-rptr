@@ -17,6 +17,7 @@ from src import (logger, allowed_range, allowed_range_minute_granularity,
                  FatalError, notify, ord_suffix)
 from src import retry_binance_futures as retry
 from src.config import config as conf
+from src.exchange_config import exchange_config
 from src.exchange.binance_futures.binance_futures_api import Client
 from src.exchange.binance_futures.binance_futures_websocket import BinanceFuturesWs
 
@@ -133,6 +134,11 @@ class BinanceFutures:
         self.bid_quantity_L1 = None
         # Ask quantity L1
         self.ask_quantity_L1 = None
+
+        for k,v in exchange_config['binance_f'].items():
+            if k in dir(BinanceFutures):
+                logger.info(f"{k}")
+                setattr(self, k, v)
         
     def __init_client(self):
         """

@@ -19,6 +19,7 @@ from src import (logger, retry, allowed_range,
                  FatalError, notify, ord_suffix)
 from src.exchange.bitmex.bitmex_api import bitmex_api
 from src.config import config as conf
+from src.exchange_config import exchange_config
 from src.exchange.bitmex.bitmex_websocket import BitMexWs
 
 
@@ -120,6 +121,11 @@ class BitMex:
         self.callbacks = {}
         # Last strategy execution time
         self.last_action_time = None
+
+        for k,v in exchange_config['bitmex'].items():
+            if k in dir(BitMex):
+                logger.info(f"{k}")
+                setattr(self, k, v)
         
     def __init_client(self):
         """

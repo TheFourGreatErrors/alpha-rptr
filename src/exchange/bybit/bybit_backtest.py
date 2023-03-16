@@ -13,6 +13,7 @@ from src import (logger, allowed_range,
                  retry, delta, load_data,
                  resample, symlink,
                  find_timeframe_string)
+from src.exchange_config import exchange_config
 from src.exchange.bybit.bybit_stub import BybitStub
 
 OHLC_DIRNAME = os.path.join(os.path.dirname(__file__), "../ohlc/{}/{}/{}")
@@ -71,6 +72,11 @@ class BybitBackTest(BybitStub):
         self.plot_data = {}
         # Resample data
         self.resample_data = {}
+
+        for k,v in exchange_config['bybit'].items():
+            if k in dir(BybitBackTest):
+                logger.info(f"{k}")
+                setattr(self, k, v)
 
     def get_market_price(self):
         """

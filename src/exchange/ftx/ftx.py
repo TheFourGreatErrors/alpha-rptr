@@ -17,6 +17,7 @@ from src import logger, bin_size_converter, allowed_range, allowed_range_minute_
 from src import retry_ftx as retry
 from src.exchange.ftx.ftx_api import FtxClient
 from src.config import config as conf
+from src.exchange_config import exchange_config
 from src.exchange.ftx.ftx_websocket import FtxWs
 
 
@@ -129,7 +130,12 @@ class Ftx:
         self.best_ask_price = None     
         # Warmup long and short entry lists for tp_next_candle option for sltp()
         self.isLongEntry = [False, False]
-        self.isShortEntry = [False,False]        
+        self.isShortEntry = [False,False]    
+
+        for k,v in exchange_config['ftx'].items():
+            if k in dir(Ftx):
+                logger.info(f"{k}")
+                setattr(self, k, v)    
     
     def __init_client(self):
         """

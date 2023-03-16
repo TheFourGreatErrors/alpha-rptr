@@ -20,6 +20,7 @@ from src import retry_bybit as retry
 from pybit import inverse_futures, inverse_perpetual, usdc_perpetual, usdt_perpetual, spot
 #from pybit import spot as spot_http
 from src.config import config as conf
+from src.exchange_config import exchange_config
 from src.exchange.bybit.bybit_websocket import BybitWs
 
 #TODO
@@ -150,6 +151,11 @@ class Bybit:
         self.bid_quantity_L1 = None
         # Ask quantity L1
         self.ask_quantity_L1 = None
+
+        for k,v in exchange_config['bybit'].items():
+            if k in dir(Bybit):
+                logger.info(f"{k}")
+                setattr(self, k, v)
 
     def __init_client(self):
         """

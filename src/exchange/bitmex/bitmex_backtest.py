@@ -12,6 +12,7 @@ from src import (logger, allowed_range,
                  allowed_range_minute_granularity,
                  retry, delta, load_data, resample, 
                  find_timeframe_string)
+from src.exchange_config import exchange_config
 from src.exchange.bitmex.bitmex_stub import BitMexStub
 
 OHLC_DIRNAME = os.path.join(os.path.dirname(__file__), "../ohlc/{}/{}/{}")
@@ -72,6 +73,11 @@ class BitMexBackTest(BitMexStub):
         self.plot_data = {}
         # Resample data
         self.resample_data = {}
+
+        for k,v in exchange_config['bitmex'].items():
+            if k in dir(BitMexBackTest):
+                logger.info(f"{k}")
+                setattr(self, k, v)
 
     def get_market_price(self):
         """

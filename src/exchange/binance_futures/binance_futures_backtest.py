@@ -12,6 +12,7 @@ from src import (logger, allowed_range,
                  allowed_range_minute_granularity, 
                  retry, delta, load_data, resample, symlink,
                 find_timeframe_string)
+from src.exchange_config import exchange_config
 from src.exchange.binance_futures.binance_futures_stub import BinanceFuturesStub
 
 OHLC_DIRNAME = os.path.join(os.path.dirname(__file__), "../ohlc/{}/{}/{}")
@@ -70,6 +71,11 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
         self.plot_data = {}
         # Resample data
         self.resample_data = {}
+
+        for k,v in exchange_config['binance_f'].items():
+            if k in dir(BinanceFuturesBackTest):
+                logger.info(f"{k}")
+                setattr(self, k, v)
 
     def get_market_price(self):
         """
