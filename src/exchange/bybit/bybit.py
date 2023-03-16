@@ -982,7 +982,7 @@ class Bybit:
             split=1,
             interval=0,
             limit_chase_init_delay=0.0001, 
-            chase_loop_filler_interval=0.05, 
+            chase_update_rate=0.05, 
             limit_chase_interval=0
             ):
         """
@@ -1002,7 +1002,7 @@ class Bybit:
         :param split: for iceberg order
         :param inerval: for iceberg order
         :param limit_chase_init_delay: for limit order chasing
-        :param chase_loop_filler_interval: limit order chasing sleep interval between price updates etc
+        :param chase_update_rate: limit order chasing sleep interval between price updates etc
         :param limit_chase_interval: has to be above 0 to start limit chasing along with `post_only`
         :return:
         """
@@ -1028,7 +1028,7 @@ class Bybit:
 
         self.order(id, long, ord_qty, limit, stop, post_only, 
                    reduce_only, when, callback, trigger_by, split, interval,
-                   limit_chase_init_delay=0.0001, chase_loop_filler_interval=0.05, limit_chase_interval=0)
+                   limit_chase_init_delay, chase_update_rate, limit_chase_interval)
 
     def entry_pyramiding(
             self,
@@ -1049,7 +1049,7 @@ class Bybit:
             split=1,
             interval=0,
             limit_chase_init_delay=0.0001, 
-            chase_loop_filler_interval=0.05, 
+            chase_update_rate=0.05, 
             limit_chase_interval=0
             ):
         """
@@ -1071,7 +1071,7 @@ class Bybit:
         :param split: for iceberg order
         :param inerval: for iceberg order
         :param limit_chase_init_delay: for limit order chasing
-        :param chase_loop_filler_interval: limit order chasing sleep interval between price updates etc
+        :param chase_update_rate: limit order chasing sleep interval between price updates etc
         :param limit_chase_interval: has to be above 0 to start limit chasing along with `post_only`
         :return:
         """ 
@@ -1111,7 +1111,7 @@ class Bybit:
 
         self.order(id, long, ord_qty, limit, stop, post_only, 
                    reduce_only, when, callback, trigger_by, split, interval,
-                   limit_chase_init_delay, chase_loop_filler_interval, limit_chase_interval)
+                   limit_chase_init_delay, chase_update_rate, limit_chase_interval)
 
     def order(
             self,
@@ -1128,7 +1128,7 @@ class Bybit:
             split=1,
             interval=0, 
             limit_chase_init_delay=0.0001, 
-            chase_loop_filler_interval=0.05, 
+            chase_update_rate=0.05, 
             limit_chase_interval=0
             ):
         """
@@ -1147,7 +1147,7 @@ class Bybit:
         :param split: for iceberg order
         :param inerval: for iceberg order
         :param limit_chase_init_delay: for limit order chasing
-        :param chase_loop_filler_interval: limit order chasing sleep interval between price updates etc
+        :param chase_update_rate: limit order chasing sleep interval between price updates etc
         :param limit_chase_interval: has to be above 0 to start limit chasing along with `post_only`
         :return:
         """
@@ -1235,7 +1235,7 @@ class Bybit:
                     limit = self.best_bid_price if side == "Buy" else self.best_ask_price 
 
                     if limit is None:
-                        time.sleep(chase_loop_filler_interval)
+                        time.sleep(chase_update_rate)
                         continue
                          
                     if 'Status' in self.limit_chaser_ord[side] \
@@ -1257,11 +1257,11 @@ class Bybit:
                     if limit == self.limit_chaser_ord[side]['Limit'] \
                         or self.limit_chaser_ord[side]['chase_counter'] != i:  # Checking if the price has changed
                         #logger.info(f"best bid: {self.best_bid_price}     best ask: {self.best_ask_price}")                      
-                        time.sleep(chase_loop_filler_interval)
+                        time.sleep(chase_update_rate)
                         continue                   
 
                     if not self.limit_chaser_ord[side]['is_amend_active']:
-                        time.sleep(chase_loop_filler_interval)
+                        time.sleep(chase_update_rate)
                         continue
 
                     limit = str(limit) if self.pair.endswith('PERP') else limit  
