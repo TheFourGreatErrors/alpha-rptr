@@ -563,7 +563,7 @@ class Bybit:
         """
         market close open position for this pair
         :params spot_safety_catch: this is here to prevent you to accidentally dump all your base asset,
-        -because spot on treats positions as changes in balance of base asset and quote asset, there is open position status
+        -because spot treats positions as changes in balance of base asset and quote asset, there is no open position status
         :params callback:
         :params split:
         :params interval:
