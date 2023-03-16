@@ -133,8 +133,7 @@ class Ftx:
         self.isShortEntry = [False,False]    
 
         for k,v in exchange_config['ftx'].items():
-            if k in dir(Ftx):
-                logger.info(f"{k}")
+            if k in dir(Ftx):      
                 setattr(self, k, v)    
     
     def __init_client(self):

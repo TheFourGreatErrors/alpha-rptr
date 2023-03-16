@@ -62,8 +62,7 @@ class BybitStub(Bybit):
         self.order_log.write("time,type,id,price,quantity,av_price,position,pnl,balance,drawdown\n") #header
 
         for k,v in exchange_config['bybit'].items():
-            if k in dir(BybitStub):
-                logger.info(f"{k}")
+            if k in dir(BybitStub):            
                 setattr(self, k, v)
         
     def get_lot(self):

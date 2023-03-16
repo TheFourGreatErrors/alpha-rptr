@@ -64,8 +64,7 @@ class FtxStub(Ftx):
         self.order_log.write("time,type,id,price,quantity,av_price,position,pnl,balance,drawdown\n") #header
 
         for k,v in exchange_config['ftx'].items():
-            if k in dir(FtxStub):
-                logger.info(f"{k}")
+            if k in dir(FtxStub):              
                 setattr(self, k, v)    
         
     def get_lot(self):

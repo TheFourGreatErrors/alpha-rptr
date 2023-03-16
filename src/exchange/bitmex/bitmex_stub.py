@@ -62,8 +62,7 @@ class BitMexStub(BitMex):
         self.order_log.write("time,type,id,price,quantity,av_price,position,pnl,balance,drawdown\n") #header
 
         for k,v in exchange_config['bitmex'].items():
-            if k in dir(BitMexStub):
-                logger.info(f"{k}")
+            if k in dir(BitMexStub):     
                 setattr(self, k, v)
         
     def get_lot(self):

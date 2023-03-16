@@ -73,8 +73,7 @@ class FtxBackTest(FtxStub):
         self.resample_data = {}
 
         for k,v in exchange_config['ftx'].items():
-            if k in dir(FtxBackTest):
-                logger.info(f"{k}")
+            if k in dir(FtxBackTest):   
                 setattr(self, k, v)    
 
     def get_market_price(self):

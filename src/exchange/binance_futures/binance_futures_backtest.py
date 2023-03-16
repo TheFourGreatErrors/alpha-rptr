@@ -73,8 +73,7 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
         self.resample_data = {}
 
         for k,v in exchange_config['binance_f'].items():
-            if k in dir(BinanceFuturesBackTest):
-                logger.info(f"{k}")
+            if k in dir(BinanceFuturesBackTest):               
                 setattr(self, k, v)
 
     def get_market_price(self):

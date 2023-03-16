@@ -154,7 +154,6 @@ class Bybit:
 
         for k,v in exchange_config['bybit'].items():
             if k in dir(Bybit):
-                logger.info(f"{k}")
                 setattr(self, k, v)
 
     def __init_client(self):

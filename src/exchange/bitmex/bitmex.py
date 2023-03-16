@@ -123,8 +123,7 @@ class BitMex:
         self.last_action_time = None
 
         for k,v in exchange_config['bitmex'].items():
-            if k in dir(BitMex):
-                logger.info(f"{k}")
+            if k in dir(BitMex):               
                 setattr(self, k, v)
         
     def __init_client(self):

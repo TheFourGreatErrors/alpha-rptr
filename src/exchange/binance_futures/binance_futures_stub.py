@@ -62,8 +62,7 @@ class BinanceFuturesStub(BinanceFutures):
         self.order_log.write("time,type,id,price,quantity,av_price,position,pnl,balance,drawdown\n") #header
 
         for k,v in exchange_config['binance_f'].items():
-            if k in dir(BinanceFuturesStub):
-                logger.info(f"{k}")
+            if k in dir(BinanceFuturesStub):               
                 setattr(self, k, v)
         
     def get_lot(self):

@@ -136,8 +136,7 @@ class BinanceFutures:
         self.ask_quantity_L1 = None
 
         for k,v in exchange_config['binance_f'].items():
-            if k in dir(BinanceFutures):
-                logger.info(f"{k}")
+            if k in dir(BinanceFutures):               
                 setattr(self, k, v)
         
     def __init_client(self):

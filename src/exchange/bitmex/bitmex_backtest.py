@@ -75,8 +75,7 @@ class BitMexBackTest(BitMexStub):
         self.resample_data = {}
 
         for k,v in exchange_config['bitmex'].items():
-            if k in dir(BitMexBackTest):
-                logger.info(f"{k}")
+            if k in dir(BitMexBackTest):      
                 setattr(self, k, v)
 
     def get_market_price(self):

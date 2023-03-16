@@ -75,7 +75,6 @@ class BybitBackTest(BybitStub):
 
         for k,v in exchange_config['bybit'].items():
             if k in dir(BybitBackTest):
-                logger.info(f"{k}")
                 setattr(self, k, v)
 
     def get_market_price(self):

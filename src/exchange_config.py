@@ -10,7 +10,7 @@ exchange_config = {
                 # this also can be problematic for certain operations like sending orders or duplicates of orders 
                 # that have been already sent calculated based on closed candle data that are no longer relevant etc.    
                  "call_strat_on_start": False,
-                # ==== Papertrading And Backest Class Config ====
+                # ==== Papertrading And Backtest Class Config ====
                  "balance": 1000,
                  "leverage": 1,
                  "update_data": True,
@@ -25,7 +25,7 @@ exchange_config = {
               "order_update_log": True,
               "ohlcv_len": 100, 
               "call_strat_on_start": False,
-             # ==== Papertrading And Backest Class Config ====
+             # ==== Papertrading And Backtest Class Config ====
               "balance": 1000,
               "leverage": 1,
               "update_data": True,
@@ -38,7 +38,7 @@ exchange_config = {
               "order_update_log": True,
               "ohlcv_len": 100, 
               "call_strat_on_start": False,
-             # ==== Papertrading And Backest Class Config ====
+             # ==== Papertrading And Backtest Class Config ====
               "balance": 1000,
               "leverage": 1,
               "update_data": True,
@@ -51,7 +51,7 @@ exchange_config = {
               "order_update_log": True,
               "ohlcv_len": 100, 
               "call_strat_on_start": False,
-             # ==== Papertrading And Backest Class Config ====
+             # ==== Papertrading And Backtest Class Config ====
               "balance": 1000,
               "leverage": 1,
               "update_data": True,
