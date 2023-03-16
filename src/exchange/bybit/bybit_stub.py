@@ -674,8 +674,12 @@ class BybitStub(Bybit):
                 new_open_orders.append(order)
 
             self.open_orders = new_open_orders
-            self.eval_exit()
-            self.eval_sltp()
+
+            if self.is_exit_order_active:
+                self.eval_exit()
+            if self.is_sltp_active:
+                self.eval_sltp()
+                
             strategy(action, open, close, high, low, volume)
             
 

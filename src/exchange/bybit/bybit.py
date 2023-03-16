@@ -119,7 +119,9 @@ class Bybit:
                         'stop_short_callback': None,
                         'split': 1,
                         'interval': 0
-                        }         
+                        }      
+        # Is SLTP active
+        self.is_sltp_active = False   
          # Profit, Loss and Trail Offset
         self.exit_order = {
                         'profit': 0, 
@@ -131,6 +133,8 @@ class Bybit:
                         'split': 1,
                         'interval': 0
                         }
+        # Is exit order active
+        self.is_exit_order_active = False
         # Trailing Stop
         self.trail_price = 0   
         # Order callbacks
@@ -1384,10 +1388,11 @@ class Bybit:
             interval=0
             ):
         """
-        profit taking and stop loss and trailing, if both stop loss and trailing offset are set trailing_offset takes precedence
-        :param profit: Profit (specified in ticks)
-        :param loss: Stop loss (specified in ticks)
-        :param trail_offset: Trailing stop price (specified in ticks)
+        profit taking and stop loss and trailing, 
+        if both stop loss and trailing offset are set trailing_offset takes precedence
+        :param profit: Profit 
+        :param loss: Stop loss 
+        :param trail_offset: Trailing stop price
         """
         self.exit_order = {
                         'profit': profit, 
@@ -1399,6 +1404,9 @@ class Bybit:
                         'split': split,
                         'interval': interval
                         }
+        self.is_exit_order_active = self.exit_order['profit'] > 0 \
+                                    or self.exit_order['loss'] > 0 \
+                                    or self.exit_order['trail_offset'] >  0     
 
     def sltp(
             self,
@@ -1439,6 +1447,11 @@ class Bybit:
                             'split': split,
                             'interval': interval
                             } 
+        self.is_sltp_active = self.sltp_values['profit_long'] > 0 \
+                                or self.sltp_values['profit_short'] > 0 \
+                                or self.sltp_values['stop_long'] >  0 \
+                                or self.sltp_values['stop_short'] > 0     
+        
         if self.quote_rounding == None and round_decimals != None:
             self.quote_rounding = round_decimals
 
@@ -1953,8 +1966,10 @@ class Bybit:
             self.limit_chaser_ord[side].update(limit_chaser_ord) # Updating chaser order dict
 
         # Evaluation of profit and loss
-        self.eval_exit()
-        self.eval_sltp()    
+        if self.is_exit_order_active:
+            self.eval_exit()
+        if self.is_sltp_active:
+            self.eval_sltp()    
         
     def __on_update_position(self, action, position):
         """
