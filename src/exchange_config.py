@@ -14,6 +14,7 @@ exchange_config = {
                  "balance": 1000,
                  "leverage": 1,
                  "update_data": True,
+                 "check_candles_flag": True,
                  "days": 1200,
                  # Warmup timeframe - used for loading warmup candles for indicators when minute granularity is need
                  # highest tf, if None its going to find it automatically based on highest tf and ohlcv_len
@@ -29,6 +30,7 @@ exchange_config = {
               "balance": 1000,
               "leverage": 1,
               "update_data": True,
+              "check_candles_flag": True,
               "days": 1200,
               "warmup_tf": None}, 
     "bitmex": {"qty_in_usdt": False,
@@ -42,6 +44,7 @@ exchange_config = {
               "balance": 1000,
               "leverage": 1,
               "update_data": True,
+              "check_candles_flag": True,
               "days": 1200,
               "warmup_tf": None}, 
     "ftx": {"qty_in_usdt": False,
@@ -55,6 +58,7 @@ exchange_config = {
               "balance": 1000,
               "leverage": 1,
               "update_data": True,
+              "check_candles_flag": True,
               "days": 1200,
               "warmup_tf": None} 
 }
