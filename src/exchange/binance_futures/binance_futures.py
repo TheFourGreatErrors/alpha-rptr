@@ -424,11 +424,6 @@ class BinanceFutures:
         side = False if position_size > 0 else True
         
         self.order("Close", side, abs(position_size), callback=callback, split=split, interval=interval)
-        position_size = self.get_position_size()
-        if position_size == 0:
-            logger.info(f"Closed {self.pair} position")
-        else:
-            logger.info(f"Failed to close all {self.pair} position, still {position_size} amount remaining")
 
     def cancel(self, id):
         """
