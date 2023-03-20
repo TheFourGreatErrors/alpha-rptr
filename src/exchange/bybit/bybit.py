@@ -579,7 +579,7 @@ class Bybit:
         """
         self.__init_client()
         position_size = self.get_position_size()
-        if position_size == 0 or spot_safety_catch:
+        if position_size == 0 or (spot_safety_catch and self.spot):
             return
 
         side = False if position_size > 0 else True
