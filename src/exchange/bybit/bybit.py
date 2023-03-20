@@ -568,14 +568,15 @@ class Bybit:
 
         self.callbacks = {} 
     
-    def close_all(self, spot_safety_catch=True, callback=None, split=1, interval=0):
+    def close_all(self, spot_safety_catch=True, callback=None, split=1, interval=0, limit_chase_interval=0):
         """
         market close open position for this pair
         :params spot_safety_catch: this is here to prevent you to accidentally dump all your base asset,
         -because spot treats positions as changes in balance of base asset and quote asset, there is no open position status
-        :params callback:
-        :params split:
-        :params interval:
+        :param callback:
+        :param split:
+        :param interval:
+        :paran limit_chase_interval: greater than 0 starts limit chase order
         """
         self.__init_client()
         position_size = self.get_position_size()
@@ -584,7 +585,10 @@ class Bybit:
 
         side = False if position_size > 0 else True
         
-        self.order("Close", side, abs(position_size), callback=callback, split=split, interval=interval)
+        self.order("Close", side, abs(position_size), 
+                   post_only=bool(limit_chase_interval), 
+                   limit_chase_interval=limit_chase_interval, 
+                   callback=callback, split=split, interval=interval)
         position_size = self.get_position_size()
         if position_size == 0:
             logger.info(f"Closed {self.pair} position")
