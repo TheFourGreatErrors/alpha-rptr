@@ -276,19 +276,29 @@ class Bybit:
     def get_balance(self, asset=None, return_available=False):
         """
         get balance
+        after the first api call it will update by api call only upon fills via execution ws stream,
+        to ensure updating by api call each time pass `asset` as argument
+        the default balance asset is `self.quote_asset` 
         :param asset: asset
-        :param return_available: returns only available balance, since some might be used as a collateral for margin etc.
+        :param return_available: returns only available balance, since some might be used as a collateral for margin etc.        
         :return:
         """
         self.__init_client()
-        balances = self.get_all_balances()
+        if asset is None and self.margin is not None:   
+            balances = self.margin
+        elif asset is not None:
+            blances =  self.get_all_balances()
+        else:
+            self.margin = self.get_all_balances()
+            balances = self.margin
 
         if self.spot: 
             balances = balances['balances']   
             asset = asset if asset else self.quote_asset
             balance = [balance for balance in balances if balance.get('coin')==asset]           
+            
             if len(balance) > 0:          
-                balance = float(balance[0]['free']) if return_available else float(balance[0]['total'])                  
+                balance = float(balance[0]['free']) if return_available else float(balance[0]['total'])                           
                 return balance             
             else:
                 logger.info(f"Unable to find asset: {asset} in balances")
@@ -1832,7 +1842,8 @@ class Bybit:
                 self.market_price < self.get_trail_price():
             self.set_trail_price(self.market_price)
         #Get PnL calculation in %
-        self.pnl = self.get_pnl() 
+        if not self.spot:
+            self.pnl = self.get_pnl() 
 
     def __on_update_fills(self, action, fills):
         """
@@ -1841,7 +1852,10 @@ class Bybit:
         self.last_fill = fills
         #self.eval_sltp()    
         #pos_size = self.get_position_size(force_api_call=True)
-        #logger.info(f"position size: {pos_size}")       
+        #logger.info(f"position size: {pos_size}")
+        self.margin = None
+        self.get_balance()
+        
         message = f"""========= FILLS =============
                            {fills} 
                       ============================="""
