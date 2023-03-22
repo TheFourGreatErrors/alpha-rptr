@@ -389,7 +389,7 @@ class Bybit:
         symbol = self.pair if symbol == None else symbol
 
         if self.spot:
-            logger.info(f"Get Position Functionlity Currently Not Supported For Spot")
+            logger.info(f"Get Position Functionality Currently Not Supported For Spot")
             return      
 
         def get_position_api_call():           

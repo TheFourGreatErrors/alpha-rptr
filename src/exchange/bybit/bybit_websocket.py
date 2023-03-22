@@ -12,6 +12,7 @@ import websocket
 import requests
 from pytz import UTC
 from datetime import datetime, timedelta, timezone
+import numpy as np
 
 from src import logger, to_data_frame, find_timeframe_string, allowed_range, bin_size_converter, notify
 from src.config import config as conf
@@ -251,11 +252,18 @@ class BybitWs:
 
                 data = data['result'] if table.startswith("user.openapi.") else data
 
-                if table.startswith("trade"): # Tick Data, we dont currently use it            
+                if table.startswith("trade"): # Tick Data, currently not used         
                     pass
 
                 elif table.startswith("kline"):                    
                     # if self.use_healthcecks:
+                    kline = 'kline.'     
+                    data = [data] if self.spot else data
+                    final_candle_data = True if 'confirm' in data[0] and data[0]['confirm'] else False
+
+                    if not self.spot and not final_candle_data:                      
+                        return
+                    
                     current_minute = datetime.now().time().minute
                     if self.last_heartbeat != current_minute:
                         # Send a heartbeat to Healthchecks.io
@@ -266,7 +274,7 @@ class BybitWs:
                         except Exception as e:
                             pass          
 
-                    kline = 'kline.'            
+                
                     timeframe = table[len(kline):-len('.'+self.pair)] 
                    
                     if timeframe.isdigit():                       
@@ -275,8 +283,7 @@ class BybitWs:
                         action = '1' + timeframe.lower()
              
                     if self.spot:                                      
-                        action = table[len(kline):-len('.' + self.pair)] 
-                        data = [data]          
+                        action = table[len(kline):-len('.' + self.pair)]                            
                         #bin_size_converted = timedelta(seconds=bin_size_converter(allowed_range[action][0])['seconds'])                    
                     data = [{
                         "timestamp" : data[0]['t' if self.spot else 'end'],
@@ -292,7 +299,18 @@ class BybitWs:
           
                     data[0]['timestamp'] = datetime.fromtimestamp(data[0]['timestamp'], tz=timezone.utc) \
                                         + (timedelta(seconds=0.01) if self.spot else timedelta(seconds=0))   
-                    self.__emit(action, action, to_data_frame([data[0]]))
+                    
+                    if final_candle_data:
+                        data.append({
+                            "timestamp": data[0]['timestamp'] + timedelta(seconds=0.1),
+                            "open": np.nan,
+                            "high": np.nan,
+                            "low" : np.nan,
+                            "close" : np.nan,
+                            "volume": np.nan
+                            })   
+
+                    self.__emit(action, action, to_data_frame(data))
                                            
                 elif table.startswith("tickers"):
                     self.__emit('instrument', table, data)  
