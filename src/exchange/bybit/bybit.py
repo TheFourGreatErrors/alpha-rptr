@@ -230,7 +230,8 @@ class Bybit:
 
     def sync(self):
         # Position
-        self.position = self.get_position()
+        if not self.spot:
+            self.position = self.get_position()
         # Position size
         self.position_size = self.get_position_size()
         # Entry price
@@ -287,7 +288,7 @@ class Bybit:
         if asset is None and self.margin is not None:   
             balances = self.margin
         elif asset is not None:
-            blances =  self.get_all_balances()
+            balances =  self.get_all_balances()
         else:
             self.margin = self.get_all_balances()
             balances = self.margin
