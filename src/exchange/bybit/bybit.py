@@ -388,6 +388,10 @@ class Bybit:
         """
         symbol = self.pair if symbol == None else symbol
 
+        if self.spot:
+            logger.info(f"Get Position Functionlity Currently Not Supported For Spot")
+            return      
+
         def get_position_api_call():           
             ret = retry(lambda: self.private_client
                                   .my_position(symbol=symbol, category='PERPETUAL'))
@@ -426,6 +430,7 @@ class Bybit:
         self.__init_client()
         if self.spot: # Spot treats positions only as changes in balance from quote asset to base asset           
             position = self.get_balance(asset=self.base_asset) 
+            position = 0 if position is None else position
             return float(position)
 
         position = self.get_position(force_api_call=force_api_call)
