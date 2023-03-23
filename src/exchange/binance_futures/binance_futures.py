@@ -5,6 +5,7 @@ import math
 #import os
 import traceback
 from datetime import datetime, timezone
+from inspect import signature
 import time
 import threading
 
@@ -19,6 +20,7 @@ from src import retry_binance_futures as retry
 from src.config import config as conf
 from src.exchange.binance_futures.binance_futures_api import Client
 from src.exchange.binance_futures.binance_futures_websocket import BinanceFuturesWs
+from src.exchange.binance_futures.exceptions import BinanceAPIException, BinanceRequestException
 
 
 class BinanceFutures:   
