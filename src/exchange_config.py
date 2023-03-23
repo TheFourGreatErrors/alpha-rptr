@@ -16,6 +16,7 @@ exchange_config = {
                  "update_data": True,
                  "check_candles_flag": True,
                  "days": 1200,
+                 "search_oldest": 10, # Search for the oldest historical data, integer for increments in days, False or 0 to turn it off
                  # Warmup timeframe - used for loading warmup candles for indicators when minute granularity is need
                  # highest tf, if None its going to find it automatically based on highest tf and ohlcv_len
                  "warmup_tf": None}, 
@@ -32,6 +33,7 @@ exchange_config = {
               "update_data": True,
               "check_candles_flag": True,
               "days": 1200,
+              "search_oldest": 10, # Search for the oldest historical data, integer for increments in days, False or 0 to turn it off
               "warmup_tf": None}, 
     "bitmex": {"qty_in_usdt": False,
               "minute_granularity": False,
@@ -46,6 +48,7 @@ exchange_config = {
               "update_data": True,
               "check_candles_flag": True,
               "days": 1200,
+              "search_oldest": 10, # Search for the oldest historical data, integer for increments in days, False or 0 to turn it off
               "warmup_tf": None}, 
     "ftx": {"qty_in_usdt": False,
               "minute_granularity": False,
