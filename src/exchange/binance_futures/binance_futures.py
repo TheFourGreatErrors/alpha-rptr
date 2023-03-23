@@ -1283,62 +1283,86 @@ class BinanceFutures:
         Update order status
         https://binance-docs.github.io/apidocs/futures/en/#event-order-update
         """
-        self.order_update = order
+        order_info = {}
 
-        if(order['X'] == "CANCELED" or order['X'] == "EXPIRED"):
-            #If stop price is set for a GTC Order and filled quanitity is 0 then EXPIRED means TRIGGERED
-            if(float(order['sp']) > 0 
-               and order['f'] == "GTC" 
-               and float(order['z']) == 0 
-               and order['X'] == "EXPIRED"):
-                logger.info(f"========= Order Update ==============")
-                logger.info(f"ID     : {order['c']}") # Clinet Order ID
-                logger.info(f"Type   : {order['o']}")
-                logger.info(f"Uses   : {order['wt']}")
-                logger.info(f"Side   : {order['S']}")
-                logger.info(f"Status : TRIGGERED")
-                logger.info(f"TIF    : {order['f']}")
-                logger.info(f"Qty    : {order['q']}")
-                logger.info(f"Filled : {order['z']}")
-                logger.info(f"Limit  : {order['p']}")
-                logger.info(f"Stop   : {order['sp']}")
-                logger.info(f"APrice : {order['ap']}")
-                logger.info(f"======================================")
+        # Normalize Order Info to canonical names
+        order_info["id"]            = order['c']  # Client Order ID
+        order_info["type"]          = order['o']  # LIMIT, MARKET, STOP, STOP_MARKET, TAKE_PROFIT, TAKE_PROFIT_MARKET, TRAILING_STOP_MARKET
+        order_info["uses"]          = order['wt'] # CONTRACT_PRICE, MARK_PRICE (for stop orders)
+        order_info["side"]          = order['S']  # BUY, SELL
+        order_info["status"]        = order['X']  # NEW, CANCELED, EXPIRED, PARTIALLY_FILLED, FILLED
+        order_info["timeinforce"]   = order['f']  # GTC, IOC, FOK, GTX
+        order_info["qty"]           = float(order['q'])  # order quantity
+        order_info["filled"]        = float(order['z'])  # filled quantity
+        order_info["limit"]         = float(order['p'])  # limit price
+        order_info["stop"]          = float(order['sp']) # stop price
+        order_info["avgprice"]      = float(order['ap']) # average price
+        order_info["reduceonly"]    = order['R'] # Reduce Only Order
+
+
+        self.order_update = order_info
+
+        order_log = False
+
+        callback = self.callbacks[order['c']]
+        all_updates = None
+        if callable(callback):
+            if len(signature(callback).parameters) > 0: # check if the callback accepts order argument
+                all_updates = True # call the callback with order_info oject on all relevant updates from WS
             else:
-                logger.info(f"========= Order Update ==============")
-                logger.info(f"ID     : {order['c']}") # Clinet Order ID
-                logger.info(f"Type   : {order['o']}")
-                logger.info(f"Uses   : {order['wt']}")
-                logger.info(f"Side   : {order['S']}")
-                logger.info(f"Status : {order['X']}")
-                logger.info(f"TIF    : {order['f']}")
-                logger.info(f"Qty    : {order['q']}")
-                logger.info(f"Filled : {order['z']}")
-                logger.info(f"Limit  : {order['p']}")
-                logger.info(f"Stop   : {order['sp']}")
-                logger.info(f"APrice : {order['ap']}")
-                logger.info(f"======================================")
-                self.callbacks.pop(order['c'], None)
+                all_updates = False # call the callback without any arguements only once the order is filled
 
-        #only after order if completely filled
-        if(self.order_update_log and float(order['q']) == float(order['z'])): 
+        # currently only these events will use callbacks
+        if(order_info['status'] == "CANCELED" or order_info['status'] == "EXPIRED" or order_info['status'] == "PARTIALLY_FILLED" or order_info['status'] == "FILLED" ):
+
+            # If STOP PRICE is set for a GTC Order and filled quanitity is 0 then EXPIRED means TRIGGERED
+            # When stop price is hit, the stop order expires and converts into a limit/market order
+            if(order_info["stop"] > 0 
+               and order_info["timeinforce"] == "GTC" 
+               and order_info["filled"] == 0 
+               and order_info['status'] == "EXPIRED"):
+                
+                order_info["status"] = "TRIGGERED" 
+                
+                order_log = True  
+                if all_updates:
+                    callback(order_info)    
+
+            if(order_info['status'] == "CANCELED" or order_info['status'] == "EXPIRED"):
+                
+                order_log = True                  
+                self.callbacks.pop(order['c'], None) # Removes the respective order callback 
+                
+                if all_updates:
+                    callback(order_info) 
+                
+            #only after order is completely filled
+            if order_info['status'] == "PARTIALLY_FILLED" or order_info['status'] == "FILLED":
+
+                if self.order_update_log and order_info['status'] == "FILLED" and order_info["qty"] == order_info["filled"]:
+
+                    order_log = True                    
+                    self.callbacks.pop(order['c'], None)  # Removes the respective order callback 
+                    
+                if all_updates is True:
+                    callback(order_info)
+                elif all_updates is False and order_info['status'] == "FILLED":
+                    callback()
+        
+        if order_log == True:
             logger.info(f"========= Order Update ==============")
-            logger.info(f"ID     : {order['c']}") # Clinet Order ID
-            logger.info(f"Type   : {order['o']}")
-            logger.info(f"Uses   : {order['wt']}")
-            logger.info(f"Side   : {order['S']}")
-            logger.info(f"Status : {order['X']}")
-            logger.info(f"Qty    : {order['q']}")
-            logger.info(f"Filled : {order['z']}")
-            logger.info(f"Limit  : {order['p']}")
-            logger.info(f"Stop   : {order['sp']}")
-            logger.info(f"APrice : {order['ap']}")
+            logger.info(f"ID     : {order_info['id']}") # Clinet Order ID
+            logger.info(f"Type   : {order_info['type']}")
+            logger.info(f"Uses   : {order_info['uses']}")
+            logger.info(f"Side   : {order_info['side']}")
+            logger.info(f"Status : {order_info['status']}")
+            logger.info(f"TIF    : {order_info['timeinforce']}")
+            logger.info(f"Qty    : {order_info['qty']}")
+            logger.info(f"Filled : {order_info['filled']}")
+            logger.info(f"Limit  : {order_info['limit']}")
+            logger.info(f"Stop   : {order_info['stop']}")
+            logger.info(f"APrice : {order_info['avgprice']}")
             logger.info(f"======================================")
-
-            # Call the respective order callback
-            callback = self.callbacks.pop(order['c'], None)  # Removes the respective order callback and returns it
-            if callable(callback):
-                callback()
 
         # Evaluation of profit and loss
         # self.eval_exit()
