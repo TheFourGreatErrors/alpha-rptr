@@ -87,7 +87,7 @@ class BybitWs:
         self.ws = websocket.WebSocketApp(self.endpoint,
                             on_message=self.__on_message,
                             on_error=self.__on_error,
-                            on_close=self.__on_close)                             
+                            on_close=self.__on_close_public)                             
         self.wst = threading.Thread(target=self.__start_public)
         self.wst.daemon = True
         self.wst.start()
@@ -96,7 +96,7 @@ class BybitWs:
         self.wsp = websocket.WebSocketApp(self.endpoint_private,
                             on_message=self.__on_message,
                             on_error=self.__on_error,
-                            on_close=self.__on_close)                             
+                            on_close=self.__on_close_private)                             
         self.wspt = threading.Thread(target=self.__start_private)
         self.wspt.daemon = True
         self.wspt.start()                       
@@ -345,7 +345,7 @@ class BybitWs:
         if key in self.handlers:
             self.handlers[key](action, value)
 
-    def __on_close(self, ws):
+    def __on_close_public(self, ws):
         """
         On Close Listener
         :param ws:
@@ -354,23 +354,37 @@ class BybitWs:
             self.handlers['close']()
 
         if self.is_running:
-            logger.info(f"Websocket On Close: Restart")
-            notify(f"Websocket On Close: Restart")
+            logger.info(f"Public Websocket On Close: Restart")
+            notify(f"Public Websocket On Close: Restart")
 
             time.sleep(60)
             self.ws = websocket.WebSocketApp(self.endpoint,
                                 on_message=self.__on_message,
                                 on_error=self.__on_error,
-                                on_close=self.__on_close)                             
+                                on_close=self.__on_close_public)                             
             self.wst = threading.Thread(target=self.__start_public)
             self.wst.daemon = True
             self.wst.start()
             self.ws.on_open = self.__on_open_public
+
+    def __on_close_private(self, ws):
+        """
+        On Close Listener
+        :param ws:
+        """        
+        if 'close' in self.handlers:
+            self.handlers['close']()
+
+        if self.is_running:
+            logger.info(f"Private Websocket On Close: Restart")
+            notify(f"Private Websocket On Close: Restart")
+
+            time.sleep(60)
             # private ws 
             self.wsp = websocket.WebSocketApp(self.endpoint_private,
                                 on_message=self.__on_message,
                                 on_error=self.__on_error,
-                                on_close=self.__on_close)                             
+                                on_close=self.__on_close_private)                             
             self.wspt = threading.Thread(target=self.__start_private)
             self.wspt.daemon = True
             self.wspt.start()                       
