@@ -180,16 +180,25 @@ class BybitWs:
             ws.send(
                 json.dumps({
                     'op': 'subscribe',
-                    'args': ["kline.1m." + self.pair, "kline.5m." + self.pair, "kline.1h." + self.pair, "kline.1d." + self.pair, #"trade." + self.pair,
-                            "tickers." + self.pair, "bookticker." + self.pair, "orderbook.40." + self.pair]
+                    'args': ["kline.1m." + self.pair,
+                              "kline.5m." + self.pair, 
+                             "kline.1h." + self.pair, 
+                             "kline.1d." + self.pair, #"trade." + self.pair,
+                             "tickers." + self.pair, 
+                             "bookticker." + self.pair, 
+                             "orderbook.40." + self.pair]
                 }) 
             )    
         else:
            ws.send(
            json.dumps({
                 'op': 'subscribe',
-                'args': ["kline.1." + self.pair, "kline.5." + self.pair, "kline.60." + self.pair, "kline.D." + self.pair, #"publicTrade." + self.pair,
-                        "tickers." + self.pair, "orderbook.1." + self.pair] # orderbook 1 level data is 10ms, 50 level data is 20ms, 200 is 100ms, 500 is 100ms
+                'args': ["kline.1." + self.pair, 
+                         "kline.5." + self.pair, 
+                         "kline.60." + self.pair, 
+                         "kline.D." + self.pair, #"publicTrade." + self.pair,
+                         "tickers." + self.pair, 
+                         "orderbook.1." + self.pair] # orderbook 1 level data is 10ms, 50 level data is 20ms, 200 is 100ms, 500 is 100ms
             })
         )    
     
@@ -202,21 +211,30 @@ class BybitWs:
              ws.send(
             json.dumps({
                     'op': 'subscribe',
-                    'args': ["outboundAccountInfo", "stopOrder", "order", "ticketInfo"]
+                    'args': ["outboundAccountInfo", 
+                             "stopOrder", 
+                             "order", 
+                             "ticketInfo"]
                 }) 
             )            
         elif self.pair.endswith('PERP') and not self.unified_margin:
             ws.send(
             json.dumps({
                     'op': 'subscribe',
-                    'args': ["user.openapi.perp.position", "user.openapi.perp.trade", "user.openapi.perp.order", "user.service"]
+                    'args': ["user.openapi.perp.position", 
+                             "user.openapi.perp.trade", 
+                             "user.openapi.perp.order", 
+                             "user.service"]
                 }) 
             )         
         else:           
             ws.send(
             json.dumps({
                     'op': 'subscribe',
-                    'args': ["user.position." + account, "user.execution." + account, "user.order." + account, "user.wallet."  + account]
+                    'args': ["user.position." + account, 
+                             "user.execution." + account, 
+                             "user.order." + account, 
+                             "user.wallet."  + account]
                 }) 
             )              
           
