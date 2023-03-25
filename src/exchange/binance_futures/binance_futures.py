@@ -131,6 +131,8 @@ class BinanceFutures:
         self.bid_quantity_L1 = None
         # Ask quantity L1
         self.ask_quantity_L1 = None
+        # callback
+        self.best_bid_ask_change_callback = {}
         
     def __init_client(self):
         """
@@ -1434,8 +1436,24 @@ class BinanceFutures:
         """
         best bid and best ask price 
         """
-        self.best_bid_price = float(bookticker['b'])
-        self.best_ask_price = float(bookticker['a'])        
+
+        best_bid_changed = False
+
+        if( self.best_bid_price != float(bookticker['b']) ):
+            self.best_bid_price = float(bookticker['b'])
+            best_bid_changed = True
+
+        best_ask_changed = False            
+
+        if (self.best_ask_price != float(bookticker['a']) ):
+            self.best_ask_price = float(bookticker['a']) 
+            best_ask_changed = True
+            
+        if best_bid_changed or best_ask_changed:
+            for callback in self.best_bid_ask_change_callback.values():
+                if callable(callback):
+                    callback(best_bid_changed, best_ask_changed)  
+
         self.bid_quantity_L1 = float(bookticker['B'])         
         self.ask_quantity_L1 = float(bookticker['A']) 
         #logger.info(f"best bid: {self.best_bid_price}          best_ask: {self.best_ask_price}           bq_L1: {self.bid_quantity_L1}           aq_L1: {self.ask_quantity_L1}")
