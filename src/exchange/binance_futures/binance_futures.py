@@ -414,7 +414,7 @@ class BinanceFutures:
         res = retry(lambda: self.client.futures_cancel_all_open_orders(symbol=self.pair))
         #for order in orders:
         logger.info(f"Cancel all open orders: {res}")    
-        self.callbacks = {}
+        #self.callbacks = {}
 
     def close_all(self, callback=None, split=1, interval=0):
         """
@@ -449,7 +449,7 @@ class BinanceFutures:
         logger.info(f"Cancel Order : (clientOrderId, type, side, quantity, price, stop) = "
                     f"({order['clientOrderId']}, {order['type']}, {order['side']}, {order['origQty']}, "
                     f"{order['price']}, {order['stopPrice']})")
-        self.callbacks.pop(order['clientOrderId'])
+        #self.callbacks.pop(order['clientOrderId'])
         return True
 
     def __new_order(
