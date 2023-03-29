@@ -1432,6 +1432,12 @@ class BinanceFutures:
         notify(f"Balance: {self.margin[0]['balance']}")
         logger.info(f"Balance: {self.margin[0]['balance']} Cross Balance: {self.margin[0]['crossWalletBalance']}")     
 
+    def add_ob_callback(self, id, callback):
+        self.best_bid_ask_change_callback[id] = callback
+
+    def remove_ob_callback(self, id):
+        self.best_bid_ask_change_callback.pop(id)
+
     def __on_update_bookticker(self, action, bookticker):
         """
         best bid and best ask price 
