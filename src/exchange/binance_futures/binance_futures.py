@@ -1153,7 +1153,7 @@ class BinanceFutures:
                 end_time = datetime.now(timezone.utc)
                 start_time = end_time - self.ohlcv_len * delta(t)
                 self.timeframe_data[t] = self.fetch_ohlcv(t, start_time, end_time)
-                logger.info(f"timeframe_data: {self.timeframe_data}") 
+                #logger.info(f"timeframe_data: {self.timeframe_data}") 
 
                 self.timeframe_info[t] = {
                             "allowed_range": allowed_range_minute_granularity[t][0] 
