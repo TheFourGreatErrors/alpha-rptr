@@ -830,10 +830,10 @@ class BinanceFutures:
                     for value in self.filled.values():
                         filled_qty += value
                     
-                    return filled_qty
+                    return round(filled_qty, exchange.asset_rounding)
                 
                 def remaining_qty(self):
-                    return self.qty - self.filled_qty()
+                    return round(self.qty - self.filled_qty(), exchange.asset_rounding)
                 
                 def price(self):
                     return exchange.best_bid_price if self.long else exchange.best_ask_price 
