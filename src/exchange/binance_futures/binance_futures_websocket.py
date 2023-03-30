@@ -213,7 +213,7 @@ class BinanceFuturesWs:
                     self.ws.close()
 
                 elif e.startswith("bookTicker"):
-                    logger.info(f"bookticker: {obj['data']}")                   
+                    #logger.info(f"bookticker: {obj['data']}")                   
                     self.__emit('bookticker', action, obj['data'])
 
         except Exception as e:

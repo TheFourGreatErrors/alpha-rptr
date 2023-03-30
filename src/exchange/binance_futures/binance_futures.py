@@ -507,25 +507,14 @@ class BinanceFutures:
                                                            reduceOnly=reduce_only, workingType=workingType))        
         elif post_only: # limit order with post only
             ord_type = "LIMIT"
-            i = 0            
-            while True:                 
-                prices = self.get_orderbook_ticker()
-                limit = float(prices['bidPrice']) if side == "Buy" else float(prices['askPrice'])                
-                retry(lambda: self.client.futures_create_order(symbol=self.pair, type=ord_type, newClientOrderId=ord_id,
-                                                               side=side, quantity=ord_qty, price=limit,
-                                                               timeInForce="GTX", reduceOnly=reduce_only))
-                time.sleep(4)
-
-                self.cancel(ord_id)
-
-                if float(self.get_position()['positionAmt']) > 0:
-                    break
-                i += 1
-                if i > 10:
-                    notify(f"Order retry count exceed")                    
-                    break
-                    
-            self.cancel_all()
+                             
+            limit = self.best_bid_price if side == "Buy" else self.best_ask_price                
+            # New change coming. GTX and FOK orders will return
+            # an error instead of EXPIRED update on WS when they dont
+            # meet execution criteria. Release Date: Unknown
+            retry(lambda: self.client.futures_create_order(symbol=self.pair, type=ord_type, newClientOrderId=ord_id,
+                                                            side=side, quantity=ord_qty, price=limit,
+                                                            timeInForce="GTX", reduceOnly=reduce_only))
         else:
             ord_type = "MARKET"
             retry(lambda: self.client.futures_create_order(symbol=self.pair, type=ord_type, newClientOrderId=ord_id,
@@ -707,7 +696,9 @@ class BinanceFutures:
             callback=None,
             workingType="CONTRACT_PRICE", 
             split=1, 
-            interval=0
+            interval=0,
+            chaser=False,
+            retry_maker=100
             ):
         """
         places an order, works as equivalent to tradingview pine script implementation
@@ -778,6 +769,179 @@ class BinanceFutures:
             self.order(sub_ord_id, long, sub_ord_qty, limit, stop, post_only, reduce_only,
                         trailing_stop, activationPrice, workingType=workingType, callback=split_order(1))
             return
+
+        if chaser:
+
+            exchange = self
+
+            class Chaser:
+
+                def __init__(self, order_id, long, qty, limit, stop, post_only, reduce_only, trailing_stop, activationPrice, callback, workingType):
+                    self.order_id = order_id
+                    self.long = long
+                    self.qty = qty
+                    # stop-market orders cannot be chased as they will
+                    # be triggered and filled almost immediately
+                    # with out any time for intervention.
+                    # so converting them into stop-limit with limit=stop
+                    self.limit = stop if stop != 0 and limit == 0 else limit
+                    self.stop = stop
+                    self.post_only = post_only #set to True for maker orders
+                    self.reduce_only = reduce_only
+                    self.callback = callback
+
+                    self.callback_type = None
+                    if callable(self.callback):                        
+                        self.callback_type = True if len(signature(self.callback).parameters) > 0 else False
+
+                    self.workingType = workingType
+
+                    self.started = None
+                    self.count = 0
+                    self.current_order_id = self.sub_order_id()
+                    # if no limit price is set, set it to best bid/ask price
+                    self.current_order_price = self.limit if self.limit != 0 else self.price()
+                    # First order will be sent without post-only flag irrespective
+                    # and post-only will be used once the order is triggered
+                    self.order(retry_maker, self.current_order_id, self.long, self.qty, self.current_order_price, self.stop, self.post_only if self.stop==0 else False, self.reduce_only, self.workingType, self.on_order_update)     
+                    
+                    self.filled = {}
+                    
+                    # market order - start chasing immediately
+                    if self.stop == 0 and self.limit == 0:
+                        self.start()
+                    elif self.stop == 0 and self.limit != 0:
+                        self.limit_tracker(self.limit)                        
+
+                def sub_order_id(self):
+                    return f"{self.order_id}_{self.count}"
+                
+                def filled_qty(self):
+                    filled_qty = 0
+                    for value in self.filled.values():
+                        filled_qty += value
+                    
+                    return filled_qty
+                
+                def remaining_qty(self):
+                    return self.qty - self.filled_qty()
+                
+                def price(self):
+                    return exchange.best_bid_price if self.long else exchange.best_ask_price 
+
+                # Used to follow Bed Bid/Ask to chase 
+                # limit orders at a specifid price.
+                # The actual chaser starts once the limit price 
+                # is crossed. Useful for TP orders.
+                def limit_tracker(self, limit):
+
+                    logger.info(f"Limit Tracker Active: {self.order_id}")
+
+                    #watch for best bid/ask price to cross limit price
+                    limit_chaser = self
+                    def tracker(best_bid_changed, best_ask_changed):
+
+                        if (exchange.best_bid_price <= limit and limit_chaser.long) or \
+                            (exchange.best_ask_price >= limit_chaser.limit and not limit_chaser.long):
+                            limit_chaser.start()
+
+                    exchange.add_ob_callback(self.order_id, tracker)                    
+
+                def start(self):
+                    self.started = True #started
+                    exchange.add_ob_callback(self.order_id, self.on_bid_ask_change)                    
+
+                def end(self):
+                    exchange.remove_ob_callback(self.order_id)
+
+                def cancel(self):
+                    self.started = False #canceled
+                    exchange.cancel(self.current_order_id)
+
+                def order(self, retry, id, long, qty, limit, stop, post_only, reduce_only, workingType, callback):
+                    # try fixed number of times
+                    for x in range(retry):
+                        try:  
+                            exchange.order(id, long, qty, limit, stop, post_only, reduce_only=reduce_only, workingType=workingType, callback=callback)
+                            self.current_order_id = id
+                            break
+                        except BinanceAPIException as e:
+                            error_code  = abs(int(e.code))
+                            # Upcoming change:
+                            # When placing order with timeInForce FOK or GTX(Post-only), 
+                            # if the order can't meet execution criteria, order will get 
+                            # rejected directly and receive error response, 
+                            # no order_trade_update message in websocket. 
+                            # The order can't be found in GET /fapi/v1/order or GET /fapi/v1/allOrders.
+                            if (error_code == 5021 or error_code == 5022) and x < (retry-1):
+                                #retry
+                                time.sleep(1)
+                                continue
+                            else:
+                                raise e
+
+                def on_bid_ask_change(self, best_bid_changed, best_ask_changed):
+
+                    if (self.long and best_bid_changed) or (not self.long and best_ask_changed):
+                        logger.info(f"Price Changed - {self.price()}")
+
+                    if self.current_order_id is not None and \
+                        ((self.long and best_bid_changed) or (not self.long and best_ask_changed)):
+
+                        exchange.cancel(self.current_order_id)
+                        logger.info(f"Cancelled : {self.order_id} : Price Changed - {self.current_order_price} -> {self.price()}")
+                        self.current_order_id = None
+                        
+                def on_order_update(self, order):
+                    
+                    #save filled qty
+                    self.filled[order["id"]] = order["filled"]
+                    
+                    if self.stop != 0 and order["status"] == "TRIGGERED":
+                        logger.info(f"{order['id']} is Triggered @ {order['stop']}!")
+                        if self.limit == self.stop:
+                            # there was no limit set
+                            self.start()
+                        else:
+                            self.limit_tracker(self.limit)
+                        return
+
+                    if order["status"] == "FILLED":
+                        self.current_order_id = None
+                        exchange.remove_ob_callback(self.order_id)
+                        if self.callback_type is not None:
+                            if self.callback_type:
+                                order['id'] = self.order_id
+                                order['filled'] = self.filled_qty()
+                                order['qty'] = self.qty
+                                order['limit'] = self.limit
+                                order['stop'] = self.stop                                
+
+                                self.callback(order)
+                            else:
+                                self.callback()
+
+                    if order["status"] == "CANCELED" or order["status"] == "EXPIRED":
+                        logger.info(f"Order Cancelled: {order['id']} @ {order['limit']}")
+                        if self.started is False:
+                            exchange.remove_ob_callback(self.order_id)
+                            if self.callback_type is not None:
+                                if self.callback_type:
+                                    order['id'] = self.order_id
+                                    order['filled'] = self.filled_qty()
+                                    order['qty'] = self.qty
+                                    order['limit'] = self.limit
+                                    order['stop'] = self.stop     
+                                    
+                                    self.callback(order)
+                        else:
+                            self.current_order_id = None
+                            self.current_order_price = self.price()
+                            self.count += 1
+                            self.order(retry_maker, self.sub_order_id(), self.long, self.remaining_qty(), self.current_order_price, 0, self.post_only, self.reduce_only, self.workingType, self.on_order_update)               
+            
+            # start the chaser
+            return Chaser(id, long, qty, limit, stop, post_only, reduce_only, trailing_stop, activationPrice, callback, workingType)
 
         self.callbacks[ord_id] = callback
 
