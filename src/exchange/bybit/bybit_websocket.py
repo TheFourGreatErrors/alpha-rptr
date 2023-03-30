@@ -12,6 +12,7 @@ import websocket
 import requests
 from pytz import UTC
 from datetime import datetime, timedelta, timezone
+import numpy as np
 
 from src import logger, to_data_frame, find_timeframe_string, allowed_range, bin_size_converter, notify
 from src.config import config as conf
@@ -86,7 +87,7 @@ class BybitWs:
         self.ws = websocket.WebSocketApp(self.endpoint,
                             on_message=self.__on_message,
                             on_error=self.__on_error,
-                            on_close=self.__on_close)                             
+                            on_close=self.__on_close_public)                             
         self.wst = threading.Thread(target=self.__start_public)
         self.wst.daemon = True
         self.wst.start()
@@ -95,7 +96,7 @@ class BybitWs:
         self.wsp = websocket.WebSocketApp(self.endpoint_private,
                             on_message=self.__on_message,
                             on_error=self.__on_error,
-                            on_close=self.__on_close)                             
+                            on_close=self.__on_close_private)                             
         self.wspt = threading.Thread(target=self.__start_private)
         self.wspt.daemon = True
         self.wspt.start()                       
@@ -179,16 +180,25 @@ class BybitWs:
             ws.send(
                 json.dumps({
                     'op': 'subscribe',
-                    'args': ["kline.1m." + self.pair, "kline.5m." + self.pair, "kline.1h." + self.pair, "kline.1d." + self.pair, #"trade." + self.pair,
-                            "tickers." + self.pair, "bookticker." + self.pair, "orderbook.40." + self.pair]
+                    'args': ["kline.1m." + self.pair,
+                              "kline.5m." + self.pair, 
+                             "kline.1h." + self.pair, 
+                             "kline.1d." + self.pair, #"trade." + self.pair,
+                             "tickers." + self.pair, 
+                             "bookticker." + self.pair, 
+                             "orderbook.40." + self.pair]
                 }) 
             )    
         else:
            ws.send(
            json.dumps({
                 'op': 'subscribe',
-                'args': ["kline.1." + self.pair, "kline.5." + self.pair, "kline.60." + self.pair, "kline.D." + self.pair, #"publicTrade." + self.pair,
-                        "tickers." + self.pair, "orderbook.1." + self.pair] # orderbook 1 level data is 10ms, 50 level data is 20ms, 200 is 100ms, 500 is 100ms
+                'args': ["kline.1." + self.pair, 
+                         "kline.5." + self.pair, 
+                         "kline.60." + self.pair, 
+                         "kline.D." + self.pair, #"publicTrade." + self.pair,
+                         "tickers." + self.pair, 
+                         "orderbook.1." + self.pair] # orderbook 1 level data is 10ms, 50 level data is 20ms, 200 is 100ms, 500 is 100ms
             })
         )    
     
@@ -201,21 +211,30 @@ class BybitWs:
              ws.send(
             json.dumps({
                     'op': 'subscribe',
-                    'args': ["outboundAccountInfo", "stopOrder", "order", "ticketInfo"]
+                    'args': ["outboundAccountInfo", 
+                             "stopOrder", 
+                             "order", 
+                             "ticketInfo"]
                 }) 
             )            
         elif self.pair.endswith('PERP') and not self.unified_margin:
             ws.send(
             json.dumps({
                     'op': 'subscribe',
-                    'args': ["user.openapi.perp.position", "user.openapi.perp.trade", "user.openapi.perp.order", "user.service"]
+                    'args': ["user.openapi.perp.position", 
+                             "user.openapi.perp.trade", 
+                             "user.openapi.perp.order", 
+                             "user.service"]
                 }) 
             )         
         else:           
             ws.send(
             json.dumps({
                     'op': 'subscribe',
-                    'args': ["user.position." + account, "user.execution." + account, "user.order." + account, "user.wallet."  + account]
+                    'args': ["user.position." + account, 
+                             "user.execution." + account, 
+                             "user.order." + account, 
+                             "user.wallet."  + account]
                 }) 
             )              
           
@@ -251,11 +270,18 @@ class BybitWs:
 
                 data = data['result'] if table.startswith("user.openapi.") else data
 
-                if table.startswith("trade"): # Tick Data, we dont currently use it            
+                if table.startswith("trade"): # Tick Data, currently not used         
                     pass
 
                 elif table.startswith("kline"):                    
                     # if self.use_healthcecks:
+                    kline = 'kline.'     
+                    data = [data] if self.spot else data
+                    final_candle_data = True if 'confirm' in data[0] and data[0]['confirm'] else False
+
+                    if not self.spot and not final_candle_data:                      
+                        return
+                    
                     current_minute = datetime.now().time().minute
                     if self.last_heartbeat != current_minute:
                         # Send a heartbeat to Healthchecks.io
@@ -266,7 +292,7 @@ class BybitWs:
                         except Exception as e:
                             pass          
 
-                    kline = 'kline.'            
+                
                     timeframe = table[len(kline):-len('.'+self.pair)] 
                    
                     if timeframe.isdigit():                       
@@ -275,8 +301,7 @@ class BybitWs:
                         action = '1' + timeframe.lower()
              
                     if self.spot:                                      
-                        action = table[len(kline):-len('.' + self.pair)] 
-                        data = [data]          
+                        action = table[len(kline):-len('.' + self.pair)]                            
                         #bin_size_converted = timedelta(seconds=bin_size_converter(allowed_range[action][0])['seconds'])                    
                     data = [{
                         "timestamp" : data[0]['t' if self.spot else 'end'],
@@ -292,7 +317,18 @@ class BybitWs:
           
                     data[0]['timestamp'] = datetime.fromtimestamp(data[0]['timestamp'], tz=timezone.utc) \
                                         + (timedelta(seconds=0.01) if self.spot else timedelta(seconds=0))   
-                    self.__emit(action, action, to_data_frame([data[0]]))
+                    
+                    if final_candle_data:
+                        data.append({
+                            "timestamp": data[0]['timestamp'] + timedelta(seconds=0.1),
+                            "open": np.nan,
+                            "high": np.nan,
+                            "low" : np.nan,
+                            "close" : np.nan,
+                            "volume": np.nan
+                            })   
+
+                    self.__emit(action, action, to_data_frame(data))
                                            
                 elif table.startswith("tickers"):
                     self.__emit('instrument', table, data)  
@@ -327,7 +363,7 @@ class BybitWs:
         if key in self.handlers:
             self.handlers[key](action, value)
 
-    def __on_close(self, ws):
+    def __on_close_public(self, ws):
         """
         On Close Listener
         :param ws:
@@ -336,23 +372,37 @@ class BybitWs:
             self.handlers['close']()
 
         if self.is_running:
-            logger.info(f"Websocket On Close: Restart")
-            notify(f"Websocket On Close: Restart")
+            logger.info(f"Public Websocket On Close: Restart")
+            notify(f"Public Websocket On Close: Restart")
 
             time.sleep(60)
             self.ws = websocket.WebSocketApp(self.endpoint,
                                 on_message=self.__on_message,
                                 on_error=self.__on_error,
-                                on_close=self.__on_close)                             
+                                on_close=self.__on_close_public)                             
             self.wst = threading.Thread(target=self.__start_public)
             self.wst.daemon = True
             self.wst.start()
             self.ws.on_open = self.__on_open_public
+
+    def __on_close_private(self, ws):
+        """
+        On Close Listener
+        :param ws:
+        """        
+        if 'close' in self.handlers:
+            self.handlers['close']()
+
+        if self.is_running:
+            logger.info(f"Private Websocket On Close: Restart")
+            notify(f"Private Websocket On Close: Restart")
+
+            time.sleep(60)
             # private ws 
             self.wsp = websocket.WebSocketApp(self.endpoint_private,
                                 on_message=self.__on_message,
                                 on_error=self.__on_error,
-                                on_close=self.__on_close)                             
+                                on_close=self.__on_close_private)                             
             self.wspt = threading.Thread(target=self.__start_private)
             self.wspt.daemon = True
             self.wspt.start()                       

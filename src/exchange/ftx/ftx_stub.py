@@ -1,6 +1,7 @@
 # coding: UTF-8
 
 from src import logger
+from src.exchange_config import exchange_config
 from src.exchange.ftx.ftx import Ftx
 
 
@@ -61,6 +62,10 @@ class FtxStub(Ftx):
 
         self.order_log = open("orders.csv", "w")
         self.order_log.write("time,type,id,price,quantity,av_price,position,pnl,balance,drawdown\n") #header
+
+        for k,v in exchange_config['ftx'].items():
+            if k in dir(FtxStub):              
+                setattr(self, k, v)    
         
     def get_lot(self):
         """
@@ -556,8 +561,12 @@ class FtxStub(Ftx):
                 new_open_orders.append(order)
 
             self.open_orders = new_open_orders
-            self.eval_exit()
-            self.eval_sltp()
+
+            if self.is_exit_order_active:
+                self.eval_exit()
+            if self.is_sltp_active:
+                self.eval_sltp()
+
             strategy(action, open, close, high, low, volume)            
 
         if self.demo == None:

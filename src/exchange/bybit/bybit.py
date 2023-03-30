@@ -20,6 +20,7 @@ from src import retry_bybit as retry
 from pybit import inverse_futures, inverse_perpetual, usdc_perpetual, usdt_perpetual, spot
 #from pybit import spot as spot_http
 from src.config import config as conf
+from src.exchange_config import exchange_config
 from src.exchange.bybit.bybit_websocket import BybitWs
 
 #TODO
@@ -119,7 +120,9 @@ class Bybit:
                         'stop_short_callback': None,
                         'split': 1,
                         'interval': 0
-                        }         
+                        }      
+        # Is SLTP active
+        self.is_sltp_active = False   
          # Profit, Loss and Trail Offset
         self.exit_order = {
                         'profit': 0, 
@@ -131,6 +134,8 @@ class Bybit:
                         'split': 1,
                         'interval': 0
                         }
+        # Is exit order active
+        self.is_exit_order_active = False
         # Trailing Stop
         self.trail_price = 0   
         # Order callbacks
@@ -146,6 +151,10 @@ class Bybit:
         self.bid_quantity_L1 = None
         # Ask quantity L1
         self.ask_quantity_L1 = None
+
+        for k,v in exchange_config['bybit'].items():
+            if k in dir(Bybit):
+                setattr(self, k, v)
 
     def __init_client(self):
         """
@@ -221,7 +230,8 @@ class Bybit:
 
     def sync(self):
         # Position
-        self.position = self.get_position()
+        if not self.spot:
+            self.position = self.get_position()
         # Position size
         self.position_size = self.get_position_size()
         # Entry price
@@ -267,19 +277,29 @@ class Bybit:
     def get_balance(self, asset=None, return_available=False):
         """
         get balance
+        after the first api call it will update by api call only upon fills via execution ws stream,
+        to ensure updating by api call each time pass `asset` as argument
+        the default balance asset is `self.quote_asset` 
         :param asset: asset
-        :param return_available: returns only available balance, since some might be used as a collateral for margin etc.
+        :param return_available: returns only available balance, since some might be used as a collateral for margin etc.        
         :return:
         """
         self.__init_client()
-        balances = self.get_all_balances()
+        if asset is None and self.margin is not None:   
+            balances = self.margin
+        elif asset is not None:
+            balances =  self.get_all_balances()
+        else:
+            self.margin = self.get_all_balances()
+            balances = self.margin
 
         if self.spot: 
             balances = balances['balances']   
             asset = asset if asset else self.quote_asset
             balance = [balance for balance in balances if balance.get('coin')==asset]           
+            
             if len(balance) > 0:          
-                balance = float(balance[0]['free']) if return_available else float(balance[0]['total'])                  
+                balance = float(balance[0]['free']) if return_available else float(balance[0]['total'])                           
                 return balance             
             else:
                 logger.info(f"Unable to find asset: {asset} in balances")
@@ -368,6 +388,10 @@ class Bybit:
         """
         symbol = self.pair if symbol == None else symbol
 
+        if self.spot:
+            logger.info(f"Get Position Functionality Currently Not Supported For Spot")
+            return      
+
         def get_position_api_call():           
             ret = retry(lambda: self.private_client
                                   .my_position(symbol=symbol, category='PERPETUAL'))
@@ -406,6 +430,7 @@ class Bybit:
         self.__init_client()
         if self.spot: # Spot treats positions only as changes in balance from quote asset to base asset           
             position = self.get_balance(asset=self.base_asset) 
+            position = 0 if position is None else position
             return float(position)
 
         position = self.get_position(force_api_call=force_api_call)
@@ -559,23 +584,37 @@ class Bybit:
 
         self.callbacks = {} 
     
-    def close_all(self, spot_safety_catch=True, callback=None, split=1, interval=0):
+    def close_all(self, 
+                  spot_safety_catch=True, 
+                  callback=None, 
+                  split=1, interval=0, 
+                  limit_chase_init_delay=0.0001, chase_update_rate=0.05, limit_chase_interval=0):
         """
         market close open position for this pair
         :params spot_safety_catch: this is here to prevent you to accidentally dump all your base asset,
-        -because spot on treats positions as changes in balance of base asset and quote asset, there is open position status
-        :params callback:
-        :params split:
-        :params interval:
+        -because spot treats positions as changes in balance of base asset and quote asset, there is no open position status
+        :param callback:
+        :param split:
+        :param interval:
+        :param limit_chase_init_delay:
+        :param chase_update_rate:
+        :paran limit_chase_interval: greater than 0 starts limit chase order
         """
         self.__init_client()
         position_size = self.get_position_size()
-        if position_size == 0 or spot_safety_catch:
+        if position_size == 0 or (spot_safety_catch and self.spot):
             return
 
         side = False if position_size > 0 else True
         
-        self.order("Close", side, abs(position_size), callback=callback, split=split, interval=interval)
+        self.order("Close", side, abs(position_size), 
+                   post_only=bool(limit_chase_interval),
+                   limit_chase_init_delay=limit_chase_init_delay,
+                   chase_update_rate=chase_update_rate, 
+                   limit_chase_interval=limit_chase_interval, 
+                   callback=callback, 
+                   split=split, 
+                   interval=interval)
         position_size = self.get_position_size()
         if position_size == 0:
             logger.info(f"Closed {self.pair} position")
@@ -982,7 +1021,7 @@ class Bybit:
             split=1,
             interval=0,
             limit_chase_init_delay=0.0001, 
-            chase_loop_filler_interval=0.05, 
+            chase_update_rate=0.05, 
             limit_chase_interval=0
             ):
         """
@@ -1002,7 +1041,7 @@ class Bybit:
         :param split: for iceberg order
         :param inerval: for iceberg order
         :param limit_chase_init_delay: for limit order chasing
-        :param chase_loop_filler_interval: limit order chasing sleep interval between price updates etc
+        :param chase_update_rate: limit order chasing sleep interval between price updates etc
         :param limit_chase_interval: has to be above 0 to start limit chasing along with `post_only`
         :return:
         """
@@ -1028,7 +1067,7 @@ class Bybit:
 
         self.order(id, long, ord_qty, limit, stop, post_only, 
                    reduce_only, when, callback, trigger_by, split, interval,
-                   limit_chase_init_delay=0.0001, chase_loop_filler_interval=0.05, limit_chase_interval=0)
+                   limit_chase_init_delay, chase_update_rate, limit_chase_interval)
 
     def entry_pyramiding(
             self,
@@ -1049,7 +1088,7 @@ class Bybit:
             split=1,
             interval=0,
             limit_chase_init_delay=0.0001, 
-            chase_loop_filler_interval=0.05, 
+            chase_update_rate=0.05, 
             limit_chase_interval=0
             ):
         """
@@ -1071,7 +1110,7 @@ class Bybit:
         :param split: for iceberg order
         :param inerval: for iceberg order
         :param limit_chase_init_delay: for limit order chasing
-        :param chase_loop_filler_interval: limit order chasing sleep interval between price updates etc
+        :param chase_update_rate: limit order chasing sleep interval between price updates etc
         :param limit_chase_interval: has to be above 0 to start limit chasing along with `post_only`
         :return:
         """ 
@@ -1111,7 +1150,7 @@ class Bybit:
 
         self.order(id, long, ord_qty, limit, stop, post_only, 
                    reduce_only, when, callback, trigger_by, split, interval,
-                   limit_chase_init_delay, chase_loop_filler_interval, limit_chase_interval)
+                   limit_chase_init_delay, chase_update_rate, limit_chase_interval)
 
     def order(
             self,
@@ -1128,7 +1167,7 @@ class Bybit:
             split=1,
             interval=0, 
             limit_chase_init_delay=0.0001, 
-            chase_loop_filler_interval=0.05, 
+            chase_update_rate=0.05, 
             limit_chase_interval=0
             ):
         """
@@ -1147,7 +1186,7 @@ class Bybit:
         :param split: for iceberg order
         :param inerval: for iceberg order
         :param limit_chase_init_delay: for limit order chasing
-        :param chase_loop_filler_interval: limit order chasing sleep interval between price updates etc
+        :param chase_update_rate: limit order chasing sleep interval between price updates etc
         :param limit_chase_interval: has to be above 0 to start limit chasing along with `post_only`
         :return:
         """
@@ -1235,7 +1274,7 @@ class Bybit:
                     limit = self.best_bid_price if side == "Buy" else self.best_ask_price 
 
                     if limit is None:
-                        time.sleep(chase_loop_filler_interval)
+                        time.sleep(chase_update_rate)
                         continue
                          
                     if 'Status' in self.limit_chaser_ord[side] \
@@ -1257,11 +1296,11 @@ class Bybit:
                     if limit == self.limit_chaser_ord[side]['Limit'] \
                         or self.limit_chaser_ord[side]['chase_counter'] != i:  # Checking if the price has changed
                         #logger.info(f"best bid: {self.best_bid_price}     best ask: {self.best_ask_price}")                      
-                        time.sleep(chase_loop_filler_interval)
+                        time.sleep(chase_update_rate)
                         continue                   
 
                     if not self.limit_chaser_ord[side]['is_amend_active']:
-                        time.sleep(chase_loop_filler_interval)
+                        time.sleep(chase_update_rate)
                         continue
 
                     limit = str(limit) if self.pair.endswith('PERP') else limit  
@@ -1384,10 +1423,11 @@ class Bybit:
             interval=0
             ):
         """
-        profit taking and stop loss and trailing, if both stop loss and trailing offset are set trailing_offset takes precedence
-        :param profit: Profit (specified in ticks)
-        :param loss: Stop loss (specified in ticks)
-        :param trail_offset: Trailing stop price (specified in ticks)
+        profit taking and stop loss and trailing, 
+        if both stop loss and trailing offset are set trailing_offset takes precedence
+        :param profit: Profit 
+        :param loss: Stop loss 
+        :param trail_offset: Trailing stop price
         """
         self.exit_order = {
                         'profit': profit, 
@@ -1399,6 +1439,9 @@ class Bybit:
                         'split': split,
                         'interval': interval
                         }
+        self.is_exit_order_active = self.exit_order['profit'] > 0 \
+                                    or self.exit_order['loss'] > 0 \
+                                    or self.exit_order['trail_offset'] >  0     
 
     def sltp(
             self,
@@ -1439,6 +1482,11 @@ class Bybit:
                             'split': split,
                             'interval': interval
                             } 
+        self.is_sltp_active = self.sltp_values['profit_long'] > 0 \
+                                or self.sltp_values['profit_short'] > 0 \
+                                or self.sltp_values['stop_long'] >  0 \
+                                or self.sltp_values['stop_short'] > 0     
+        
         if self.quote_rounding == None and round_decimals != None:
             self.quote_rounding = round_decimals
 
@@ -1810,7 +1858,8 @@ class Bybit:
                 self.market_price < self.get_trail_price():
             self.set_trail_price(self.market_price)
         #Get PnL calculation in %
-        self.pnl = self.get_pnl() 
+        if not self.spot:
+            self.pnl = self.get_pnl() 
 
     def __on_update_fills(self, action, fills):
         """
@@ -1819,7 +1868,10 @@ class Bybit:
         self.last_fill = fills
         #self.eval_sltp()    
         #pos_size = self.get_position_size(force_api_call=True)
-        #logger.info(f"position size: {pos_size}")       
+        #logger.info(f"position size: {pos_size}")
+        self.margin = None
+        self.get_balance()
+        
         message = f"""========= FILLS =============
                            {fills} 
                       ============================="""
@@ -1953,8 +2005,10 @@ class Bybit:
             self.limit_chaser_ord[side].update(limit_chaser_ord) # Updating chaser order dict
 
         # Evaluation of profit and loss
-        self.eval_exit()
-        self.eval_sltp()    
+        if self.is_exit_order_active:
+            self.eval_exit()
+        if self.is_sltp_active:
+            self.eval_sltp()    
         
     def __on_update_position(self, action, position):
         """

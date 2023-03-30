@@ -18,6 +18,7 @@ from src import (logger, allowed_range, allowed_range_minute_granularity,
                  FatalError, notify, ord_suffix)
 from src import retry_binance_futures as retry
 from src.config import config as conf
+from src.exchange_config import exchange_config
 from src.exchange.binance_futures.binance_futures_api import Client
 from src.exchange.binance_futures.binance_futures_websocket import BinanceFuturesWs
 from src.exchange.binance_futures.exceptions import BinanceAPIException, BinanceRequestException
@@ -108,6 +109,8 @@ class BinanceFutures:
                         'split': 1,
                         'interval': 0
                         }         
+        # Is SLTP active
+        self.is_sltp_active = False
          # Profit, Loss and Trail Offset
         self.exit_order = {
                         'profit': 0, 
@@ -119,6 +122,8 @@ class BinanceFutures:
                         'split': 1,
                         'interval': 0
                         }
+        # Is exit order active
+        self.is_exit_order_active = False
         # Trailing Stop
         self.trail_price = 0   
         # Order callbacks
@@ -133,6 +138,10 @@ class BinanceFutures:
         self.ask_quantity_L1 = None
         # callback
         self.best_bid_ask_change_callback = {}
+
+        for k,v in exchange_config['binance_f'].items():
+            if k in dir(BinanceFutures):               
+                setattr(self, k, v)
         
     def __init_client(self):
         """
@@ -1014,10 +1023,11 @@ class BinanceFutures:
             interval=0
             ):
         """
-        profit taking and stop loss and trailing, if both stop loss and trailing offset are set trailing_offset takes precedence
-        :param profit: Profit (specified in ticks)
-        :param loss: Stop loss (specified in ticks)
-        :param trail_offset: Trailing stop price (specified in ticks)
+        profit taking and stop loss and trailing,
+         if both stop loss and trailing offset are set trailing_offset takes precedence
+        :param profit: Profit 
+        :param loss: Stop loss
+        :param trail_offset: Trailing stop price 
         """
         self.exit_order = {
                             'profit': profit, 
@@ -1029,6 +1039,9 @@ class BinanceFutures:
                             'split': split,
                             'interval': interval
                             }
+        self.is_exit_order_active = self.exit_order['profit'] > 0 \
+                                    or self.exit_order['loss'] > 0 \
+                                    or self.exit_order['trail_offset'] >  0     
 
     def sltp(
             self, 
@@ -1069,6 +1082,11 @@ class BinanceFutures:
                             'split': split,
                             'interval': interval
                             } 
+        self.is_sltp_active = self.sltp_values['profit_long'] > 0 \
+                                or self.sltp_values['profit_short'] > 0 \
+                                or self.sltp_values['stop_long'] >  0 \
+                                or self.sltp_values['stop_short'] > 0     
+        
         if self.quote_rounding == None and round_decimals != None:
             self.quote_rounding = round_decimals
 
@@ -1579,8 +1597,10 @@ class BinanceFutures:
         self.entry_price = float(self.position[0]['entryPrice'])        
     
         # Evaluation of profit and loss
-        self.eval_exit()
-        self.eval_sltp()
+        if self.is_exit_order_active:
+            self.eval_exit()
+        if self.is_sltp_active:
+            self.eval_sltp()
 
     def __on_update_margin(self, action, margin):
         """

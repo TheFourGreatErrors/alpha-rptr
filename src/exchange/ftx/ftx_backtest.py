@@ -10,6 +10,7 @@ import pandas as pd
 
 from src import logger, allowed_range, allowed_range_minute_granularity, retry, delta, load_data, resample, \
     find_timeframe_string
+from src.exchange_config import exchange_config
 from src.exchange.ftx.ftx_stub import FtxStub
 
 OHLC_DIRNAME = os.path.join(os.path.dirname(__file__), "../ohlc/{}/{}/{}")
@@ -70,6 +71,10 @@ class FtxBackTest(FtxStub):
         self.plot_data = {}
         # Resample data
         self.resample_data = {}
+
+        for k,v in exchange_config['ftx'].items():
+            if k in dir(FtxBackTest):   
+                setattr(self, k, v)    
 
     def get_market_price(self):
         """

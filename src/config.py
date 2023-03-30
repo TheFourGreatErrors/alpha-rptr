@@ -29,15 +29,19 @@ config = {
                 },  
     "line_apikey": {"API_KEY": ""},
     "discord_webhooks": {
-					"binanceaccount1": "",
-					"binanceaccount2": "",
+                    "binanceaccount1": "",
+                    "binanceaccount2": "",
                     "bybitaccount1": "",
                     "bybitaccount2": ""
                     },
     "healthchecks.io": {
                     "binanceaccount1": {
-                        "websocket_heartbeat": "",
-                        "listenkey_heartbeat": ""
-                        }
+                                        "websocket_heartbeat": "",
+                                        "listenkey_heartbeat": ""
+                                        },
+                    "bybitaccount1": {
+                                    "websocket_heartbeat": "",
+                                    "listenkey_heartbeat": ""
+                                    }
     }                       
 }
