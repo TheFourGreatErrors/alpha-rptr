@@ -5,6 +5,7 @@ import math
 #import os
 import traceback
 from datetime import datetime, timezone
+from inspect import signature
 import time
 import threading
 
@@ -20,6 +21,7 @@ from src.config import config as conf
 from src.exchange_config import exchange_config
 from src.exchange.binance_futures.binance_futures_api import Client
 from src.exchange.binance_futures.binance_futures_websocket import BinanceFuturesWs
+from src.exchange.binance_futures.exceptions import BinanceAPIException, BinanceRequestException
 
 
 class BinanceFutures:   
@@ -134,6 +136,8 @@ class BinanceFutures:
         self.bid_quantity_L1 = None
         # Ask quantity L1
         self.ask_quantity_L1 = None
+        # callback
+        self.best_bid_ask_change_callback = {}
 
         for k,v in exchange_config['binance_f'].items():
             if k in dir(BinanceFutures):               
@@ -419,7 +423,7 @@ class BinanceFutures:
         res = retry(lambda: self.client.futures_cancel_all_open_orders(symbol=self.pair))
         #for order in orders:
         logger.info(f"Cancel all open orders: {res}")    
-        self.callbacks = {}
+        #self.callbacks = {}
 
     def close_all(self, callback=None, split=1, interval=0):
         """
@@ -433,11 +437,6 @@ class BinanceFutures:
         side = False if position_size > 0 else True
         
         self.order("Close", side, abs(position_size), callback=callback, split=split, interval=interval)
-        position_size = self.get_position_size()
-        if position_size == 0:
-            logger.info(f"Closed {self.pair} position")
-        else:
-            logger.info(f"Failed to close all {self.pair} position, still {position_size} amount remaining")
 
     def cancel(self, id):
         """
@@ -459,7 +458,7 @@ class BinanceFutures:
         logger.info(f"Cancel Order : (clientOrderId, type, side, quantity, price, stop) = "
                     f"({order['clientOrderId']}, {order['type']}, {order['side']}, {order['origQty']}, "
                     f"{order['price']}, {order['stopPrice']})")
-        self.callbacks.pop(order['clientOrderId'])
+        #self.callbacks.pop(order['clientOrderId'])
         return True
 
     def __new_order(
@@ -517,25 +516,14 @@ class BinanceFutures:
                                                            reduceOnly=reduce_only, workingType=workingType))        
         elif post_only: # limit order with post only
             ord_type = "LIMIT"
-            i = 0            
-            while True:                 
-                prices = self.get_orderbook_ticker()
-                limit = float(prices['bidPrice']) if side == "Buy" else float(prices['askPrice'])                
-                retry(lambda: self.client.futures_create_order(symbol=self.pair, type=ord_type, newClientOrderId=ord_id,
-                                                               side=side, quantity=ord_qty, price=limit,
-                                                               timeInForce="GTX", reduceOnly=reduce_only))
-                time.sleep(4)
-
-                self.cancel(ord_id)
-
-                if float(self.get_position()['positionAmt']) > 0:
-                    break
-                i += 1
-                if i > 10:
-                    notify(f"Order retry count exceed")                    
-                    break
-                    
-            self.cancel_all()
+                             
+            limit = self.best_bid_price if side == "Buy" else self.best_ask_price                
+            # New change coming. GTX and FOK orders will return
+            # an error instead of EXPIRED update on WS when they dont
+            # meet execution criteria. Release Date: Unknown
+            retry(lambda: self.client.futures_create_order(symbol=self.pair, type=ord_type, newClientOrderId=ord_id,
+                                                            side=side, quantity=ord_qty, price=limit,
+                                                            timeInForce="GTX", reduceOnly=reduce_only))
         else:
             ord_type = "MARKET"
             retry(lambda: self.client.futures_create_order(symbol=self.pair, type=ord_type, newClientOrderId=ord_id,
@@ -717,7 +705,9 @@ class BinanceFutures:
             callback=None,
             workingType="CONTRACT_PRICE", 
             split=1, 
-            interval=0
+            interval=0,
+            chaser=False,
+            retry_maker=100
             ):
         """
         places an order, works as equivalent to tradingview pine script implementation
@@ -788,6 +778,179 @@ class BinanceFutures:
             self.order(sub_ord_id, long, sub_ord_qty, limit, stop, post_only, reduce_only,
                         trailing_stop, activationPrice, workingType=workingType, callback=split_order(1))
             return
+
+        if chaser:
+
+            exchange = self
+
+            class Chaser:
+
+                def __init__(self, order_id, long, qty, limit, stop, post_only, reduce_only, trailing_stop, activationPrice, callback, workingType):
+                    self.order_id = order_id
+                    self.long = long
+                    self.qty = qty
+                    # stop-market orders cannot be chased as they will
+                    # be triggered and filled almost immediately
+                    # with out any time for intervention.
+                    # so converting them into stop-limit with limit=stop
+                    self.limit = stop if stop != 0 and limit == 0 else limit
+                    self.stop = stop
+                    self.post_only = post_only #set to True for maker orders
+                    self.reduce_only = reduce_only
+                    self.callback = callback
+
+                    self.callback_type = None
+                    if callable(self.callback):                        
+                        self.callback_type = True if len(signature(self.callback).parameters) > 0 else False
+
+                    self.workingType = workingType
+
+                    self.started = None
+                    self.count = 0
+                    self.current_order_id = self.sub_order_id()
+                    # if no limit price is set, set it to best bid/ask price
+                    self.current_order_price = self.limit if self.limit != 0 else self.price()
+                    # First order will be sent without post-only flag irrespective
+                    # and post-only will be used once the order is triggered
+                    self.order(retry_maker, self.current_order_id, self.long, self.qty, self.current_order_price, self.stop, self.post_only if self.stop==0 else False, self.reduce_only, self.workingType, self.on_order_update)     
+                    
+                    self.filled = {}
+                    
+                    # market order - start chasing immediately
+                    if self.stop == 0 and self.limit == 0:
+                        self.start()
+                    elif self.stop == 0 and self.limit != 0:
+                        self.limit_tracker(self.limit)                        
+
+                def sub_order_id(self):
+                    return f"{self.order_id}_{self.count}"
+                
+                def filled_qty(self):
+                    filled_qty = 0
+                    for value in self.filled.values():
+                        filled_qty += value
+                    
+                    return filled_qty
+                
+                def remaining_qty(self):
+                    return self.qty - self.filled_qty()
+                
+                def price(self):
+                    return exchange.best_bid_price if self.long else exchange.best_ask_price 
+
+                # Used to follow Bed Bid/Ask to chase 
+                # limit orders at a specifid price.
+                # The actual chaser starts once the limit price 
+                # is crossed. Useful for TP orders.
+                def limit_tracker(self, limit):
+
+                    logger.info(f"Limit Tracker Active: {self.order_id}")
+
+                    #watch for best bid/ask price to cross limit price
+                    limit_chaser = self
+                    def tracker(best_bid_changed, best_ask_changed):
+
+                        if (exchange.best_bid_price <= limit and limit_chaser.long) or \
+                            (exchange.best_ask_price >= limit_chaser.limit and not limit_chaser.long):
+                            limit_chaser.start()
+
+                    exchange.add_ob_callback(self.order_id, tracker)                    
+
+                def start(self):
+                    self.started = True #started
+                    exchange.add_ob_callback(self.order_id, self.on_bid_ask_change)                    
+
+                def end(self):
+                    exchange.remove_ob_callback(self.order_id)
+
+                def cancel(self):
+                    self.started = False #canceled
+                    exchange.cancel(self.current_order_id)
+
+                def order(self, retry, id, long, qty, limit, stop, post_only, reduce_only, workingType, callback):
+                    # try fixed number of times
+                    for x in range(retry):
+                        try:  
+                            exchange.order(id, long, qty, limit, stop, post_only, reduce_only=reduce_only, workingType=workingType, callback=callback)
+                            self.current_order_id = id
+                            break
+                        except BinanceAPIException as e:
+                            error_code  = abs(int(e.code))
+                            # Upcoming change:
+                            # When placing order with timeInForce FOK or GTX(Post-only), 
+                            # if the order can't meet execution criteria, order will get 
+                            # rejected directly and receive error response, 
+                            # no order_trade_update message in websocket. 
+                            # The order can't be found in GET /fapi/v1/order or GET /fapi/v1/allOrders.
+                            if (error_code == 5021 or error_code == 5022) and x < (retry-1):
+                                #retry
+                                time.sleep(1)
+                                continue
+                            else:
+                                raise e
+
+                def on_bid_ask_change(self, best_bid_changed, best_ask_changed):
+
+                    if (self.long and best_bid_changed) or (not self.long and best_ask_changed):
+                        logger.info(f"Price Changed - {self.price()}")
+
+                    if self.current_order_id is not None and \
+                        ((self.long and best_bid_changed) or (not self.long and best_ask_changed)):
+
+                        exchange.cancel(self.current_order_id)
+                        logger.info(f"Cancelled : {self.order_id} : Price Changed - {self.current_order_price} -> {self.price()}")
+                        self.current_order_id = None
+                        
+                def on_order_update(self, order):
+                    
+                    #save filled qty
+                    self.filled[order["id"]] = order["filled"]
+                    
+                    if self.stop != 0 and order["status"] == "TRIGGERED":
+                        logger.info(f"{order['id']} is Triggered @ {order['stop']}!")
+                        if self.limit == self.stop:
+                            # there was no limit set
+                            self.start()
+                        else:
+                            self.limit_tracker(self.limit)
+                        return
+
+                    if order["status"] == "FILLED":
+                        self.current_order_id = None
+                        exchange.remove_ob_callback(self.order_id)
+                        if self.callback_type is not None:
+                            if self.callback_type:
+                                order['id'] = self.order_id
+                                order['filled'] = self.filled_qty()
+                                order['qty'] = self.qty
+                                order['limit'] = self.limit
+                                order['stop'] = self.stop                                
+
+                                self.callback(order)
+                            else:
+                                self.callback()
+
+                    if order["status"] == "CANCELED" or order["status"] == "EXPIRED":
+                        logger.info(f"Order Cancelled: {order['id']} @ {order['limit']}")
+                        if self.started is False:
+                            exchange.remove_ob_callback(self.order_id)
+                            if self.callback_type is not None:
+                                if self.callback_type:
+                                    order['id'] = self.order_id
+                                    order['filled'] = self.filled_qty()
+                                    order['qty'] = self.qty
+                                    order['limit'] = self.limit
+                                    order['stop'] = self.stop     
+                                    
+                                    self.callback(order)
+                        else:
+                            self.current_order_id = None
+                            self.current_order_price = self.price()
+                            self.count += 1
+                            self.order(retry_maker, self.sub_order_id(), self.long, self.remaining_qty(), self.current_order_price, 0, self.post_only, self.reduce_only, self.workingType, self.on_order_update)               
+            
+            # start the chaser
+            return Chaser(id, long, qty, limit, stop, post_only, reduce_only, trailing_stop, activationPrice, callback, workingType)
 
         self.callbacks[ord_id] = callback
 
@@ -1172,7 +1335,7 @@ class BinanceFutures:
                 end_time = datetime.now(timezone.utc)
                 start_time = end_time - self.ohlcv_len * delta(t)
                 self.timeframe_data[t] = self.fetch_ohlcv(t, start_time, end_time)
-                logger.info(f"timeframe_data: {self.timeframe_data}") 
+                #logger.info(f"timeframe_data: {self.timeframe_data}") 
 
                 self.timeframe_info[t] = {
                             "allowed_range": allowed_range_minute_granularity[t][0] 
@@ -1306,62 +1469,86 @@ class BinanceFutures:
         Update order status
         https://binance-docs.github.io/apidocs/futures/en/#event-order-update
         """
-        self.order_update = order
+        order_info = {}
 
-        if(order['X'] == "CANCELED" or order['X'] == "EXPIRED"):
-            #If stop price is set for a GTC Order and filled quanitity is 0 then EXPIRED means TRIGGERED
-            if(float(order['sp']) > 0 
-               and order['f'] == "GTC" 
-               and float(order['z']) == 0 
-               and order['X'] == "EXPIRED"):
-                logger.info(f"========= Order Update ==============")
-                logger.info(f"ID     : {order['c']}") # Clinet Order ID
-                logger.info(f"Type   : {order['o']}")
-                logger.info(f"Uses   : {order['wt']}")
-                logger.info(f"Side   : {order['S']}")
-                logger.info(f"Status : TRIGGERED")
-                logger.info(f"TIF    : {order['f']}")
-                logger.info(f"Qty    : {order['q']}")
-                logger.info(f"Filled : {order['z']}")
-                logger.info(f"Limit  : {order['p']}")
-                logger.info(f"Stop   : {order['sp']}")
-                logger.info(f"APrice : {order['ap']}")
-                logger.info(f"======================================")
+        # Normalize Order Info to canonical names
+        order_info["id"]            = order['c']  # Client Order ID
+        order_info["type"]          = order['o']  # LIMIT, MARKET, STOP, STOP_MARKET, TAKE_PROFIT, TAKE_PROFIT_MARKET, TRAILING_STOP_MARKET
+        order_info["uses"]          = order['wt'] # CONTRACT_PRICE, MARK_PRICE (for stop orders)
+        order_info["side"]          = order['S']  # BUY, SELL
+        order_info["status"]        = order['X']  # NEW, CANCELED, EXPIRED, PARTIALLY_FILLED, FILLED
+        order_info["timeinforce"]   = order['f']  # GTC, IOC, FOK, GTX
+        order_info["qty"]           = float(order['q'])  # order quantity
+        order_info["filled"]        = float(order['z'])  # filled quantity
+        order_info["limit"]         = float(order['p'])  # limit price
+        order_info["stop"]          = float(order['sp']) # stop price
+        order_info["avgprice"]      = float(order['ap']) # average price
+        order_info["reduceonly"]    = order['R'] # Reduce Only Order
+
+
+        self.order_update = order_info
+
+        order_log = False
+
+        callback = self.callbacks[order['c']]
+        all_updates = None
+        if callable(callback):
+            if len(signature(callback).parameters) > 0: # check if the callback accepts order argument
+                all_updates = True # call the callback with order_info oject on all relevant updates from WS
             else:
-                logger.info(f"========= Order Update ==============")
-                logger.info(f"ID     : {order['c']}") # Clinet Order ID
-                logger.info(f"Type   : {order['o']}")
-                logger.info(f"Uses   : {order['wt']}")
-                logger.info(f"Side   : {order['S']}")
-                logger.info(f"Status : {order['X']}")
-                logger.info(f"TIF    : {order['f']}")
-                logger.info(f"Qty    : {order['q']}")
-                logger.info(f"Filled : {order['z']}")
-                logger.info(f"Limit  : {order['p']}")
-                logger.info(f"Stop   : {order['sp']}")
-                logger.info(f"APrice : {order['ap']}")
-                logger.info(f"======================================")
-                self.callbacks.pop(order['c'], None)
+                all_updates = False # call the callback without any arguements only once the order is filled
 
-        #only after order if completely filled
-        if(self.order_update_log and float(order['q']) == float(order['z'])): 
+        # currently only these events will use callbacks
+        if(order_info['status'] == "CANCELED" or order_info['status'] == "EXPIRED" or order_info['status'] == "PARTIALLY_FILLED" or order_info['status'] == "FILLED" ):
+
+            # If STOP PRICE is set for a GTC Order and filled quanitity is 0 then EXPIRED means TRIGGERED
+            # When stop price is hit, the stop order expires and converts into a limit/market order
+            if(order_info["stop"] > 0 
+               and order_info["timeinforce"] == "GTC" 
+               and order_info["filled"] == 0 
+               and order_info['status'] == "EXPIRED"):
+                
+                order_info["status"] = "TRIGGERED" 
+                
+                order_log = True  
+                if all_updates:
+                    callback(order_info)    
+
+            if(order_info['status'] == "CANCELED" or order_info['status'] == "EXPIRED"):
+                
+                order_log = True                  
+                self.callbacks.pop(order['c'], None) # Removes the respective order callback 
+                
+                if all_updates:
+                    callback(order_info) 
+                
+            #only after order is completely filled
+            if order_info['status'] == "PARTIALLY_FILLED" or order_info['status'] == "FILLED":
+
+                if self.order_update_log and order_info['status'] == "FILLED" and order_info["qty"] == order_info["filled"]:
+
+                    order_log = True                    
+                    self.callbacks.pop(order['c'], None)  # Removes the respective order callback 
+                    
+                if all_updates is True:
+                    callback(order_info)
+                elif all_updates is False and order_info['status'] == "FILLED":
+                    callback()
+        
+        if order_log == True:
             logger.info(f"========= Order Update ==============")
-            logger.info(f"ID     : {order['c']}") # Clinet Order ID
-            logger.info(f"Type   : {order['o']}")
-            logger.info(f"Uses   : {order['wt']}")
-            logger.info(f"Side   : {order['S']}")
-            logger.info(f"Status : {order['X']}")
-            logger.info(f"Qty    : {order['q']}")
-            logger.info(f"Filled : {order['z']}")
-            logger.info(f"Limit  : {order['p']}")
-            logger.info(f"Stop   : {order['sp']}")
-            logger.info(f"APrice : {order['ap']}")
+            logger.info(f"ID     : {order_info['id']}") # Clinet Order ID
+            logger.info(f"Type   : {order_info['type']}")
+            logger.info(f"Uses   : {order_info['uses']}")
+            logger.info(f"Side   : {order_info['side']}")
+            logger.info(f"Status : {order_info['status']}")
+            logger.info(f"TIF    : {order_info['timeinforce']}")
+            logger.info(f"Qty    : {order_info['qty']}")
+            logger.info(f"Filled : {order_info['filled']}")
+            logger.info(f"Limit  : {order_info['limit']}")
+            logger.info(f"Stop   : {order_info['stop']}")
+            logger.info(f"APrice : {order_info['avgprice']}")
             logger.info(f"======================================")
-
-            # Call the respective order callback
-            callback = self.callbacks.pop(order['c'], None)  # Removes the respective order callback and returns it
-            if callable(callback):
-                callback()
 
         # Evaluation of profit and loss
         # self.eval_exit()
@@ -1429,12 +1616,34 @@ class BinanceFutures:
         notify(f"Balance: {self.margin[0]['balance']}")
         logger.info(f"Balance: {self.margin[0]['balance']} Cross Balance: {self.margin[0]['crossWalletBalance']}")     
 
+    def add_ob_callback(self, id, callback):
+        self.best_bid_ask_change_callback[id] = callback
+
+    def remove_ob_callback(self, id):
+        self.best_bid_ask_change_callback.pop(id)
+
     def __on_update_bookticker(self, action, bookticker):
         """
         best bid and best ask price 
         """
-        self.best_bid_price = float(bookticker['b'])
-        self.best_ask_price = float(bookticker['a'])        
+
+        best_bid_changed = False
+
+        if( self.best_bid_price != float(bookticker['b']) ):
+            self.best_bid_price = float(bookticker['b'])
+            best_bid_changed = True
+
+        best_ask_changed = False            
+
+        if (self.best_ask_price != float(bookticker['a']) ):
+            self.best_ask_price = float(bookticker['a']) 
+            best_ask_changed = True
+            
+        if best_bid_changed or best_ask_changed:
+            for callback in self.best_bid_ask_change_callback.values():
+                if callable(callback):
+                    callback(best_bid_changed, best_ask_changed)  
+
         self.bid_quantity_L1 = float(bookticker['B'])         
         self.ask_quantity_L1 = float(bookticker['A']) 
         #logger.info(f"best bid: {self.best_bid_price}          best_ask: {self.best_ask_price}           bq_L1: {self.bid_quantity_L1}           aq_L1: {self.ask_quantity_L1}")

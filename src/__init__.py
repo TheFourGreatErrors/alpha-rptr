@@ -311,7 +311,12 @@ def retry(func, count=5):
 
 binance_errors_to_actions = {
     # APIError(code=-1021): Timestamp for this request is outside of the recvWindow.
-    1021: "retry"
+    1021: "retry",
+    # APIError(code=-5021): Due to the order could not be filled immediately, the FOK order has been rejected. The order will not be recorded in the order history.
+    5021: "return",
+    # APIError(code=-5022): Due to the order could not be executed as maker, the Post Only order will be rejected. The order will not be recorded in the order history.
+    5022: "return"
+
 }
 
 
@@ -350,6 +355,8 @@ def retry_binance_futures(func, count=5):
                 time.sleep(pow(2, i + 1))
                 logger.info(f"Retrying Request - Count: {i+1} - Status: {status_code} - Error: {error.code}")
                 continue
+            elif check_binance_error(error.code) == "return":
+                break 
             elif status_code == 400 or \
                     status_code == 401 or \
                     status_code == 402 or \
