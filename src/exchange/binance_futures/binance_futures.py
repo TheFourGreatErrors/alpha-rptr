@@ -830,10 +830,10 @@ class BinanceFutures:
                     for value in self.filled.values():
                         filled_qty += value
                     
-                    return filled_qty
+                    return round(filled_qty, exchange.asset_rounding)
                 
                 def remaining_qty(self):
-                    return self.qty - self.filled_qty()
+                    return round(self.qty - self.filled_qty(), exchange.asset_rounding)
                 
                 def price(self):
                     return exchange.best_bid_price if self.long else exchange.best_ask_price 
@@ -876,18 +876,29 @@ class BinanceFutures:
                             break
                         except BinanceAPIException as e:
                             error_code  = abs(int(e.code))
-                            # Upcoming change:
-                            # When placing order with timeInForce FOK or GTX(Post-only), 
-                            # if the order can't meet execution criteria, order will get 
-                            # rejected directly and receive error response, 
-                            # no order_trade_update message in websocket. 
-                            # The order can't be found in GET /fapi/v1/order or GET /fapi/v1/allOrders.
-                            if (error_code == 5021 or error_code == 5022) and x < (retry-1):
-                                #retry
-                                time.sleep(1)
-                                continue
-                            else:
-                                raise e
+                            if x < (retry-1):
+                                # Upcoming change:
+                                # When placing order with timeInForce FOK or GTX(Post-only), 
+                                # if the order can't meet execution criteria, order will get 
+                                # rejected directly and receive error response, 
+                                # no order_trade_update message in websocket. 
+                                # The order can't be found in GET /fapi/v1/order or GET /fapi/v1/allOrders.
+                                if (error_code == 5022):
+                                    # limit > cmp for long order or vice versa
+                                    # and would fail if its a post-only order
+                                    # Solution: retry with limit set to best bid/ask
+                                    time.sleep(1)
+                                    ticker=exchange.get_orderbook_ticker()
+                                    limit=float(ticker["bidPrice"] if long else ticker["askPrice"])
+                                    continue
+                                if (error_code == 2021):
+                                    # stop < cmp for long order and vice versa
+                                    # Will throw error that stop will be triggered immediately
+                                    # Solution: retyr with stop = 0
+                                    time.sleep(1)
+                                    stop=0
+                                    continue
+                            raise e
 
                 def on_bid_ask_change(self, best_bid_changed, best_ask_changed):
 
