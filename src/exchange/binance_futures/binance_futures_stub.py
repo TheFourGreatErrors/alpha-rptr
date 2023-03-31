@@ -160,7 +160,11 @@ class BinanceFuturesStub(BinanceFutures):
             reduce_only=False, 
             when=True, 
             callback=None, 
-            workingType="CONTRACT_PRICE"
+            workingType="CONTRACT_PRICE",
+            split=1, 
+            interval=0,
+            chaser=False,
+            retry_maker=100
             ):
         """
         Places an order.         
@@ -214,7 +218,11 @@ class BinanceFuturesStub(BinanceFutures):
             need_commission=True, 
             reduce_only=False,
             callback=None, 
-            workingType="CONTRACT_PRICE"
+            workingType="CONTRACT_PRICE",
+            split=1, 
+            interval=0,
+            chaser=False,
+            retry_maker=100
             ):
         """
         """
@@ -251,7 +259,11 @@ class BinanceFuturesStub(BinanceFutures):
             when=True, 
             round_decimals=None, 
             callback=None, 
-            workingType="CONTRACT_PRICE"
+            workingType="CONTRACT_PRICE",
+            split=1, 
+            interval=0,
+            chaser=False,
+            retry_maker=100
             ):
         """
          I place an order. Equivalent function to pine's function.
@@ -309,7 +321,11 @@ class BinanceFuturesStub(BinanceFutures):
             when=True,
             round_decimals=None,
             callback=None, 
-            workingType="CONTRACT_PRICE"
+            workingType="CONTRACT_PRICE",
+            split=1, 
+            interval=0,
+            chaser=False,
+            retry_maker=100
             ):
         """
         Places an entry order, works as equivalent to tradingview pine script implementation with pyramiding        
