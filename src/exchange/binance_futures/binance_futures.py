@@ -107,7 +107,9 @@ class BinanceFutures:
                         'stop_long_callback': None,
                         'stop_short_callback': None,
                         'split': 1,
-                        'interval': 0
+                        'interval': 0,
+                        'chaser': False, 
+                        'retry_maker': 100
                         }         
         # Is SLTP active
         self.is_sltp_active = False
@@ -120,7 +122,9 @@ class BinanceFutures:
                         'loss_callback': None,
                         'trail_callbak': None,
                         'split': 1,
-                        'interval': 0
+                        'interval': 0,
+                        'chaser': False, 
+                        'retry_maker': 100
                         }
         # Is exit order active
         self.is_exit_order_active = False
@@ -425,7 +429,7 @@ class BinanceFutures:
         logger.info(f"Cancel all open orders: {res}")    
         #self.callbacks = {}
 
-    def close_all(self, callback=None, split=1, interval=0):
+    def close_all(self, callback=None, split=1, interval=0, chaser=False, retry_maker=100):
         """
         market close open position for this pair
         """
@@ -436,7 +440,7 @@ class BinanceFutures:
 
         side = False if position_size > 0 else True
         
-        self.order("Close", side, abs(position_size), callback=callback, split=split, interval=interval)
+        self.order("Close", side, abs(position_size), callback=callback, split=split, interval=interval, chaser=chaser, retry_maker=retry_maker)
 
     def cancel(self, id):
         """
@@ -574,7 +578,9 @@ class BinanceFutures:
             callback=None,
             workingType="CONTRACT_PRICE",
             split=1,
-            interval=0
+            interval=0,
+            chaser=False,
+            retry_maker=100
             ):
         """
         places an entry order, works as equivalent to tradingview pine script implementation
@@ -613,7 +619,7 @@ class BinanceFutures:
         activationPrice=0
 
         self.order(id, long, ord_qty, limit, stop, post_only, reduce_only,
-                    trailing_stop, activationPrice, when, callback, workingType, split, interval)
+                    trailing_stop, activationPrice, when, callback, workingType, split, interval, chaser, retry_maker)
 
     def entry_pyramiding(
             self,
@@ -632,7 +638,9 @@ class BinanceFutures:
             callback=None,
             workingType="CONTRACT_PRICE",
             split=1,
-            interval=0
+            interval=0,
+            chaser=False,
+            retry_maker=100
             ):
         """
         places an entry order, works as equivalent to tradingview pine script implementation with pyramiding
@@ -688,7 +696,7 @@ class BinanceFutures:
         ord_qty = round(ord_qty, round_decimals if round_decimals != None else self.asset_rounding)
 
         self.order(id, long, ord_qty, limit, stop, post_only, reduce_only,
-                    trailing_stop, activationPrice, when, callback, workingType, split, interval)
+                    trailing_stop, activationPrice, when, callback, workingType, split, interval, chaser, retry_maker)
 
     def order(
             self,
@@ -1031,7 +1039,9 @@ class BinanceFutures:
             loss_callback=None, 
             trail_callback=None, 
             split=1, 
-            interval=0
+            interval=0,
+            chaser=False,
+            retry_maker=100
             ):
         """
         profit taking and stop loss and trailing,
@@ -1048,7 +1058,9 @@ class BinanceFutures:
                             'loss_callback': loss_callback,
                             'trail_callback': trail_callback,
                             'split': split,
-                            'interval': interval
+                            'interval': interval,
+                            'chaser': chaser,
+                            'retry_maker': retry_maker
                             }
         self.is_exit_order_active = self.exit_order['profit'] > 0 \
                                     or self.exit_order['loss'] > 0 \
@@ -1068,7 +1080,9 @@ class BinanceFutures:
             stop_short_callback=None, 
             workingType="CONTRACT_PRICE", 
             split=1, 
-            interval = 0
+            interval = 0,
+            chaser=False,
+            retry_maker=100
             ):
         """
         Simple take profit and stop loss implementation,
@@ -1091,7 +1105,9 @@ class BinanceFutures:
                             'stop_short_callback': stop_short_callback,
                             'sltp_working_type': workingType,
                             'split': split,
-                            'interval': interval
+                            'interval': interval,
+                            'chaser': chaser,
+                            'retry_maker': retry_maker
                             } 
         self.is_sltp_active = self.sltp_values['profit_long'] > 0 \
                                 or self.sltp_values['profit_short'] > 0 \
@@ -1128,26 +1144,34 @@ class BinanceFutures:
                     self.get_market_price() - self.get_exit_order()['trail_offset'] < self.get_trail_price():
                 logger.info(f"Loss cut by trailing stop: {self.get_exit_order()['trail_offset']}")
                 self.close_all(self.get_exit_order()['trail_callback'],
-                                self.get_exit_order()['split'], self.get_exit_order()['interval'])
+                                self.get_exit_order()['split'], self.get_exit_order()['interval'],
+                                self.get_exit_order()['chaser'], self.get_exit_order()['retry_maker']
+                                )
             elif self.get_position_size() < 0 and \
                     self.get_market_price() + self.get_exit_order()['trail_offset'] > self.get_trail_price():
                 logger.info(f"Loss cut by trailing stop: {self.get_exit_order()['trail_offset']}")
                 self.close_all(self.get_exit_order()['trail_callback'],
-                                self.get_exit_order()['split'], self.get_exit_order()['interval'])
+                                self.get_exit_order()['split'], self.get_exit_order()['interval'],
+                                self.get_exit_order()['chaser'], self.get_exit_order()['retry_maker']
+                                )
 
         #stop loss
         if unrealised_pnl < 0 and \
                 0 < self.get_exit_order()['loss'] < abs(unrealised_pnl):
             logger.info(f"Loss cut by stop loss: {self.get_exit_order()['loss']}")
             self.close_all(self.get_exit_order()['loss_callback'],
-                            self.get_exit_order()['split'], self.get_exit_order()['interval'])
+                            self.get_exit_order()['split'], self.get_exit_order()['interval'],
+                            self.get_exit_order()['chaser'], self.get_exit_order()['retry_maker']
+                            )
 
         # profit take
         if unrealised_pnl > 0 and \
                 0 < self.get_exit_order()['profit'] < abs(unrealised_pnl):
             logger.info(f"Take profit by stop profit: {self.get_exit_order()['profit']}")
             self.close_all(self.get_exit_order()['profit_callback'],
-                            self.get_exit_order()['split'], self.get_exit_order()['interval'])
+                            self.get_exit_order()['split'], self.get_exit_order()['interval'],
+                            self.get_exit_order()['chaser'], self.get_exit_order()['retry_maker']
+                            )
 
     # simple TP implementation
 
@@ -1190,13 +1214,19 @@ class BinanceFutures:
                                callback=self.get_sltp_values()['profit_long_callback'], 
                                workingType=self.get_sltp_values()['sltp_working_type'],
                                split=self.get_sltp_values()['split'], 
-                               interval=self.get_sltp_values()['interval'])
+                               interval=self.get_sltp_values()['interval'],
+                               chaser=self.get_sltp_values()['chaser'],
+                               retry_maker=self.get_sltp_values()['retry_maker']
+                               )
                 else:               
                     self.order("TP", False, abs(pos_size), limit=tp_price_long, reduce_only=True, 
                                callback=self.get_sltp_values()['profit_long_callback'], 
                                workingType=self.get_sltp_values()['sltp_working_type'],
                                split=self.get_sltp_values()['split'], 
-                               interval=self.get_sltp_values()['interval'])
+                               interval=self.get_sltp_values()['interval'],
+                               chaser=self.get_sltp_values()['chaser'],
+                               retry_maker=self.get_sltp_values()['retry_maker']
+                               )
         if tp_percent_short > 0 and is_tp_full_size == False:
             if pos_size < 0:                
                 tp_price_short = round(avg_entry -(avg_entry*tp_percent_short), self.quote_rounding)
@@ -1207,13 +1237,18 @@ class BinanceFutures:
                     self.order("TP", True, abs(pos_size), limit=tp_price_short, reduce_only=True, 
                                callback=self.get_sltp_values()['profit_short_callback'], 
                                workingType=self.get_sltp_values()['sltp_working_type'],
-                               split=self.get_sltp_values()['split'], interval=self.get_sltp_values()['interval'])
+                               split=self.get_sltp_values()['split'], interval=self.get_sltp_values()['interval'],
+                               chaser=self.get_sltp_values()['chaser'],
+                               retry_maker=self.get_sltp_values()['retry_maker']
+                               )
                 else:
                     self.order("TP", True, abs(pos_size), limit=tp_price_short, reduce_only=True, 
                                callback=self.get_sltp_values()['profit_short_callback'], 
                                workingType=self.get_sltp_values()['sltp_working_type'],
                                split=self.get_sltp_values()['split'], 
-                               interval=self.get_sltp_values()['interval'])
+                               interval=self.get_sltp_values()['interval'],
+                               chaser=self.get_sltp_values()['chaser'],
+                               retry_maker=self.get_sltp_values()['retry_maker'])
         #sl
         sl_order = self.get_open_order('SL')
         if sl_order is not None:
@@ -1238,13 +1273,18 @@ class BinanceFutures:
                                callback=self.get_sltp_values()['stop_long_callback'], 
                                workingType=self.get_sltp_values()['sltp_working_type'], 
                                split=self.get_sltp_values()['split'], 
-                               interval=self.get_sltp_values()['interval'])
+                               interval=self.get_sltp_values()['interval'],
+                               chaser=self.get_sltp_values()['chaser'],
+                               retry_maker=self.get_sltp_values()['retry_maker'])
                 else:  
                     self.order("SL", False, abs(pos_size), stop=sl_price_long, reduce_only=True, 
                                callback=self.get_sltp_values()['stop_long_callback'], 
                                workingType=self.get_sltp_values()['sltp_working_type'],
                                split=self.get_sltp_values()['split'], 
-                               interval=self.get_sltp_values()['interval'])
+                               interval=self.get_sltp_values()['interval'],
+                               chaser=self.get_sltp_values()['chaser'],
+                               retry_maker=self.get_sltp_values()['retry_maker']
+                               )
         if sl_percent_short > 0 and is_sl_full_size == False:
             if pos_size < 0:
                 sl_price_short = round(avg_entry + (avg_entry*sl_percent_short), self.quote_rounding)
@@ -1256,13 +1296,19 @@ class BinanceFutures:
                                callback=self.get_sltp_values()['stop_short_callback'], 
                                workingType=self.get_sltp_values()['sltp_working_type'], 
                                split=self.get_sltp_values()['split'], 
-                               interval=self.get_sltp_values()['interval']) 
+                               interval=self.get_sltp_values()['interval'],
+                               chaser=self.get_sltp_values()['chaser'],
+                               retry_maker=self.get_sltp_values()['retry_maker']
+                               ) 
                 else:  
                     self.order("SL", True, abs(pos_size), stop=sl_price_short, reduce_only=True, 
                                callback=self.get_sltp_values()['stop_short_callback'], 
                                workingType=self.get_sltp_values()['sltp_working_type'],
                                split=self.get_sltp_values()['split'], 
-                               interval=self.get_sltp_values()['interval'])                         
+                               interval=self.get_sltp_values()['interval'],
+                               chaser=self.get_sltp_values()['chaser'],
+                               retry_maker=self.get_sltp_values()['retry_maker']
+                               )                         
         
     def fetch_ohlcv(self, bin_size, start_time, end_time):
         """
