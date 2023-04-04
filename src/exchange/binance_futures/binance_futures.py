@@ -793,7 +793,16 @@ class BinanceFutures:
 
             class Chaser:
 
-                def __init__(self, order_id, long, qty, limit, stop, post_only, reduce_only, trailing_stop, activationPrice, callback, workingType):
+                def __init__(self, 
+                             order_id, 
+                             long, qty, 
+                             limit, stop, 
+                             post_only, 
+                             reduce_only, 
+                             trailing_stop, 
+                             activationPrice, 
+                             callback, 
+                             workingType):
                     self.order_id = order_id
                     self.long = long
                     self.qty = qty
@@ -820,7 +829,14 @@ class BinanceFutures:
                     self.current_order_price = self.limit if self.limit != 0 else self.price()
                     # First order will be sent without post-only flag irrespective
                     # and post-only will be used once the order is triggered
-                    self.order(retry_maker, self.current_order_id, self.long, self.qty, self.current_order_price, self.stop, self.post_only if self.stop==0 else False, self.reduce_only, self.workingType, self.on_order_update)     
+                    self.order(retry_maker, 
+                               self.current_order_id, 
+                               self.long, self.qty, 
+                               self.current_order_price, 
+                               self.stop, self.post_only if self.stop==0 else False, 
+                               self.reduce_only, 
+                               self.workingType, 
+                               self.on_order_update)     
                     
                     self.filled = {}
                     
@@ -879,7 +895,8 @@ class BinanceFutures:
                     # try fixed number of times
                     for x in range(retry):
                         try:  
-                            exchange.order(id, long, qty, limit, stop, post_only, reduce_only=reduce_only, workingType=workingType, callback=callback)
+                            exchange.order(id, long, qty, limit, stop, post_only, 
+                                           reduce_only=reduce_only, workingType=workingType, callback=callback)
                             self.current_order_id = id
                             break
                         except BinanceAPIException as e:
@@ -966,10 +983,20 @@ class BinanceFutures:
                             self.current_order_id = None
                             self.current_order_price = self.price()
                             self.count += 1
-                            self.order(retry_maker, self.sub_order_id(), self.long, self.remaining_qty(), self.current_order_price, 0, self.post_only, self.reduce_only, self.workingType, self.on_order_update)               
+                            self.order(retry_maker, 
+                                       self.sub_order_id(), 
+                                       self.long, 
+                                       self.remaining_qty(), 
+                                       self.current_order_price, 
+                                       0, 
+                                       self.post_only, 
+                                       self.reduce_only, 
+                                       self.workingType, 
+                                       self.on_order_update)               
             
             # start the chaser
-            return Chaser(id, long, qty, limit, stop, post_only, reduce_only, trailing_stop, activationPrice, callback, workingType)
+            return Chaser(id, long, qty, limit, stop, post_only, reduce_only, 
+                          trailing_stop, activationPrice, callback, workingType)
 
         self.callbacks[ord_id] = callback
 
@@ -1556,7 +1583,10 @@ class BinanceFutures:
                 all_updates = False # call the callback without any arguements only once the order is filled
 
         # currently only these events will use callbacks
-        if(order_info['status'] == "CANCELED" or order_info['status'] == "EXPIRED" or order_info['status'] == "PARTIALLY_FILLED" or order_info['status'] == "FILLED" ):
+        if(order_info['status'] == "CANCELED" 
+           or order_info['status'] == "EXPIRED" 
+           or order_info['status'] == "PARTIALLY_FILLED" 
+           or order_info['status'] == "FILLED"):
 
             # If STOP PRICE is set for a GTC Order and filled quanitity is 0 then EXPIRED means TRIGGERED
             # When stop price is hit, the stop order expires and converts into a limit/market order
