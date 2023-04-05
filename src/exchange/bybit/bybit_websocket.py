@@ -154,6 +154,7 @@ class BybitWs:
                     logger.error(f"Keep Alive Error - {str(e)}")
                     #logger.error(traceback.format_exc())
                     notify(f"Keep Alive Error - {str(e)}")
+                    time.sleep(5)
                     #notify(traceback.format_exc())
 
         timer = threading.Timer(10, loop_function)
@@ -375,7 +376,8 @@ class BybitWs:
             logger.info(f"Public Websocket On Close: Restart")
             notify(f"Public Websocket On Close: Restart")
 
-            time.sleep(60)
+            time.sleep(1)
+            # public ws 
             self.ws = websocket.WebSocketApp(self.endpoint,
                                 on_message=self.__on_message,
                                 on_error=self.__on_error,
@@ -397,7 +399,7 @@ class BybitWs:
             logger.info(f"Private Websocket On Close: Restart")
             notify(f"Private Websocket On Close: Restart")
 
-            time.sleep(60)
+            time.sleep(1)
             # private ws 
             self.wsp = websocket.WebSocketApp(self.endpoint_private,
                                 on_message=self.__on_message,

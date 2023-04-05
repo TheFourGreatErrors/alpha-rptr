@@ -235,7 +235,7 @@ class BinanceFutures:
         res = self.get_margin()
 
         asset = asset if asset else self.quote_asset
-        #logger.info(f"kkkkkkkkkkkkkkk {res}")
+        
         if len(res) > 0:
             balances = [p for p in res if p["asset"] == asset]     
             if len(balances) > 0:      
@@ -254,7 +254,7 @@ class BinanceFutures:
         res = self.get_margin()
 
         asset = asset if asset else self.quote_asset
-        #logger.info(f"kkkkkkkkkkkkkkk {res}")
+        
         if len(res) > 0:
             balances = [p for p in res if p["asset"] == asset]     
             if len(balances) > 0:            
