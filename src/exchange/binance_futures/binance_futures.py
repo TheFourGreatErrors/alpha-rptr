@@ -814,6 +814,7 @@ class BinanceFutures:
                     self.workingType = workingType
 
                     self.started = None
+                    self.start_price = 0
                     self.count = 0
                     self.current_order_id = self.sub_order_id()
                     # if no limit price is set, set it to best bid/ask price
@@ -836,7 +837,7 @@ class BinanceFutures:
                 def filled_qty(self):
                     filled_qty = 0
                     for value in self.filled.values():
-                        filled_qty += value
+                        filled_qty += value[0]
                     
                     return round(filled_qty, exchange.asset_rounding)
                 
@@ -866,10 +867,28 @@ class BinanceFutures:
 
                 def start(self):
                     self.started = True #started
+                    self.start_price = self.price()
                     exchange.add_ob_callback(self.order_id, self.on_bid_ask_change)                    
 
                 def end(self):
                     exchange.remove_ob_callback(self.order_id)
+
+                def stats(self, status="FILLED"):
+                    logger.info(f"--------------------------------------")
+                    logger.info(f"Order: {self.order_id} Status: {status}")
+                    logger.info(f"Start Price: {self.start_price}")
+                    logger.info(f"--------------------------------------")
+                    order_value = 0
+                    for key, value in self.filled.items():
+                        if value[0] > 0:
+                            logger.info(f"{key} - {value[0]} @ {value[1]}")
+                            order_value += value[0]*value[1]
+                    avg_price = round(order_value/self.qty, exchange.quote_rounding)
+                    slippage = (avg_price - self.start_price if self.long else self.start_price - avg_price)/self.start_price
+                    logger.info(f"--------------------------------------")
+                    logger.info(f"Avg Price: {avg_price}")
+                    logger.info(f"Slippage: {slippage*100:.2f}%")
+                    logger.info(f"--------------------------------------")
 
                 def cancel(self):
                     self.started = False #canceled
@@ -923,7 +942,7 @@ class BinanceFutures:
                 def on_order_update(self, order):
                     
                     #save filled qty
-                    self.filled[order["id"]] = order["filled"]
+                    self.filled[order["id"]] = [order["filled"], order["avgprice"]]
                     
                     if self.stop != 0 and order["status"] == "TRIGGERED":
                         logger.info(f"{order['id']} is Triggered @ {order['stop']}!")
@@ -936,7 +955,8 @@ class BinanceFutures:
 
                     if order["status"] == "FILLED":
                         self.current_order_id = None
-                        exchange.remove_ob_callback(self.order_id)
+                        self.end()
+                        self.stats(status=order["status"])
                         if self.callback_type is not None:
                             if self.callback_type:
                                 order['id'] = self.order_id
