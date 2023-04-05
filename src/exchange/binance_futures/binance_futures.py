@@ -585,14 +585,21 @@ class BinanceFutures:
         """
         places an entry order, works as equivalent to tradingview pine script implementation
         https://tradingview.com/study-script-reference/#fun_strategy{dot}entry
-        :param id: Order id
-        :param long: Long or Short
-        :param qty: Quantity
+        :param id: Order ID (user ID)
+        :param long: True for a long position, False for a short position
+        :param qty: Quantity to be traded
         :param limit: Limit price
-        :param stop: Stop limit
-        :param post_only: Post only
-        :param reduce_only: Reduce Only means that your existing position cannot be increased only reduced by this order
-        :param when: Do you want to execute the order or not - True for live trading
+        :param stop: Stop price trigger
+        :param post_only: If True, the order will be posted as a maker order.
+        :param reduce_only: If True, the order will only reduce the existing position, not increase it.
+        :param when: If True, the order is executed.
+        :param round_decimals: Decimal places to round the order quantity. (automatic if left equal to None)
+        :param callback: A callback function to execute after the order is filled.
+        :param workingType: Price type to use, "CONTRACT_PRICE" by default.
+        :param split: Number of orders to split the quantity into.
+        :param interval: Interval between orders.
+        :param chaser: If True, a chaser order is placed to follow the price.
+        :param retry_maker: Number of times to retry placing a maker order if it fails.
         :return:
         """
         self.__init_client()
@@ -643,19 +650,26 @@ class BinanceFutures:
             retry_maker=100
             ):
         """
-        places an entry order, works as equivalent to tradingview pine script implementation with pyramiding
-        https://tradingview.com/study-script-reference/#fun_strategy{dot}entry
-        :param id: Order id
-        :param long: Long or Short
-        :param qty: Quantity
+        Places an entry order with pyramiding, which allows to add to a position in smaller chunks.
+        The implementation is similar to TradingView Pine script: https://tradingview.com/study-script-reference/#fun_strategy{dot}entry
+
+        :param id: Order ID (user ID)
+        :param long: True for a long position, False for a short position
+        :param qty: Quantity to be traded
         :param limit: Limit price
-        :param stop: Stop limit
-        :param post_only: Post only
-        :param reduce_only: Reduce Only means that your existing position cannot be increased only reduced by this order
-        :param cancell_all: cancell all open order before sending the entry order?
-        :param pyramiding: number of entries you want in pyramiding
-        :param when: Do you want to execute the order or not - True for live trading
-        :return:
+        :param stop: Stop price trigger
+        :param post_only: If True, the order will be posted as a maker order.
+        :param reduce_only: If True, the order will only reduce the existing position, not increase it.
+        :param cancel_all: If True, cancels all open orders before placing the entry order.
+        :param pyramiding: Number of entries in the pyramiding strategy.
+        :param when: If True, the order is executed.
+        :param round_decimals: Decimal places to round the order quantity. (automatic if left equal to None)
+        :param callback: A callback function to execute after the order is filled.
+        :param workingType: Price type to use, "CONTRACT_PRICE" by default.
+        :param split: Number of orders to split the quantity into.
+        :param interval: Interval between orders.
+        :param chaser: If True, a chaser order is placed to follow the price.
+        :param retry_maker: Number of times to retry placing a maker order if it fails.
         """       
 
         # if self.get_margin()['excessMargin'] <= 0 or qty <= 0:
@@ -720,16 +734,20 @@ class BinanceFutures:
         """
         places an order, works as equivalent to tradingview pine script implementation
         https://www.tradingview.com/pine-script-reference/#fun_strategy{dot}order
-        :param id: Order id
-        :param long: Long or Short
-        :param qty: Quantity
+        :param id: Order ID (user ID)
+        :param long: True for a long position, False for a short position
+        :param qty: Quantity to be traded
         :param limit: Limit price
-        :param stop: Stop limit
-        :param post_only: Post only 
-        :param reduce_only: Reduce Only means that your existing position cannot be increased only reduced by this order
-        :param trailing_stop: Binance futures built in implementation of trailing stop in %
-        :param activationPrice: price that triggers Binance futures built in trailing stop      
-        :param when: Do you want to execute the order or not - True for live trading
+        :param stop: Stop price trigger
+        :param post_only: If True, the order will be posted as a maker order.
+        :param reduce_only: If True, the order will only reduce the existing position, not increase it.
+        :param when: If True, the order is executed.        
+        :param callback: A callback function to execute after the order is filled.
+        :param workingType: Price type to use, "CONTRACT_PRICE" by default.
+        :param split: Number of orders to split the quantity into.
+        :param interval: Interval between orders.
+        :param chaser: If True, a chaser order is placed to follow the price.
+        :param retry_maker: Number of times to retry placing a maker order if it fails.
         :return:
         """
         self.__init_client()
