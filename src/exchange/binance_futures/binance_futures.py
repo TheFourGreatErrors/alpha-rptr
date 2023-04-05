@@ -596,8 +596,8 @@ class BinanceFutures:
         :param round_decimals: Decimal places to round the order quantity. (automatic if left equal to None)
         :param callback: A callback function to execute after the order is filled.
         :param workingType: Price type to use, "CONTRACT_PRICE" by default.
-        :param split: Number of orders to split the quantity into.
-        :param interval: Interval between orders.
+        :param split: Number of orders to split the quantity into. (iceberg order)
+        :param interval: Interval between orders. (iceberg order)
         :param chaser: If True, a chaser order is placed to follow the price.
         :param retry_maker: Number of times to retry placing a maker order if it fails.
         :return:
@@ -666,8 +666,8 @@ class BinanceFutures:
         :param round_decimals: Decimal places to round the order quantity. (automatic if left equal to None)
         :param callback: A callback function to execute after the order is filled.
         :param workingType: Price type to use, "CONTRACT_PRICE" by default.
-        :param split: Number of orders to split the quantity into.
-        :param interval: Interval between orders.
+        :param split: Number of orders to split the quantity into. (iceberg order)
+        :param interval: Interval between orders. (iceberg order)
         :param chaser: If True, a chaser order is placed to follow the price.
         :param retry_maker: Number of times to retry placing a maker order if it fails.
         """       
@@ -744,8 +744,8 @@ class BinanceFutures:
         :param when: If True, the order is executed.        
         :param callback: A callback function to execute after the order is filled.
         :param workingType: Price type to use, "CONTRACT_PRICE" by default.
-        :param split: Number of orders to split the quantity into.
-        :param interval: Interval between orders.
+        :param split: Number of orders to split the quantity into. (iceberg order)
+        :param interval: Interval between orders. (iceberg order)
         :param chaser: If True, a chaser order is placed to follow the price.
         :param retry_maker: Number of times to retry placing a maker order if it fails.
         :return:
