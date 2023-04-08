@@ -971,7 +971,7 @@ class BinanceFutures:
 
                     if order["status"] == "CANCELED" or order["status"] == "EXPIRED":
                         logger.info(f"Order Cancelled: {order['id']} @ {order['limit']}")
-                        if self.started is False:
+                        if self.started is not True: #Chaser did not Cancel this order internally
                             exchange.remove_ob_callback(self.order_id)
                             if self.callback_type is not None:
                                 if self.callback_type:
