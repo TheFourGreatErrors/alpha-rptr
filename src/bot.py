@@ -92,14 +92,21 @@ class Bot:
 
     def input(self, title, type, defval):
         """
-        function to get param
-        :param title: title of the parm
-        :param defval: default value
-        :return value
+        Returns input for a given parameter title or the default value if not provided.
+
+        :param title: the title of the parameter to be retrieved
+        :param type: the type of the parameter (e.g., int, float, str)
+        :param defval: the default value to be returned if no user input is provided
+
+        :return: the user input value for the parameter or the default value    
         """
+        # If there are already parameters defined, set the parameter dictionary to that, otherwise create an empty dictionary
         p = {} if self.params is None else self.params
+        # If the title of the parameter is in the parameter dictionary, 
+        # return the value of that parameter converted to the specified type
         if title in p:
             return type(p[title])
+        # If the title of the parameter is not in the parameter dictionary, return the default value
         else:
             return defval
 

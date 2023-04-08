@@ -239,7 +239,7 @@ class BinanceFuturesWs:
             logger.info(f"Websocket On Close: Restart")
             notify(f"Websocket On Close: Restart")
 
-            time.sleep(60)
+            time.sleep(1)
             # Listen Key can change after disconnects, so the url can change too
             self.ws = websocket.WebSocketApp(self.__get_wss_endpoint(),
                                  on_message=self.__on_message,
