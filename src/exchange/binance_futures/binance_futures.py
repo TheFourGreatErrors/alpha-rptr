@@ -1697,7 +1697,7 @@ class BinanceFutures:
         self.best_bid_ask_change_callback[id] = callback
 
     def remove_ob_callback(self, id):
-        self.best_bid_ask_change_callback.pop(id)
+        return self.best_bid_ask_change_callback.pop(id, None)
 
     def __on_update_bookticker(self, action, bookticker):
         """
