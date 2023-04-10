@@ -571,6 +571,8 @@ class BinanceFutures:
             qty,
             limit=0,
             stop=0,
+            trailing_stop=0, 
+            activationPrice=0, 
             post_only=False,
             reduce_only=False,
             when=True,
@@ -590,6 +592,8 @@ class BinanceFutures:
         :param qty: Quantity to be traded
         :param limit: Limit price
         :param stop: Stop price trigger
+        :param trailing_stop: Binance futures built in implementation of trailing stop in %
+        :param activationPrice: price that triggers Binance futures built in trailing stop      
         :param post_only: If True, the order will be posted as a maker order.
         :param reduce_only: If True, the order will only reduce the existing position, not increase it.
         :param when: If True, the order is executed.
@@ -622,9 +626,6 @@ class BinanceFutures:
         ord_qty = abs(qty) + abs(pos_size)
         ord_qty = round(ord_qty, round_decimals if round_decimals != None else self.asset_rounding)
 
-        trailing_stop=0
-        activationPrice=0
-
         self.order(id, long, ord_qty, limit, stop, post_only, reduce_only,
                     trailing_stop, activationPrice, when, callback, workingType, split, interval, chaser, retry_maker)
 
@@ -635,7 +636,8 @@ class BinanceFutures:
             qty,
             limit=0,
             stop=0,
-            trailValue= 0,
+            trailing_stop=0, 
+            activationPrice=0, 
             post_only=False,
             reduce_only=False,
             cancel_all=False,
@@ -658,6 +660,8 @@ class BinanceFutures:
         :param qty: Quantity to be traded
         :param limit: Limit price
         :param stop: Stop price trigger
+        :param trailing_stop: Binance futures built in implementation of trailing stop in %
+        :param activationPrice: price that triggers Binance futures built in trailing stop      
         :param post_only: If True, the order will be posted as a maker order.
         :param reduce_only: If True, the order will only reduce the existing position, not increase it.
         :param cancel_all: If True, cancels all open orders before placing the entry order.
@@ -702,10 +706,7 @@ class BinanceFutures:
         # make sure it doesnt spam small entries, which in most cases would trigger risk management orders evaluation,
         # you can make this less than 2% if needed  
         if ord_qty < ((pyramiding*qty) / 100) * 2:
-            return       
-
-        trailing_stop = 0
-        activationPrice = 0
+            return     
 
         ord_qty = round(ord_qty, round_decimals if round_decimals != None else self.asset_rounding)
 
@@ -741,6 +742,8 @@ class BinanceFutures:
         :param stop: Stop price trigger
         :param post_only: If True, the order will be posted as a maker order.
         :param reduce_only: If True, the order will only reduce the existing position, not increase it.
+        :param trailing_stop: Binance futures built in implementation of trailing stop in %
+        :param activationPrice: price that triggers Binance futures built in trailing stop      
         :param when: If True, the order is executed.        
         :param callback: A callback function to execute after the order is filled.
         :param workingType: Price type to use, "CONTRACT_PRICE" by default.
