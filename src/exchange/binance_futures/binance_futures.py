@@ -235,7 +235,7 @@ class BinanceFutures:
         res = self.get_margin()
 
         asset = asset if asset else self.quote_asset
-        #logger.info(f"kkkkkkkkkkkkkkk {res}")
+        
         if len(res) > 0:
             balances = [p for p in res if p["asset"] == asset]     
             if len(balances) > 0:      
@@ -254,7 +254,7 @@ class BinanceFutures:
         res = self.get_margin()
 
         asset = asset if asset else self.quote_asset
-        #logger.info(f"kkkkkkkkkkkkkkk {res}")
+        
         if len(res) > 0:
             balances = [p for p in res if p["asset"] == asset]     
             if len(balances) > 0:            
@@ -585,14 +585,21 @@ class BinanceFutures:
         """
         places an entry order, works as equivalent to tradingview pine script implementation
         https://tradingview.com/study-script-reference/#fun_strategy{dot}entry
-        :param id: Order id
-        :param long: Long or Short
-        :param qty: Quantity
+        :param id: Order ID (user ID)
+        :param long: True for a long position, False for a short position
+        :param qty: Quantity to be traded
         :param limit: Limit price
-        :param stop: Stop limit
-        :param post_only: Post only
-        :param reduce_only: Reduce Only means that your existing position cannot be increased only reduced by this order
-        :param when: Do you want to execute the order or not - True for live trading
+        :param stop: Stop price trigger
+        :param post_only: If True, the order will be posted as a maker order.
+        :param reduce_only: If True, the order will only reduce the existing position, not increase it.
+        :param when: If True, the order is executed.
+        :param round_decimals: Decimal places to round the order quantity. (automatic if left equal to None)
+        :param callback: A callback function to execute after the order is filled.
+        :param workingType: Price type to use, "CONTRACT_PRICE" by default.
+        :param split: Number of orders to split the quantity into. (iceberg order)
+        :param interval: Interval between orders. (iceberg order)
+        :param chaser: If True, a chaser order is placed to follow the price.
+        :param retry_maker: Number of times to retry placing a maker order if it fails.
         :return:
         """
         self.__init_client()
@@ -643,19 +650,26 @@ class BinanceFutures:
             retry_maker=100
             ):
         """
-        places an entry order, works as equivalent to tradingview pine script implementation with pyramiding
-        https://tradingview.com/study-script-reference/#fun_strategy{dot}entry
-        :param id: Order id
-        :param long: Long or Short
-        :param qty: Quantity
+        Places an entry order with pyramiding, which allows to add to a position in smaller chunks.
+        The implementation is similar to TradingView Pine script: https://tradingview.com/study-script-reference/#fun_strategy{dot}entry
+
+        :param id: Order ID (user ID)
+        :param long: True for a long position, False for a short position
+        :param qty: Quantity to be traded
         :param limit: Limit price
-        :param stop: Stop limit
-        :param post_only: Post only
-        :param reduce_only: Reduce Only means that your existing position cannot be increased only reduced by this order
-        :param cancell_all: cancell all open order before sending the entry order?
-        :param pyramiding: number of entries you want in pyramiding
-        :param when: Do you want to execute the order or not - True for live trading
-        :return:
+        :param stop: Stop price trigger
+        :param post_only: If True, the order will be posted as a maker order.
+        :param reduce_only: If True, the order will only reduce the existing position, not increase it.
+        :param cancel_all: If True, cancels all open orders before placing the entry order.
+        :param pyramiding: Number of entries in the pyramiding strategy.
+        :param when: If True, the order is executed.
+        :param round_decimals: Decimal places to round the order quantity. (automatic if left equal to None)
+        :param callback: A callback function to execute after the order is filled.
+        :param workingType: Price type to use, "CONTRACT_PRICE" by default.
+        :param split: Number of orders to split the quantity into. (iceberg order)
+        :param interval: Interval between orders. (iceberg order)
+        :param chaser: If True, a chaser order is placed to follow the price.
+        :param retry_maker: Number of times to retry placing a maker order if it fails.
         """       
 
         # if self.get_margin()['excessMargin'] <= 0 or qty <= 0:
@@ -720,16 +734,20 @@ class BinanceFutures:
         """
         places an order, works as equivalent to tradingview pine script implementation
         https://www.tradingview.com/pine-script-reference/#fun_strategy{dot}order
-        :param id: Order id
-        :param long: Long or Short
-        :param qty: Quantity
+        :param id: Order ID (user ID)
+        :param long: True for a long position, False for a short position
+        :param qty: Quantity to be traded
         :param limit: Limit price
-        :param stop: Stop limit
-        :param post_only: Post only 
-        :param reduce_only: Reduce Only means that your existing position cannot be increased only reduced by this order
-        :param trailing_stop: Binance futures built in implementation of trailing stop in %
-        :param activationPrice: price that triggers Binance futures built in trailing stop      
-        :param when: Do you want to execute the order or not - True for live trading
+        :param stop: Stop price trigger
+        :param post_only: If True, the order will be posted as a maker order.
+        :param reduce_only: If True, the order will only reduce the existing position, not increase it.
+        :param when: If True, the order is executed.        
+        :param callback: A callback function to execute after the order is filled.
+        :param workingType: Price type to use, "CONTRACT_PRICE" by default.
+        :param split: Number of orders to split the quantity into. (iceberg order)
+        :param interval: Interval between orders. (iceberg order)
+        :param chaser: If True, a chaser order is placed to follow the price.
+        :param retry_maker: Number of times to retry placing a maker order if it fails.
         :return:
         """
         self.__init_client()
@@ -793,7 +811,16 @@ class BinanceFutures:
 
             class Chaser:
 
-                def __init__(self, order_id, long, qty, limit, stop, post_only, reduce_only, trailing_stop, activationPrice, callback, workingType):
+                def __init__(self, 
+                             order_id, 
+                             long, qty, 
+                             limit, stop, 
+                             post_only, 
+                             reduce_only, 
+                             trailing_stop, 
+                             activationPrice, 
+                             callback, 
+                             workingType):
                     self.order_id = order_id
                     self.long = long
                     self.qty = qty
@@ -821,7 +848,14 @@ class BinanceFutures:
                     self.current_order_price = self.limit if self.limit != 0 else self.price()
                     # First order will be sent without post-only flag irrespective
                     # and post-only will be used once the order is triggered
-                    self.order(retry_maker, self.current_order_id, self.long, self.qty, self.current_order_price, self.stop, self.post_only if self.stop==0 else False, self.reduce_only, self.workingType, self.on_order_update)     
+                    self.order(retry_maker, 
+                               self.current_order_id, 
+                               self.long, self.qty, 
+                               self.current_order_price, 
+                               self.stop, self.post_only if self.stop==0 else False, 
+                               self.reduce_only, 
+                               self.workingType, 
+                               self.on_order_update)     
                     
                     self.filled = {}
                     
@@ -898,7 +932,8 @@ class BinanceFutures:
                     # try fixed number of times
                     for x in range(retry):
                         try:  
-                            exchange.order(id, long, qty, limit, stop, post_only, reduce_only=reduce_only, workingType=workingType, callback=callback)
+                            exchange.order(id, long, qty, limit, stop, post_only, 
+                                           reduce_only=reduce_only, workingType=workingType, callback=callback)
                             self.current_order_id = id
                             break
                         except BinanceAPIException as e:
@@ -986,10 +1021,20 @@ class BinanceFutures:
                             self.current_order_id = None
                             self.current_order_price = self.price()
                             self.count += 1
-                            self.order(retry_maker, self.sub_order_id(), self.long, self.remaining_qty(), self.current_order_price, 0, self.post_only, self.reduce_only, self.workingType, self.on_order_update)               
+                            self.order(retry_maker, 
+                                       self.sub_order_id(), 
+                                       self.long, 
+                                       self.remaining_qty(), 
+                                       self.current_order_price, 
+                                       0, 
+                                       self.post_only, 
+                                       self.reduce_only, 
+                                       self.workingType, 
+                                       self.on_order_update)               
             
             # start the chaser
-            return Chaser(id, long, qty, limit, stop, post_only, reduce_only, trailing_stop, activationPrice, callback, workingType)
+            return Chaser(id, long, qty, limit, stop, post_only, reduce_only, 
+                          trailing_stop, activationPrice, callback, workingType)
 
         self.callbacks[ord_id] = callback
 
@@ -1576,7 +1621,10 @@ class BinanceFutures:
                 all_updates = False # call the callback without any arguements only once the order is filled
 
         # currently only these events will use callbacks
-        if(order_info['status'] == "CANCELED" or order_info['status'] == "EXPIRED" or order_info['status'] == "PARTIALLY_FILLED" or order_info['status'] == "FILLED" ):
+        if(order_info['status'] == "CANCELED" 
+           or order_info['status'] == "EXPIRED" 
+           or order_info['status'] == "PARTIALLY_FILLED" 
+           or order_info['status'] == "FILLED"):
 
             # If STOP PRICE is set for a GTC Order and filled quanitity is 0 then EXPIRED means TRIGGERED
             # When stop price is hit, the stop order expires and converts into a limit/market order
