@@ -44,7 +44,7 @@ config = {
                                     "listenkey_heartbeat": ""
                                     }
     },
-     # Args profiles - Add Args profiles here and run them by using --profile <your profile string>   
+    # To use Args profiles, add them here and run by using the flag --profile <your profile string>
     "args_profile": {"binanceaccount1_Sample_ethusdt": {"--test": False,
                                                         "--stub": False,
                                                         "--demo": False,
