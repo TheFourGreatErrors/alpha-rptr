@@ -16,11 +16,19 @@ if __name__ == "__main__":
     parser.add_argument("--hyperopt", default=False,   action="store_true")
     parser.add_argument("--spot", default=False,   action="store_true")
     parser.add_argument("--account", default="binanceaccount1",   required=True)
-    parser.add_argument("--exchange", default="binance",   required=True)
+    parser.add_argument("--exchange", default="binance",   required=False)
     parser.add_argument("--pair", default="BTCUSDT",   required=False)
-    parser.add_argument("--strategy", default="doten", required=True)
+    parser.add_argument("--strategy", default="doten", required=False)
     parser.add_argument("--session", default=None, required=False)
+    parser.add_argument("--profile", default=None, required=False)
     args = parser.parse_args()
+
+    if args.profile and args.profile in conf["args_profile"]:
+        print(conf["args_profile"])
+        for k,v in conf["args_profile"][args.profile].items():
+            if k not in vars(args):
+                setattr(args, k, v)
+
     conf["args"] = args
 
     # create the bot instance
