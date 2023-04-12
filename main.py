@@ -25,7 +25,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.profile and args.profile in conf["args_profile"]:
-        print(conf["args_profile"])
+        # Merge profile values with command line argument values.
         for k,v in conf["args_profile"][args.profile].items():
             if k not in vars(args):
                 setattr(args, k, v)
