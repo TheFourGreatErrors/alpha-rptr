@@ -440,7 +440,10 @@ class BinanceFutures:
 
         side = False if position_size > 0 else True
         
-        self.order("Close", side, abs(position_size), callback=callback, split=split, interval=interval, chaser=chaser, retry_maker=retry_maker)
+        self.order("Close", side, abs(position_size), 
+                   callback=callback, 
+                   split=split, interval=interval, 
+                   chaser=chaser, retry_maker=retry_maker)
 
     def cancel(self, id):
         """
