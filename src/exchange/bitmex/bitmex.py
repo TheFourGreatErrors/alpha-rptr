@@ -92,27 +92,27 @@ class BitMex:
         self.timeframe_info = {}
         # Profit target long and short for a simple limit exit strategy
         self.sltp_values = {
-                        'profit_long': 0,
-                        'profit_short': 0,
-                        'stop_long': 0,
-                        'stop_short': 0,
-                        'eval_tp_next_candle': False,
-                        'profit_long_callback': None,
-                        'profit_short_callback': None,
-                        'stop_long_callback': None,
-                        'stop_short_callback': None
-                        }         
+            'profit_long': 0,
+            'profit_short': 0,
+            'stop_long': 0,
+            'stop_short': 0,
+            'eval_tp_next_candle': False,
+            'profit_long_callback': None,
+            'profit_short_callback': None,
+            'stop_long_callback': None,
+            'stop_short_callback': None
+        }         
         # Is SLTP active
         self.is_sltp_active = False
         # Profit, Loss and Trail Offset
         self.exit_order = {
-                        'profit': 0, 
-                        'loss': 0, 
-                        'trail_offset': 0, 
-                        'profit_callback': None,
-                        'loss_callback': None,
-                        'trail_callbak': None
-                        }
+            'profit': 0, 
+            'loss': 0, 
+            'trail_offset': 0, 
+            'profit_callback': None,
+            'loss_callback': None,
+            'trail_callbak': None
+        }
         # Is exit order active
         self.is_exit_order_active = False
         # Trailing Stop
@@ -365,7 +365,7 @@ class BitMex:
             stop=0,
             post_only=False,
             reduce_only=False
-            ):
+    ):
         """
         create an order
         """
@@ -446,7 +446,7 @@ class BitMex:
             limit=0, 
             stop=0, 
             post_only=False
-            ):
+    ):
         """
         Amend order with querying the order prior verifying its existence.
         """        
@@ -469,7 +469,7 @@ class BitMex:
             limit=0,
             stop=0,
             post_only=False
-            ):
+    ):
         """
         Amend order
         """
@@ -521,7 +521,7 @@ class BitMex:
             when=True,
             round_decimals=None,
             callback=None
-            ):
+    ):
         """
         places an entry order, works as equivalent to tradingview pine script implementation
         https://tradingview.com/study-script-reference/#fun_strategy{dot}entry
@@ -572,7 +572,7 @@ class BitMex:
             when=True,
             round_decimals=None,
             callback=None
-            ):
+    ):
         """
         places an entry order, works as equivalent to tradingview pine script implementation with pyramiding
         https://tradingview.com/study-script-reference/#fun_strategy{dot}entry
@@ -637,7 +637,7 @@ class BitMex:
             allow_amend=False,
             when=True,
             callback=None
-            ):
+    ):
         """
         places an order, works as equivalent to tradingview pine script implementation
         https://www.tradingview.com/pine-script-reference/#fun_strategy{dot}order
@@ -737,7 +737,7 @@ class BitMex:
             profit_short_callback=None,
             stop_long_callback=None,
             stop_short_callback=None
-            ):
+    ):
         """
         Simple take profit and stop loss implementation,
          which sends a reduce only stop loss order upon entering a position.
@@ -748,16 +748,16 @@ class BitMex:
         :param round_decimals: round decimals 
         """
         self.sltp_values = {
-                            'profit_long': profit_long/100,
-                            'profit_short': profit_short/100,
-                            'stop_long': stop_long/100,
-                            'stop_short': stop_short/100,
-                            'eval_tp_next_candle': eval_tp_next_candle,
-                            'profit_long_callback': profit_long_callback,
-                            'profit_short_callback': profit_short_callback,
-                            'stop_long_callback': stop_long_callback,
-                            'stop_short_callback': stop_short_callback
-                            }        
+            'profit_long': profit_long/100,
+            'profit_short': profit_short/100,
+            'stop_long': stop_long/100,
+            'stop_short': stop_short/100,
+            'eval_tp_next_candle': eval_tp_next_candle,
+            'profit_long_callback': profit_long_callback,
+            'profit_short_callback': profit_short_callback,
+            'stop_long_callback': stop_long_callback,
+            'stop_short_callback': stop_short_callback
+        }        
         self.is_sltp_active = self.sltp_values['profit_long'] > 0 \
                                 or self.sltp_values['profit_short'] > 0 \
                                 or self.sltp_values['stop_long'] >  0 \
