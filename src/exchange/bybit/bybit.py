@@ -109,31 +109,31 @@ class Bybit:
         self.timeframe_info = {}
         # Profit target long and short for a simple limit exit strategy
         self.sltp_values = {
-                        'profit_long': 0,
-                        'profit_short': 0,
-                        'stop_long': 0,
-                        'stop_short': 0,
-                        'eval_tp_next_candle': False,
-                        'profit_long_callback': None,
-                        'profit_short_callback': None,
-                        'stop_long_callback': None,
-                        'stop_short_callback': None,
-                        'split': 1,
-                        'interval': 0
-                        }      
+            'profit_long': 0,
+            'profit_short': 0,
+            'stop_long': 0,
+            'stop_short': 0,
+            'eval_tp_next_candle': False,
+            'profit_long_callback': None,
+            'profit_short_callback': None,
+            'stop_long_callback': None,
+            'stop_short_callback': None,
+            'split': 1,
+            'interval': 0
+        }      
         # Is SLTP active
         self.is_sltp_active = False   
          # Profit, Loss and Trail Offset
         self.exit_order = {
-                        'profit': 0, 
-                        'loss': 0, 
-                        'trail_offset': 0, 
-                        'profit_callback': None,
-                        'loss_callback': None,
-                        'trail_callbak': None,
-                        'split': 1,
-                        'interval': 0
-                        }
+            'profit': 0, 
+            'loss': 0, 
+            'trail_offset': 0, 
+            'profit_callback': None,
+            'loss_callback': None,
+            'trail_callbak': None,
+            'split': 1,
+            'interval': 0
+        }
         # Is exit order active
         self.is_exit_order_active = False
         # Trailing Stop
@@ -744,18 +744,18 @@ class Bybit:
         return True      
 
     def __new_order(
-                self,
-                ord_id,
-                side,
-                ord_qty,
-                limit=0,
-                stop=0,
-                post_only=False,
-                reduce_only=False,
-                trailing_stop=0, 
-                activationPrice=0,
-                trigger_by='LastPrice'
-                    ):
+        self,
+        ord_id,
+        side,
+        ord_qty,
+        limit=0,
+        stop=0,
+        post_only=False,
+        reduce_only=False,
+        trailing_stop=0, 
+        activationPrice=0,
+        trigger_by='LastPrice'
+    ):
         """
         create an order
         """          
@@ -1006,24 +1006,24 @@ class Bybit:
             return res         
 
     def entry(
-            self,
-            id,
-            long,
-            qty,
-            limit=0,
-            stop=0,
-            post_only=False,
-            reduce_only=False,
-            when=True,
-            round_decimals=None,
-            callback=None,
-            trigger_by='LastPrice',
-            split=1,
-            interval=0,
-            limit_chase_init_delay=0.0001, 
-            chase_update_rate=0.05, 
-            limit_chase_interval=0
-            ):
+        self,
+        id,
+        long,
+        qty,
+        limit=0,
+        stop=0,
+        post_only=False,
+        reduce_only=False,
+        when=True,
+        round_decimals=None,
+        callback=None,
+        trigger_by='LastPrice',
+        split=1,
+        interval=0,
+        limit_chase_init_delay=0.0001, 
+        chase_update_rate=0.05, 
+        limit_chase_interval=0
+    ):
         """
         places an entry order, works as equivalent to tradingview pine script implementation
         https://tradingview.com/study-script-reference/#fun_strategy{dot}entry
@@ -1070,27 +1070,27 @@ class Bybit:
                    limit_chase_init_delay, chase_update_rate, limit_chase_interval)
 
     def entry_pyramiding(
-            self,
-            id,
-            long,
-            qty,
-            limit=0,
-            stop=0,
-            trailValue= 0,
-            post_only=False,
-            reduce_only=False,
-            cancel_all=False,
-            pyramiding=2,
-            when=True,
-            round_decimals=None,
-            callback=None,
-            trigger_by='LastPrice',
-            split=1,
-            interval=0,
-            limit_chase_init_delay=0.0001, 
-            chase_update_rate=0.05, 
-            limit_chase_interval=0
-            ):
+        self,
+        id,
+        long,
+        qty,
+        limit=0,
+        stop=0,
+        trailValue= 0,
+        post_only=False,
+        reduce_only=False,
+        cancel_all=False,
+        pyramiding=2,
+        when=True,
+        round_decimals=None,
+        callback=None,
+        trigger_by='LastPrice',
+        split=1,
+        interval=0,
+        limit_chase_init_delay=0.0001, 
+        chase_update_rate=0.05, 
+        limit_chase_interval=0
+    ):
         """
         places an entry order, works as equivalent to tradingview pine script implementation with pyramiding
         https://tradingview.com/study-script-reference/#fun_strategy{dot}entry
@@ -1153,23 +1153,23 @@ class Bybit:
                    limit_chase_init_delay, chase_update_rate, limit_chase_interval)
 
     def order(
-            self,
-            id,
-            long,
-            qty,
-            limit=0,
-            stop=0,
-            post_only=False,
-            reduce_only=False,
-            when=True,
-            callback=None,
-            trigger_by='LastPrice',
-            split=1,
-            interval=0, 
-            limit_chase_init_delay=0.0001, 
-            chase_update_rate=0.05, 
-            limit_chase_interval=0
-            ):
+        self,
+        id,
+        long,
+        qty,
+        limit=0,
+        stop=0,
+        post_only=False,
+        reduce_only=False,
+        when=True,
+        callback=None,
+        trigger_by='LastPrice',
+        split=1,
+        interval=0, 
+        limit_chase_init_delay=0.0001, 
+        chase_update_rate=0.05, 
+        limit_chase_interval=0
+    ):
         """
         places an order, works as equivalent to tradingview pine script implementation
         https://www.tradingview.com/pine-script-reference/#fun_strategy{dot}order
@@ -1412,16 +1412,16 @@ class Bybit:
             return None
 
     def exit(
-            self,
-            profit=0,
-            loss=0,
-            trail_offset=0,
-            profit_callback=None,
-            loss_callback=None,
-            trail_callback=None,
-            split=1,
-            interval=0
-            ):
+        self,
+        profit=0,
+        loss=0,
+        trail_offset=0,
+        profit_callback=None,
+        loss_callback=None,
+        trail_callback=None,
+        split=1,
+        interval=0
+    ):
         """
         profit taking and stop loss and trailing, 
         if both stop loss and trailing offset are set trailing_offset takes precedence
@@ -1430,35 +1430,35 @@ class Bybit:
         :param trail_offset: Trailing stop price
         """
         self.exit_order = {
-                        'profit': profit, 
-                        'loss': loss, 
-                        'trail_offset': trail_offset, 
-                        'profit_callback': profit_callback,
-                        'loss_callback': loss_callback,
-                        'trail_callback': trail_callback,
-                        'split': split,
-                        'interval': interval
-                        }
+            'profit': profit, 
+            'loss': loss, 
+            'trail_offset': trail_offset, 
+            'profit_callback': profit_callback,
+            'loss_callback': loss_callback,
+            'trail_callback': trail_callback,
+            'split': split,
+            'interval': interval
+        }
         self.is_exit_order_active = self.exit_order['profit'] > 0 \
                                     or self.exit_order['loss'] > 0 \
                                     or self.exit_order['trail_offset'] >  0     
 
     def sltp(
-            self,
-            profit_long=0,
-            profit_short=0,
-            stop_long=0,
-            stop_short=0,
-            eval_tp_next_candle=False,
-            round_decimals=None,
-            profit_long_callback=None,
-            profit_short_callback=None,
-            stop_long_callback=None,
-            stop_short_callback=None,
-            trigger_by='LastPrice',
-            split=1,
-            interval = 0
-            ):
+        self,
+        profit_long=0,
+        profit_short=0,
+        stop_long=0,
+        stop_short=0,
+        eval_tp_next_candle=False,
+        round_decimals=None,
+        profit_long_callback=None,
+        profit_short_callback=None,
+        stop_long_callback=None,
+        stop_short_callback=None,
+        trigger_by='LastPrice',
+        split=1,
+        interval = 0
+    ):
         """
         Simple take profit and stop loss implementation,
         - sends a reduce only stop loss order upon entering a position.
@@ -1469,19 +1469,19 @@ class Bybit:
         :param round_decimals: round decimals 
         """
         self.sltp_values = {
-                            'profit_long': profit_long/100,
-                            'profit_short': profit_short/100,
-                            'stop_long': stop_long/100,
-                            'stop_short': stop_short/100,
-                            'eval_tp_next_candle': eval_tp_next_candle,
-                            'profit_long_callback': profit_long_callback,
-                            'profit_short_callback': profit_short_callback,
-                            'stop_long_callback': stop_long_callback,
-                            'stop_short_callback': stop_short_callback,
-                            'trigger_by': trigger_by,
-                            'split': split,
-                            'interval': interval
-                            } 
+            'profit_long': profit_long/100,
+            'profit_short': profit_short/100,
+            'stop_long': stop_long/100,
+            'stop_short': stop_short/100,
+            'eval_tp_next_candle': eval_tp_next_candle,
+            'profit_long_callback': profit_long_callback,
+            'profit_short_callback': profit_short_callback,
+            'stop_long_callback': stop_long_callback,
+            'stop_short_callback': stop_short_callback,
+            'trigger_by': trigger_by,
+            'split': split,
+            'interval': interval
+        } 
         self.is_sltp_active = self.sltp_values['profit_long'] > 0 \
                                 or self.sltp_values['profit_short'] > 0 \
                                 or self.sltp_values['stop_long'] >  0 \
@@ -1889,72 +1889,50 @@ class Bybit:
         for o in orders:
             id = o['c' if self.spot else 'orderLinkId']
             side = o['S' if self.spot else 'side']      
+            type = o['o' if self.spot else 'orderType']
+            status = o['X' if self.spot else 'orderStatus']
+            time_in_force = o['f' if self.spot else 'timeInForce']
             qty = float(o['q' if self.spot else 'qty'])
             filled_qty =float(o['z' if self.spot else 'cumExecQty'])
             status = o['X' if self.spot else 'orderStatus']
             limit = float(o['p' if self.spot else 'price'])
+            stop = None if self.spot else o['triggerPrice']
             last_fill = None if self.pair.endswith('PERP') else o['l' if self.spot else 'lastExecQty']
             rejec_reason = None if self.spot or self.pair.endswith('PERP') else o['rejectReason']
+            APprice = None if self.spot else o['triggerPrice']
 
-            if(o['X' if self.spot else 'orderStatus'].upper() == "CANCELLED"
-               or o['X' if self.spot else 'orderStatus'] == "EXPIRED") \
-                and self.order_update_log:
-                logger.info(f"========= Order Update ==============")
-                logger.info(f"ID     : {o['c' if self.spot else 'orderLinkId']}") # Clinet Order ID
-                logger.info(f"Type   : {o['o' if self.spot else 'orderType']}")
-                #logger.info(f"Uses   : {o['wt']}")
-                logger.info(f"Side   : {o['S' if self.spot else 'side']}")
-                logger.info(f"Status : {o['X' if self.spot else 'orderStatus']}")
-                logger.info(f"RejecR.: {rejec_reason}") # rejection reason
-                logger.info(f"TIF    : {o['f' if self.spot else 'timeInForce']}")
-                logger.info(f"Qty    : {o['q' if self.spot else 'qty']}")
-                logger.info(f"LstFill: {last_fill}")
-                logger.info(f"Filled : {o['z' if self.spot else 'cumExecQty']}")
-                logger.info(f"Limit  : {o['p' if self.spot else 'price']}")
-                logger.info(f"Stop   : {None if self.spot else o['triggerPrice']}")
-                logger.info(f"APrice : {None if self.spot else o['triggerPrice']}")
+            shared_msg = (f"                                 ID     : {id}\n"
+                          f"                                 Type   : {type}\n"
+                          f"                                 Side   : {side}\n"
+                          f"                                 RejecR.: {rejec_reason}\n"
+                          f"                                 TIF    : {time_in_force}\n"
+                          f"                                 Qty    : {qty}\n"
+                          f"                                 LstFill: {last_fill}\n"
+                          f"                                 Filled : {filled_qty}\n"
+                          f"                                 Limit  : {limit}\n"
+                          f"                                 Stop   : {stop}\n"
+                          f"                                 APrice : {APprice}")
+
+            if status.upper() in ["CANCELLED", "EXPIRED"] and self.order_update_log:
+                logger.info(f"========= Order Update ===============")              
+                logger.info(f"Status : {status}\n{shared_msg}")                  
                 logger.info(f"======================================")             
                 #If stop price is set for a GTC Order and filled quanitity is 0 then EXPIRED means TRIGGERED
                 if(float(0 if self.spot else o['triggerPrice']) > 0 \
                    and (o['f' if self.spot else 'timeInForce'] == "GTC" or "GoodTillCancel") \
                    and float(o['z' if self.spot else 'cumExecQty']) == 0 \
                    and o['X' if self.spot else 'orderStatus'] == "EXPIRED"):
-                    logger.info(f"========= Order Update ==============")
-                    logger.info(f"ID     : {o['c' if self.spot else 'orderLinkId']}") # Clinet Order ID
-                    logger.info(f"Type   : {o['o' if self.spot else 'orderType']}")                   
-                    #logger.info(f"Uses   : {o['wt']}")
-                    logger.info(f"Side   : {o['S' if self.spot else 'side']}")
-                    logger.info(f"Status : TRIGGERED")
-                    logger.info(f"RejecR.: {rejec_reason}") # rejection reason
-                    logger.info(f"TIF    : {o['f' if self.spot else 'timeInForce']}")
-                    logger.info(f"Qty    : {o['q' if self.spot else 'qty']}")
-                    logger.info(f"LstFill: {last_fill}")
-                    logger.info(f"Filled : {o['z' if self.spot else 'cumExecQty']}")
-                    logger.info(f"Limit  : {o['p' if self.spot else 'price']}")
-                    logger.info(f"Stop   : {None if self.spot else o['triggerPrice']}")
-                    logger.info(f"APrice : {None if self.spot else o['triggerPrice']}")                    
+                    logger.info(f"========= Order Update ===============")          
+                    logger.info(f"Status : TRIGGERED\n{shared_msg}")
+                    logger.info(f"{shared_msg}")
                     logger.info(f"======================================")
 
                 self.callbacks.pop(o['c' if self.spot else 'orderLinkId'], None) # Removes the respective order callback
 
             #only after order if completely filled
-            elif(self.order_update_log  
-                 and float(o['q' if self.spot else 'qty']) == float(o['z' if self.spot else 'cumExecQty'])) \
-                 and o['X' if self.spot else 'orderStatus'].upper() != "CANCELLED": 
-                logger.info(f"========= Order Fully Filled ==============")
-                logger.info(f"ID     : {o['c' if self.spot else 'orderLinkId']}") # Clinet Order ID
-                logger.info(f"Type   : {o['o' if self.spot else 'orderType']}")
-                #logger.info(f"Uses   : {o['wt']}")
-                logger.info(f"Side   : {o['S' if self.spot else 'side']}")
-                logger.info(f"Status : {o['X' if self.spot else 'orderStatus']}")
-                logger.info(f"RejecR.: {rejec_reason}") # rejection reason
-                logger.info(f"TIF    : {o['f' if self.spot else 'timeInForce']}")
-                logger.info(f"Qty    : {o['q' if self.spot else 'qty']}")
-                logger.info(f"LstFill: {last_fill}")
-                logger.info(f"Filled : {o['z' if self.spot else 'cumExecQty']}")
-                logger.info(f"Limit  : {o['p' if self.spot else 'price']}")
-                logger.info(f"Stop   : {None if self.spot else o['triggerPrice']}")
-                logger.info(f"APrice : {None if self.spot else o['triggerPrice']}")
+            elif self.order_update_log and qty == filled_qty and status.upper() != "CANCELLED": 
+                logger.info(f"========= Order Fully Filled =========")      
+                logger.info(f"Status : {status}\n{shared_msg}")                
                 logger.info(f"======================================")      
                 
                 # Call the respective order callback       
@@ -1968,20 +1946,8 @@ class Bybit:
                 if callable(callback):
                     callback()
             else:
-                logger.info(f"========= Order Update ==============")
-                logger.info(f"ID     : {o['c' if self.spot else 'orderLinkId']}") # Clinet Order ID
-                logger.info(f"Type   : {o['o' if self.spot else 'orderType']}")
-                #logger.info(f"Uses   : {o['wt']}")
-                logger.info(f"Side   : {o['S' if self.spot else 'side']}")
-                logger.info(f"Status : {o['X' if self.spot else 'orderStatus']}")
-                logger.info(f"RejecR.: {rejec_reason}") # rejection reason
-                logger.info(f"TIF    : {o['f' if self.spot else 'timeInForce']}")
-                logger.info(f"Qty    : {o['q' if self.spot else 'qty']}")
-                logger.info(f"LstFill: {last_fill}")
-                logger.info(f"Filled : {o['z' if self.spot else 'cumExecQty']}")
-                logger.info(f"Limit  : {o['p' if self.spot else 'price']}")
-                logger.info(f"Stop   : {None if self.spot else o['triggerPrice']}")
-                logger.info(f"APrice : {None if self.spot else o['triggerPrice']}")
+                logger.info(f"========= Order Update ===============")           
+                logger.info(f"Status : {status}\n{shared_msg}")                  
                 logger.info(f"======================================")             
 
         if len(self.limit_chaser_ord[side]) > 0 and id == self.limit_chaser_ord[side]['ID']:           

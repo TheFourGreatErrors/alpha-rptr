@@ -150,18 +150,18 @@ class BybitStub(Bybit):
         return True
     
     def order(
-            self,
-            id,
-            long,
-            qty,
-            limit=0,
-            stop=0,
-            post_only=False,
-            reduce_only=False,
-            when=True,
-            callback=None,
-            workingType="CONTRACT_PRICE"
-            ):
+        self,
+        id,
+        long,
+        qty,
+        limit=0,
+        stop=0,
+        post_only=False,
+        reduce_only=False,
+        when=True,
+        callback=None,
+        workingType="CONTRACT_PRICE"
+    ):
         """
         Places an order.         
         : param id: number of order
@@ -203,19 +203,19 @@ class BybitStub(Bybit):
             return
 
     def close_partial(
-            self,
-            id,
-            ord_qty,
-            limit=0,
-            stop=0,
-            trailValue=0,
-            post_only=False,
-            reduce_only=False,
-            when=True,
-            need_commission=True,
-            callback=None,
-            workingType="CONTRACT_PRICE"
-            ):
+        self,
+        id,
+        ord_qty,
+        limit=0,
+        stop=0,
+        trailValue=0,
+        post_only=False,
+        reduce_only=False,
+        when=True,
+        need_commission=True,
+        callback=None,
+        workingType="CONTRACT_PRICE"
+    ):
         """
         """
         pos_size = self.get_position_size()
@@ -241,18 +241,18 @@ class BybitStub(Bybit):
             return
 
     def entry(
-            self,
-            id,
-            long,
-            qty,
-            limit=0,
-            stop=0,
-            post_only=False,
-            when=True,
-            round_decimals=None,
-            callback=None,
-            workingType="CONTRACT_PRICE"
-            ):
+        self,
+        id,
+        long,
+        qty,
+        limit=0,
+        stop=0,
+        post_only=False,
+        when=True,
+        round_decimals=None,
+        callback=None,
+        workingType="CONTRACT_PRICE"
+    ):
         """
          I place an order. Equivalent function to pine's function.
          https://jp.tradingview.com/study-script-reference/#fun_strategy{dot}entry
@@ -294,23 +294,23 @@ class BybitStub(Bybit):
             return
     
     def entry_pyramiding(
-            self,
-            id,
-            long,
-            qty,
-            limit=0,
-            stop=0,
-            trailValue= 0,
-            post_only=False,
-            reduce_only=False,
-            ioc=False,
-            cancel_all=False,
-            pyramiding=2,
-            when=True,
-            round_decimals=None,
-            callback=None,
-            workingType="CONTRACT_PRICE"
-            ):
+        self,
+        id,
+        long,
+        qty,
+        limit=0,
+        stop=0,
+        trailValue= 0,
+        post_only=False,
+        reduce_only=False,
+        ioc=False,
+        cancel_all=False,
+        pyramiding=2,
+        when=True,
+        round_decimals=None,
+        callback=None,
+        workingType="CONTRACT_PRICE"
+    ):
         """
         Places an entry order, works as equivalent to tradingview pine script implementation with pyramiding        
         :param id: Order id
@@ -374,15 +374,15 @@ class BybitStub(Bybit):
             return
 
     def commit(
-            self,
-            id,
-            long,
-            qty,
-            price,
-            need_commission=False,            
-            reduce_only=False,
-            callback=None
-            ):        
+        self,
+        id,
+        long,
+        qty,
+        price,
+        need_commission=False,            
+        reduce_only=False,
+        callback=None
+    ):        
         """         
          : param id: order number
          : param long: long or short
@@ -607,12 +607,10 @@ class BybitStub(Bybit):
         def __override_strategy(action, open, close, high, low, volume):
             new_open_orders = []
 
-            self.OHLC = {
-                        'open': open,
-                        'high': high,
-                        'low': low,
-                        'close': close
-                        }
+            self.OHLC = {'open': open,
+                         'high': high,
+                         'low': low,
+                         'close': close}
 
             if self.get_position_size() > 0 and low[-1] > self.get_trail_price():
                 self.set_trail_price(low[-1])

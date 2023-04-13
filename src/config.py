@@ -43,5 +43,16 @@ config = {
                                     "websocket_heartbeat": "",
                                     "listenkey_heartbeat": ""
                                     }
-    }                       
+    },
+    # To use Args profiles, add them here and run by using the flag --profile <your profile string>
+    "args_profile": {"binanceaccount1_Sample_ethusdt": {"--test": False,
+                                                        "--stub": False,
+                                                        "--demo": False,
+                                                        "--hyperopt": False,
+                                                        "--spot": False,
+                                                        "--account": "binanceaccount1",
+                                                        "--exchange": "binance",
+                                                        "--pair": "ETHUSDT",
+                                                        "--strategy": "Sample",
+                                                        "--session": None}}                                              
 }

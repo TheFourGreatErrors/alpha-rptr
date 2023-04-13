@@ -151,7 +151,7 @@ class BitMexStub(BitMex):
             reduce_only=False,
             when=True,
             callback=None
-            ):
+    ):
         """
         places an order
         : param id: number of order
@@ -204,7 +204,7 @@ class BitMexStub(BitMex):
             when=True,
             need_commission=True,
             callback=None
-            ):
+    ):
         """
         """
         pos_size = self.get_position_size()
@@ -241,7 +241,7 @@ class BitMexStub(BitMex):
             when=True,
             round_decimals=None,
             callback=None
-            ):
+    ):
         """
          I place an order. Equivalent function to pine's function.
          https://jp.tradingview.com/study-script-reference/#fun_strategy{dot}entry
@@ -296,7 +296,7 @@ class BitMexStub(BitMex):
             when=True,
             round_decimals=None,
             callback=None
-            ):
+    ):
         """
         places an entry orders,
         works as equivalent to tradingview pine script implementation with pyramiding        
@@ -369,7 +369,7 @@ class BitMexStub(BitMex):
             need_commission=False,
             reduce_only=False,
             callback=None
-            ):
+    ):
         """         
          : param id: order number
          : param long: long or short
@@ -594,12 +594,10 @@ class BitMexStub(BitMex):
         def __override_strategy(action, open, close, high, low, volume):
             new_open_orders = []
 
-            self.OHLC = {
-                        'open': open,
-                        'high': high,
-                        'low': low,
-                        'close': close
-                        }
+            self.OHLC = {'open': open,
+                         'high': high,
+                         'low': low,
+                         'close': close}
 
             if self.get_position_size() > 0 and low[-1] > self.get_trail_price():
                 self.set_trail_price(low[-1])
