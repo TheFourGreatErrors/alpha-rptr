@@ -375,7 +375,14 @@ class BinanceFutures:
         return pnl   
 
     def get_profit(self, close=None, avg_entry_price=None, position_size=None, commission=None):
-
+        """
+        get profit 
+        :param close: current price
+        :param avg_entry_price: average entry price of position
+        :param position_size: current position size
+        :param commission: applicable commission for this pair
+        :return:
+        """
         if close is None:
             close = self.market_price 
         if avg_entry_price is None:
@@ -432,6 +439,11 @@ class BinanceFutures:
     def close_all(self, callback=None, split=1, interval=0, chaser=False, retry_maker=100):
         """
         market close open position for this pair
+        :param callback: function to call once the underlying order is executed
+        :param split: should the position be closed using multiple orders?
+        :param interval: time interval between split orders
+        :param chaser: refer to order() function
+        :param retry_maker: refer to order() function
         """
         self.__init_client()
         position_size = self.get_position_size()
@@ -482,7 +494,7 @@ class BinanceFutures:
         workingType="CONTRACT_PRICE"
     ):
         """
-        create an order
+        create an order (do not use directly)
         """
         #removes "+" from order suffix, because of the new regular expression rule for newClientOrderId updated as ^[\.A-Z\:/a-z0-9_-]{1,36}$ (2021-01-26)
         ord_id = ord_id.replace("+", "k") 
@@ -605,7 +617,7 @@ class BinanceFutures:
         :param workingType: Price type to use, "CONTRACT_PRICE" by default.
         :param split: Number of orders to split the quantity into. (iceberg order)
         :param interval: Interval between orders. (iceberg order)
-        :param chaser: If True, a chaser order is placed to follow the price.
+        :param chaser: If True, a chaser order is placed to follow the Best Bid/Ask (BBA) Price. As soon as BBA changes, the existing order is cancelled and a new one is placed at the new BBA for the remaining quantity.
         :param retry_maker: Number of times to retry placing a maker order if it fails.
         :return:
         """
@@ -675,7 +687,7 @@ class BinanceFutures:
         :param workingType: Price type to use, "CONTRACT_PRICE" by default.
         :param split: Number of orders to split the quantity into. (iceberg order)
         :param interval: Interval between orders. (iceberg order)
-        :param chaser: If True, a chaser order is placed to follow the price.
+        :param chaser: If True, a chaser order is placed to follow the Best Bid/Ask Price. As soon as BBA changes, the existing order is cancelled and a new one is placed at the new BBA for the remaining quantity.
         :param retry_maker: Number of times to retry placing a maker order if it fails.
         """       
 
@@ -752,7 +764,7 @@ class BinanceFutures:
         :param workingType: Price type to use, "CONTRACT_PRICE" by default.
         :param split: Number of orders to split the quantity into. (iceberg order)
         :param interval: Interval between orders. (iceberg order)
-        :param chaser: If True, a chaser order is placed to follow the price.
+        :param chaser: If True, a chaser order is placed to follow the Best Bid/Ask Price. As soon as BBA changes, the existing order is cancelled and a new one is placed at the new BBA for the remaining quantity.
         :param retry_maker: Number of times to retry placing a maker order if it fails.
         :return:
         """
@@ -1120,6 +1132,13 @@ class BinanceFutures:
         :param profit: Profit 
         :param loss: Stop loss
         :param trail_offset: Trailing stop price 
+        :param profit_callback: callback to call if exit happens with a profit
+        :param loss_callback: callback to call if exit happens wjth a loss
+        :param trail_callback: callback to call if trail exit happens
+        :param split: Number of orders to split the quantity into. (iceberg order)
+        :param interval: Interval between orders. (iceberg order)
+        :param chaser: If True, a chaser order is placed to follow the Best Bid/Ask Price. As soon as BBA changes, the existing order is cancelled and a new one is placed at the new BBA for the remaining quantity.
+        :param retry_maker: Number of times to retry placing a maker order if it fails.
         """
         self.exit_order = {
             'profit': profit, 
@@ -1163,6 +1182,15 @@ class BinanceFutures:
         :param stop_long: stop loss value for long position in %
         :param stop_short: stop loss value for short position in %
         :param round_decimals: round decimals 
+        :param profit_long_callback: callback to call if Take Profit is triggered on a Long
+        :param profit_short_callback: callback to call if Take Profit is triggered on a Short
+        :param stop_long_callback: callback to call if Stop Loss is triggered on a Long
+        :param stop_short_callback: callback to call if Stop Loss is triggered on a Short
+        :workingType: CPNTRACT_PRICE OR MARK_PRICE to use with underlying stop order
+        :param split: Number of orders to split the quantity into. (iceberg order)
+        :param interval: Interval between orders. (iceberg order)
+        :param chaser: If True, a chaser order is placed to follow the Best Bid/Ask Price. As soon as BBA changes, the existing order is cancelled and a new one is placed at the new BBA for the remaining quantity.
+        :param retry_maker: Number of times to retry placing a maker order if it fails.
         """
         self.sltp_values = {
             'profit_long': profit_long/100,
@@ -1374,6 +1402,7 @@ class BinanceFutures:
     def fetch_ohlcv(self, bin_size, start_time, end_time):
         """
         fetch OHLCV data
+        :param bin_size: time frame to fetch
         :param start_time: start time
         :param end_time: end time
         :return:
@@ -1430,6 +1459,8 @@ class BinanceFutures:
         """
         Recalculate and obtain data of a timeframe higher than the current chart timeframe
         withou looking into the furute that would cause undesired effects.
+        :param bin_size: time frame of the OHLCV data
+        :param data:
         """     
         if data == None:  # minute count of a timeframe for sorting when sorting is needed   
             timeframe_list = [allowed_range_minute_granularity[t][3] for t in self.bin_size]
