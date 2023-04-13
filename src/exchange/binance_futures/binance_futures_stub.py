@@ -457,8 +457,8 @@ class BinanceFuturesStub(BinanceFutures):
             # self.order_log.write("time,type,id,price,quantity,av_price,position,pnl,balance,drawdown\n") #header
             self.order_log.write(
                 f"{self.timestamp},{'BUY' if long else 'SELL'},{id if next_qty == 0 else 'Reversal'},"\
-                f"{price:.2f},{-self.position_size if abs(next_qty) else order_qty:.2f},{self.position_avg_price:.2f},"
-                f"{0 if abs(next_qty) else self.position_size+order_qty:.2f},{profit:.2f},{self.get_balance():.2f},{self.drawdown:.2f}\n"
+                f"{price},{-self.position_size if abs(next_qty) else order_qty},{self.position_avg_price},"
+                f"{0 if abs(next_qty) else self.position_size+order_qty},{profit:.2f},{self.get_balance():.2f},{self.drawdown:.2f}\n"
                 )
             self.order_log.flush()
 
@@ -505,9 +505,9 @@ class BinanceFuturesStub(BinanceFutures):
             logger.info(f"current position size: {next_qty} at avg. price: {self.position_avg_price}")
 
             # self.order_log.write("time,type,id,price,quantity,av_price,position,pnl,balance,drawdown\n") #header
-            self.order_log.write(f"{self.timestamp},{'BUY' if long else 'SELL'},{id},{price:.2f},"
-                                 f"{next_qty if abs(order_qty) > abs(next_qty) else order_qty:.2f},"
-                                 f"{self.position_avg_price:.2f},{self.position_size:.2f},{'-'},"
+            self.order_log.write(f"{self.timestamp},{'BUY' if long else 'SELL'},{id},{price},"
+                                 f"{next_qty if abs(order_qty) > abs(next_qty) else order_qty},"
+                                 f"{self.position_avg_price},{self.position_size},{'-'},"
                                  f"{self.get_balance():.2f},{self.drawdown:.2f}\n")
             self.order_log.flush()
 

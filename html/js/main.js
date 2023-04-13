@@ -397,6 +397,11 @@ function date_link(date)
     chart.priceScale().applyOptions({autoScale: true})
 }
 
+function format_number(price, sig_digits){
+    price = parseFloat(price)
+    return price >= 1 || price <= -1 ? (price % 1 == 0 ? price : price.toFixed(sig_digits)) : price.toPrecision(sig_digits)
+}
+
 function load_trades(chart_data, order_data){      
 
     var drawdown = {};
@@ -440,11 +445,11 @@ function load_trades(chart_data, order_data){
             maximumSignificantDigits: 6
         });
 
-        var quantity_formatted = parseFloat(order_data[i]["quantity"])
+        var quantity_formatted = format_number(order_data[i]["quantity"], 2)
         quantity_formatted = isNaN(quantity_formatted) ? '-' : (Math.abs(quantity_formatted) > 10**6 ? number_formatter.format(quantity_formatted) : quantity_formatted)
         quantity_formatted = '<div title="'+order_data[i]["quantity"]+'">'+quantity_formatted+'</div>'
 
-        var position_formatted = parseFloat(order_data[i]["position"])
+        var position_formatted = format_number(order_data[i]["position"], 2)
         position_formatted = isNaN(position_formatted) ? '-' : (Math.abs(position_formatted) > 10**6 ? number_formatter.format(position_formatted) : position_formatted)
         position_formatted = '<div title="'+order_data[i]["position"]+'">'+position_formatted+'</div>'
 
@@ -456,7 +461,10 @@ function load_trades(chart_data, order_data){
         balance_formatted = isNaN(balance_formatted) ? '-' : (Math.abs(balance_formatted) > 10**6 ? number_formatter.format(balance_formatted) : balance_formatted)
         balance_formatted = '<div title="'+order_data[i]["balance"]+'">'+balance_formatted+'</div>'          
         
-        trades_table.push([order_date, type, order_data[i]["price"], quantity_formatted, order_data[i]["av_price"], position_formatted, pnl_formatted, balance_formatted,order_data[i]["drawdown"]])
+        var price_formatted = format_number(order_data[i]["price"], 2)
+        var av_price_formatted = format_number(order_data[i]["av_price"], 2)
+        
+        trades_table.push([order_date, type, price_formatted, quantity_formatted, av_price_formatted, position_formatted, pnl_formatted, balance_formatted,order_data[i]["drawdown"]])
 
         var time = new Date(order_data[i]["time"]).getTime()/1000
 
@@ -468,12 +476,12 @@ function load_trades(chart_data, order_data){
 
         if(order_data[i]["type"] == 'BUY')
         {
-            markers.push({ time: time, position: 'belowBar', color: '#0345a1', shape: 'arrowUp', text: 'Buy @ ' + order_data[i]["price"] + ' Qty: ' + order_data[i]["quantity"] });
+            markers.push({ time: time, position: 'belowBar', color: '#0345a1', shape: 'arrowUp', text: 'Buy @ ' + price_formatted + ' Qty: ' + order_data[i]["quantity"] });
             only_markers.push({ time: time, position: 'belowBar', color: '#0345a1', shape: 'arrowUp' });
         }        
         else  
         {
-            markers.push({ time: time, position: 'aboveBar', color: "#870a01", shape: 'arrowDown', text: 'Sell @ ' + order_data[i]["price"] + ' Qty: ' + order_data[i]["quantity"] });
+            markers.push({ time: time, position: 'aboveBar', color: "#870a01", shape: 'arrowDown', text: 'Sell @ ' + price_formatted + ' Qty: ' + order_data[i]["quantity"] });
             only_markers.push({ time: time, position: 'aboveBar', color: "#870a01", shape: 'arrowDown'});
         }          
     }
