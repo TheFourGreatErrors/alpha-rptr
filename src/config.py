@@ -1,7 +1,13 @@
+import os
+
+
 config = {
     "binance_keys": {
             "binanceaccount1": {"API_KEY": "", "SECRET_KEY": ""},
-            "binanceaccount2": {"API_KEY": "", "SECRET_KEY": ""}
+            "binanceaccount2": {"API_KEY": "", "SECRET_KEY": ""},
+            # Examaple using environment variable
+            "binanceaccount3": {"API_KEY": os.environ.get("BINANCE_API_KEY_3"), 
+                                "SECRET_KEY": os.environ.get("BINANCE_SECRET_KEY_3")}
     },
     "binance_test_keys": {
             "binancetest1": {"API_KEY": "", "SECRET_KEY": ""},
