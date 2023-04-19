@@ -676,6 +676,22 @@ class BitMex:
             self.__new_order(ord_id, side, ord_qty, limit, stop, post_only, reduce_only)
         
         self.callbacks[ord_id] = callback  
+    
+    def get_open_order_qty(self, id):
+        """
+        Get order quantity or all orders by id
+        :param id: order id  - returns only first order from the list of orders that will match the id,
+                    since it looks if the id starts with the string you pass as `id`
+        :return:
+        """         
+        order = self.get_open_order(id=id)        
+
+        if order is None:
+            return None
+        
+        order_qty = order['leavesQty']
+
+        return order_qty
 
     def get_open_order(self, id):
         """
