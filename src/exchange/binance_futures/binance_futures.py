@@ -1765,8 +1765,12 @@ class BinanceFutures:
                                 "crossWalletBalance": float(margin['cw'])
                              }             
         else: self.get_margin() 
-        notify(f"Balance: {self.margin[0]['balance']}")
-        logger.info(f"Balance: {self.margin[0]['balance']} Cross Balance: {self.margin[0]['crossWalletBalance']}")     
+
+        position_size = self.get_position_size()
+        pnl = round(self.get_pnl())
+        profit = self.get_profit()
+        notify(f"Balance: {self.margin[0]['balance']}\nPosition Size: {position_size}\nPnL: {profit:.2f}({pnl}%)")
+        logger.info(f"Balance: {self.margin[0]['balance']} Position Size: {position_size} PnL: {profit:.2f}({pnl}%)")     
 
     def add_ob_callback(self, id, callback):
         self.best_bid_ask_change_callback[id] = callback
