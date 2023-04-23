@@ -1,6 +1,6 @@
 # coding: UTF-8
 
-from src import logger
+from src import logger, sync_obj_with_config
 from src.exchange.binance_futures.binance_futures import BinanceFutures
 from src.exchange_config import exchange_config
 
@@ -61,9 +61,7 @@ class BinanceFuturesStub(BinanceFutures):
         self.order_log = open("orders.csv", "w")
         self.order_log.write("time,type,id,price,quantity,av_price,position,pnl,balance,drawdown\n") #header
 
-        for k,v in exchange_config['binance_f'].items():
-            if k in dir(BinanceFuturesStub):               
-                setattr(self, k, v)
+        sync_obj_with_config(exchange_config['binance_f'], BinanceFuturesStub, self)
         
     def get_lot(self):
         """

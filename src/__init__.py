@@ -188,6 +188,20 @@ class FatalError(Exception):
     pass
 
 
+def sync_obj_with_config(config, obj, instance=None):
+    """
+    Synchronizes the attributes of an object with a dictionary of configuration values.
+
+    Args:
+        config (dict): A dictionary containing configuration values.
+        obj (object): The object whose attributes should be updated.
+        instance (object, optional): The instance of the object. Defaults to None.
+    """
+    for k,v in config.items():
+        if k in dir(obj):               
+            setattr(instance or obj, k, v)
+
+
 def find_timeframe_string(timeframe_in_minutes):
     """
     finds and returns tf string based on minute count

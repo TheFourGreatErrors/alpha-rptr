@@ -1,6 +1,6 @@
 # coding: UTF-8
 
-from src import logger
+from src import logger, sync_obj_with_config
 from src.exchange_config import exchange_config
 from src.exchange.ftx.ftx import Ftx
 
@@ -62,11 +62,9 @@ class FtxStub(Ftx):
 
         self.order_log = open("orders.csv", "w")
         self.order_log.write("time,type,id,price,quantity,av_price,position,pnl,balance,drawdown\n") #header
+  
+        sync_obj_with_config(exchange_config['ftx'], FtxStub, self)
 
-        for k,v in exchange_config['ftx'].items():
-            if k in dir(FtxStub):              
-                setattr(self, k, v)    
-        
     def get_lot(self):
         """
          Calculate the Lot

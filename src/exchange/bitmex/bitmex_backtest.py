@@ -11,7 +11,7 @@ import pandas as pd
 from src import (logger, allowed_range,
                  allowed_range_minute_granularity,
                  retry, delta, load_data, resample, 
-                 find_timeframe_string)
+                 find_timeframe_string,sync_obj_with_config)
 from src.exchange_config import exchange_config
 from src.exchange.bitmex.bitmex_stub import BitMexStub
 
@@ -76,10 +76,8 @@ class BitMexBackTest(BitMexStub):
         # Resample data
         self.resample_data = {}
 
-        for k,v in exchange_config['bitmex'].items():
-            if k in dir(BitMexBackTest):      
-                setattr(self, k, v)
-
+        sync_obj_with_config(exchange_config['bitmex'], BitMexBackTest, self)
+        
     def get_market_price(self):
         """
         get market price

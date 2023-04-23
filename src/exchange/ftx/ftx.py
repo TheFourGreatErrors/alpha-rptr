@@ -13,7 +13,7 @@ from bravado.exception import HTTPNotFound
 from pytz import UTC
 
 from src import logger, bin_size_converter, allowed_range, allowed_range_minute_granularity, to_data_frame, \
-    resample, find_timeframe_string, delta, FatalError, notify, ord_suffix, RepeatedTimer
+    resample, find_timeframe_string, delta, FatalError, notify, ord_suffix, RepeatedTimer, sync_obj_with_config
 from src import retry_ftx as retry
 from src.exchange.ftx.ftx_api import FtxClient
 from src.config import config as conf
@@ -130,12 +130,10 @@ class Ftx:
         self.best_ask_price = None     
         # Warmup long and short entry lists for tp_next_candle option for sltp()
         self.isLongEntry = [False, False]
-        self.isShortEntry = [False,False]    
+        self.isShortEntry = [False,False] 
 
-        for k,v in exchange_config['ftx'].items():
-            if k in dir(Ftx):      
-                setattr(self, k, v)    
-    
+        sync_obj_with_config(exchange_config['ftx'], Ftx, self)
+        
     def __init_client(self):
         """
         initialization of client

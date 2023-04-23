@@ -1,6 +1,6 @@
 # coding: UTF-8
 
-from src import logger
+from src import logger,sync_obj_with_config
 from src.exchange.bitmex.bitmex import BitMex
 from src.exchange_config import exchange_config
 
@@ -61,9 +61,7 @@ class BitMexStub(BitMex):
         self.order_log = open("orders.csv", "w")
         self.order_log.write("time,type,id,price,quantity,av_price,position,pnl,balance,drawdown\n") #header
 
-        for k,v in exchange_config['bitmex'].items():
-            if k in dir(BitMexStub):     
-                setattr(self, k, v)
+        sync_obj_with_config(exchange_config['bitmex'], BitMexStub, self)
         
     def get_lot(self):
         """

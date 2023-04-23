@@ -14,7 +14,7 @@ from bravado.exception import HTTPNotFound
 from pytz import UTC
 
 from src import (logger, bin_size_converter, find_timeframe_string,
-                 allowed_range_minute_granularity, allowed_range,
+                 allowed_range_minute_granularity, allowed_range, sync_obj_with_config,
                  to_data_frame, resample, delta, FatalError, notify, ord_suffix)
 from src import retry_bybit as retry
 from pybit import inverse_futures, inverse_perpetual, usdc_perpetual, usdt_perpetual, spot
@@ -152,10 +152,8 @@ class Bybit:
         # Ask quantity L1
         self.ask_quantity_L1 = None
 
-        for k,v in exchange_config['bybit'].items():
-            if k in dir(Bybit):
-                setattr(self, k, v)
-
+        sync_obj_with_config(exchange_config['bybit'], Bybit, self)
+        
     def __init_client(self):
         """
         initialization of client

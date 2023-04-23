@@ -1,6 +1,6 @@
 # coding: UTF-8
 
-from src import logger
+from src import logger, sync_obj_with_config
 from src.exchange_config import exchange_config
 from src.exchange.bybit.bybit import Bybit
 
@@ -61,9 +61,7 @@ class BybitStub(Bybit):
         self.order_log = open("orders.csv", "w")
         self.order_log.write("time,type,id,price,quantity,av_price,position,pnl,balance,drawdown\n") #header
 
-        for k,v in exchange_config['bybit'].items():
-            if k in dir(BybitStub):            
-                setattr(self, k, v)
+        sync_obj_with_config(exchange_config['bybit'], BybitStub, self)
         
     def get_lot(self):
         """

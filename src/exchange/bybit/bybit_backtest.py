@@ -11,7 +11,7 @@ import pandas as pd
 from src import (logger, allowed_range,
                  allowed_range_minute_granularity,
                  retry, delta, load_data,
-                 resample, symlink,
+                 resample, symlink, sync_obj_with_config,
                  find_timeframe_string)
 from src.exchange_config import exchange_config
 from src.exchange.bybit.bybit_stub import BybitStub
@@ -75,10 +75,8 @@ class BybitBackTest(BybitStub):
         # Resample data
         self.resample_data = {}
 
-        for k,v in exchange_config['bybit'].items():
-            if k in dir(BybitBackTest):
-                setattr(self, k, v)
-
+        sync_obj_with_config(exchange_config['bybit'], BybitBackTest, self)
+        
     def get_market_price(self):
         """
         get market price

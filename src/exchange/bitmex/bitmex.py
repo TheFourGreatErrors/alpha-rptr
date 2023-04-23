@@ -14,7 +14,7 @@ from pytz import UTC
 
 from src import (logger, retry, allowed_range,
                  allowed_range_minute_granularity,
-                 find_timeframe_string,
+                 find_timeframe_string, sync_obj_with_config,
                  to_data_frame, resample, delta,
                  FatalError, notify, ord_suffix)
 from src.exchange.bitmex.bitmex_api import bitmex_api
@@ -122,9 +122,7 @@ class BitMex:
         # Last strategy execution time
         self.last_action_time = None
 
-        for k,v in exchange_config['bitmex'].items():
-            if k in dir(BitMex):               
-                setattr(self, k, v)
+        sync_obj_with_config(exchange_config['bitmex'], BitMex, self)
         
     def __init_client(self):
         """

@@ -9,7 +9,7 @@ import dateutil.parser
 import pandas as pd
 
 from src import logger, allowed_range, allowed_range_minute_granularity, retry, delta, load_data, resample, \
-    find_timeframe_string
+    find_timeframe_string, sync_obj_with_config
 from src.exchange_config import exchange_config
 from src.exchange.ftx.ftx_stub import FtxStub
 
@@ -72,10 +72,8 @@ class FtxBackTest(FtxStub):
         # Resample data
         self.resample_data = {}
 
-        for k,v in exchange_config['ftx'].items():
-            if k in dir(FtxBackTest):   
-                setattr(self, k, v)    
-
+        sync_obj_with_config(exchange_config['ftx'], FtxBackTest, self)
+        
     def get_market_price(self):
         """
         get market price

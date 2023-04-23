@@ -15,7 +15,7 @@ from pytz import UTC
 
 from src import (logger, allowed_range, allowed_range_minute_granularity,
                  find_timeframe_string, to_data_frame, resample, delta,
-                 FatalError, notify, ord_suffix)
+                 FatalError, notify, ord_suffix, sync_obj_with_config)
 from src import retry_binance_futures as retry
 from src.config import config as conf
 from src.exchange_config import exchange_config
@@ -142,11 +142,9 @@ class BinanceFutures:
         self.ask_quantity_L1 = None
         # callback
         self.best_bid_ask_change_callback = {}
-
-        for k,v in exchange_config['binance_f'].items():
-            if k in dir(BinanceFutures):               
-                setattr(self, k, v)
         
+        sync_obj_with_config(exchange_config['binance_f'], BinanceFutures, self)
+
     def __init_client(self):
         """
         initialization of client

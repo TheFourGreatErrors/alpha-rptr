@@ -11,7 +11,7 @@ import pandas as pd
 from src import (logger, allowed_range,
                  allowed_range_minute_granularity, 
                  retry, delta, load_data, resample, symlink,
-                find_timeframe_string)
+                find_timeframe_string, sync_obj_with_config)
 from src.exchange_config import exchange_config
 from src.exchange.binance_futures.binance_futures_stub import BinanceFuturesStub
 
@@ -74,9 +74,7 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
         # Resample data
         self.resample_data = {}
 
-        for k,v in exchange_config['binance_f'].items():
-            if k in dir(BinanceFuturesBackTest):               
-                setattr(self, k, v)
+        sync_obj_with_config(exchange_config['binance_f'], BinanceFuturesBackTest, self)
 
     def get_market_price(self):
         """
