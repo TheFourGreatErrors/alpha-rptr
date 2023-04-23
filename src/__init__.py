@@ -54,47 +54,34 @@ allowed_range_minute_granularity = {
     # not support yet '1w', '2w', '1M'
 }
 
-def bin_size_converter(bin_size):
-    """    
-    :return: returns object with bin_size and seconds key value pairs
-    """    
 
-    if bin_size == "1m":
-        bin_size = {"bin_size":"1", "seconds": 60}
-        return bin_size
-    elif bin_size == "3m":
-        bin_size = {"bin_size":"3", "seconds": 180}
-        return bin_size
-    elif bin_size == "5m":
-        bin_size = {"bin_size":"5", "seconds": 300}
-        return bin_size
-    elif bin_size == "15m":
-        bin_size = {"bin_size":"15", "seconds": 900}
-        return bin_size 
-    elif bin_size == "30m":
-        bin_size = {"bin_size":"30", "seconds": 1800}
-        return bin_size
-    elif bin_size == "1h":
-        bin_size = {"bin_size":"60", "seconds": 3600}
-        return bin_size
-    elif bin_size == "2h":
-        bin_size = {"bin_size":"120", "seconds": 7200}
-        return bin_size
-    elif bin_size == "4h":
-        bin_size = {"bin_size":"240", "seconds": 14400}
-        return bin_size
-    elif bin_size == "6h":
-        bin_size = {"bin_size":"350", "seconds": 21600}
-        return bin_size
-    elif bin_size == "12h":
-        bin_size = {"bin_size":"720", "seconds": 43200}
-        return bin_size
-    elif bin_size == "1d":
-        bin_size = {"bin_size":"D", "seconds": 86400}
-        return bin_size
-    elif bin_size == "1w":
-        bin_size = {"bin_size":"W", "seconds": 604800}
-        return bin_size
+def bin_size_converter(bin_size):
+    """
+    Converts a bin size string to a dictionary with "bin_size" and "seconds" keys.
+
+    :param bin_size: A string representing the bin size, e.g. "1m", "2h", "1d".
+    :return: A dictionary with "bin_size" and "seconds" keys.
+    :raises ValueError: If the bin size is not recognized.
+    """
+    bin_sizes = {
+        "1m": {"bin_size": "1", "seconds": 60},
+        "3m": {"bin_size": "3", "seconds": 180},
+        "5m": {"bin_size": "5", "seconds": 300},
+        "15m": {"bin_size": "15", "seconds": 900},
+        "30m": {"bin_size": "30", "seconds": 1800},
+        "1h": {"bin_size": "60", "seconds": 3600},
+        "2h": {"bin_size": "120", "seconds": 7200},
+        "4h": {"bin_size": "240", "seconds": 14400},
+        "6h": {"bin_size": "350", "seconds": 21600},
+        "12h": {"bin_size": "720", "seconds": 43200},
+        "1d": {"bin_size": "D", "seconds": 86400},
+        "1w": {"bin_size": "W", "seconds": 604800},
+    }
+
+    if bin_size not in bin_sizes:
+        raise ValueError("Unrecognized bin size: {}".format(bin_size))
+
+    return bin_sizes[bin_size]
 
 
 class RepeatedTimer(object):
