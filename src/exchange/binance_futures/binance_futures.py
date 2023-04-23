@@ -777,9 +777,7 @@ class BinanceFutures:
             return
 
         side = "BUY" if long else "SELL"
-        ord_qty = abs(qty)
-        logger.info(f"ord_qty: {ord_qty}")
-
+        ord_qty = abs(round(qty, round_decimals if round_decimals != None else self.asset_rounding))
         order = self.get_open_order(id)
         ord_id = id + ord_suffix() #if order is None else order["clientOrderId"]
 

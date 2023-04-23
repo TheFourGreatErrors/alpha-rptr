@@ -582,7 +582,7 @@ class Ftx:
             return
         
         side = "buy" if long else "sell"
-        ord_qty = round(qty, round_decimals if round_decimals != None else self.asset_rounding)        
+        ord_qty = abs(round(qty, round_decimals if round_decimals != None else self.asset_rounding))        
 
         if allow_amend:
             order = self.get_open_order(id)

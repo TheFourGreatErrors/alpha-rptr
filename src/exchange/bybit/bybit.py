@@ -1162,6 +1162,7 @@ class Bybit:
         post_only=False,
         reduce_only=False,
         when=True,
+        round_decimals=None,
         callback=None,
         trigger_by='LastPrice',
         split=1,
@@ -1199,9 +1200,7 @@ class Bybit:
             return
 
         side = "Buy" if long else "Sell" 
-        ord_qty = abs(qty)
-        logger.info(f"ord_qty: {ord_qty}")
-
+        ord_qty = abs(round(qty, round_decimals if round_decimals != None else self.asset_rounding))
         order = self.get_open_order(id)
         ord_id = id + ord_suffix() #if order is None else order["clientOrderId"]
 

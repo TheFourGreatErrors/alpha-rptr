@@ -636,6 +636,7 @@ class BitMex:
             reduce_only=False,
             allow_amend=False,
             when=True,
+            round_decimals=None,
             callback=None
     ):
         """
@@ -661,7 +662,7 @@ class BitMex:
             return
         
         side = "Buy" if long else "Sell"
-        ord_qty = abs(round(qty, self.asset_rounding))                  
+        ord_qty = abs(round(qty, round_decimals if round_decimals != None else self.asset_rounding))                  
 
         if allow_amend:
             order = self.get_open_order(id)
