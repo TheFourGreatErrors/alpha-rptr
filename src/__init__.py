@@ -27,6 +27,9 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+status_codes = [400, 401, 402, 403, 404, 429]
+
+
 allowed_range = {
     "1m": ["1m", "1T", 1, 1], "2m":  ["1m", "2T", 2, 2], "3m":  ["1m", "3T", 3, 3],
     "4m": ["1m", "4T", 4, 4], "5m": ["1m", "5T", 5, 5], "6m": ["1m", "6T", 6, 6],
@@ -301,14 +304,10 @@ def retry(func, count=5):
             if status_code >= 500:
                 time.sleep(pow(2, i + 1))
                 continue
-            elif status_code == 400 or \
-                    status_code == 401 or \
-                    status_code == 402 or \
-                    status_code == 403 or \
-                    status_code == 404 or \
-                    status_code == 429:
+            elif status_code in status_codes:
                 raise FatalError(error)
     raise err
+
 
 binance_errors_to_actions = {
     # APIError(code=-1021): Timestamp for this request is outside of the recvWindow.
@@ -362,13 +361,7 @@ def retry_binance_futures(func, count=5):
                 continue
             elif check_binance_error(error.code) == "return":
                 break 
-            elif status_code == 400 or \
-                    status_code == 401 or \
-                    status_code == 402 or \
-                    status_code == 403 or \
-                    status_code == 404 or \
-                    status_code == 429 or \
-                    check_binance_error(error.code) == "error":
+            elif status_code in status_codes or check_binance_error(error.code) == "error":
                 raise FatalError(error)
         except BinanceRequestException as reqErr:
             logger.info(reqErr)
@@ -407,12 +400,7 @@ def retry_bybit(func, count=5):
             if status_code >= 500:
                 time.sleep(pow(2, i + 1))
                 continue
-            elif status_code == 400 or \
-                    status_code == 401 or \
-                    status_code == 402 or \
-                    status_code == 403 or \
-                    status_code == 404 or \
-                    status_code == 429:
+            elif status_code in status_codes:
                 raise FatalError(error)
     raise err
 
@@ -437,12 +425,7 @@ def retry_ftx(func, count=5):
             if status_code >= 500:
                 time.sleep(pow(2, i + 1))
                 continue               
-            elif status_code == 400 or \
-                    status_code == 401 or \
-                    status_code == 402 or \
-                    status_code == 403 or \
-                    status_code == 404 or \
-                    status_code == 429:
+            elif status_code in status_codes:
                 raise FatalError(error)
     raise err
 
