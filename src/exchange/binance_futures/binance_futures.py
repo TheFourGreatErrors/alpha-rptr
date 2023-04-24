@@ -1094,34 +1094,19 @@ class BinanceFutures:
         else:
             return None
     
-    def get_open_orders(self, id):
+    def get_open_orders(self, id=None):
         """
-        Get open orders for this pair by id
-        :param id: Order id
-        :return:
+        Get open orders
+        :param id: if provided it will return only those that start with the provided string
+        :return: list of open orders or None
         """
         self.__init_client()
         open_orders = retry(lambda: self.client
                             .futures_get_open_orders(symbol=self.pair))                                   
-        open_orders = [o for o in open_orders if o["clientOrderId"].startswith(id)]
-        if len(open_orders) > 0:
-            return open_orders
-        else:
+        filtered_orders = [o for o in open_orders if o["clientOrderId"].startswith(id)] if id else open_orders
+        if not filtered_orders:
             return None
-    
-    def get_all_open_orders(self):
-        """
-        Get all open orders for this pair
-        :param id: Order id
-        :return:
-        """
-        self.__init_client()
-        open_orders = retry(lambda: self.client
-                            .futures_get_open_orders(symbol=self.pair))        
-        if len(open_orders) > 0:
-            return open_orders
-        else:
-            return None
+        return filtered_orders
 
     def get_orderbook_ticker(self):
         orderbook_ticker = retry(lambda: self.client.futures_orderbook_ticker(symbol=self.pair))
