@@ -41,10 +41,11 @@ class Bybit:
     order_update_log = True  
     # OHLCV length
     ohlcv_len = 100      
-    # Call strategy function on start, this can be useful
-    # when you dont want to wait for the candle to close to trigger the strategy function
-    # this also can be problematic for certain operations like sending orders or duplicates of orders 
-    # that have been already sent calculated based on closed candle data that are no longer relevant etc.    
+    # Call the strategy function on start. This can be useful if you don't want to wait for the candle to close
+    # to trigger the strategy function. However, this can also be problematic for certain operations such as
+    # sending orders or duplicates of orders that have already been sent, which were calculated based on closed
+    # candle data that is no longer relevant. Be aware of these potential issues and make sure to handle them
+    # appropriately in your strategy implementation. 
     call_strat_on_start = True
 
     def __init__(self, account, pair, demo=False, spot=False, threading=True):
@@ -153,7 +154,7 @@ class Bybit:
         self.ask_quantity_L1 = None
 
         sync_obj_with_config(exchange_config['bybit'], Bybit, self)
-        
+
     def __init_client(self):
         """
         initialization of client
