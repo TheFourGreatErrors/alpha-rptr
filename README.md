@@ -2,9 +2,17 @@
 
 <img src="img/rptr.png" width="200">
 
-A trading system for automated algorithmic trading on Binance Futures, FTX and BitMEX.  
+## About
 
-The author is not responsible for any damage caused by this software. Be careful and test your strategy using very small sizes for some time to make sure it does what you expect it to do. 
+The Github repository features a trading system designed for automated algorithmic trading on Binance Futures, Bybit, BitMEX and FTX.
+
+This trading system aims to offer an easy-to-use platform for users to test their trading strategies through backtesting and paper trading, as well as execute trades in live environments. With the goal of minimizing discrepancies between simulated and live trading results, the system allows for seamless transitions from backtesting to paper trading and finally to live trading. Additionally, users can expect minimal changes to their strategy code when transitioning from simulated to live trading.
+
+While developing strategies, users are expected to have a basic understanding of trading and are not subject to many limitations. The system is designed around pre-defined events, such as market data updates, order updates, and trade executions, and provides various technical features, including advanced order types, and real-time position and order monitoring, to support the development and execution of trading strategies.
+
+## Disclaimer
+
+Please note that the author of this software is not liable for any losses, damages or other adverse consequences resulting from the use of this software. It is highly recommended that you exercise caution and thoroughly test your trading strategy using small sizes over an extended period of time to ensure that it performs as expected before deploying it with larger sums of money.
 
 ## Features
 
