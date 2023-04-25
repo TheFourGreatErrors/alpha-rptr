@@ -679,52 +679,42 @@ class BitMex:
     
     def get_open_order_qty(self, id):
         """
-        Get order quantity or all orders by id
-        :param id: order id  - returns only first order from the list of orders that will match the id,
-                    since it looks if the id starts with the string you pass as `id`
-        :return:
+        Returns the order quantity of the first open order that starts the given order ID.
+        :param id: The ID of the order to search for 
+        :return: The quantity of the first open order or None if no matching order is found
         """         
-        order = self.get_open_order(id=id)        
-
-        if order is None:
-            return None
-        
-        order_qty = order['leavesQty']
-
-        return order_qty
+        order = self.get_open_order(id=id) 
+        return None if order is None else order['leavesQty']
 
     def get_open_order(self, id):
         """
-        Get order
-        :param id: order id
-        :return:
+        Get open order by id         
+        :param id: Order id for this pair
+        :return: if multiple found starting with given id return only the first one
         """
         self.__init_client()
         open_orders = retry(lambda: self.private_client
                             .Order.Order_getOrders(filter=json.dumps({"symbol": self.pair, "open": True}))
                             .result())
-        open_orders = [o for o in open_orders if o["clOrdID"].startswith(id)]
-        if len(open_orders) > 0:
-            return open_orders[0]
-        else:
+        filtered_orders = [o for o in open_orders if o["clOrdID"].startswith(id)]
+        if not filtered_orders:
             return None
+        if len(filtered_orders) > 1:
+            logger.info(f"Found more than 1 order starting with given id. Returning only the first one!")
+        return filtered_orders[0]      
     
     def get_open_orders(self, id=None):
         """
         Get open orders
         :param id: if provided it will return only those that start with the provided string
-        :return:
+        :return: list of open orders or None
         """
         self.__init_client()
         open_orders = retry(lambda: self.private_client
                             .Order.Order_getOrders(filter=json.dumps({"symbol": self.pair, "open": True}))
-                            .result())  
-        if id is not None:
-                open_orders = [o for o in open_orders if o["clOrdID"].startswith(id)]      
-        if len(open_orders) > 0:           
-            return open_orders
-        else:
-            return None
+                            .result())        
+        filtered_orders = [o for o in open_orders if o["clOrdID"].startswith(id)] if id else open_orders     
+        return filtered_orders if filtered_orders else None
 
     def exit(self, profit=0, loss=0, trail_offset=0):
         """

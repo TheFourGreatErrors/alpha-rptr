@@ -1318,39 +1318,30 @@ class Bybit:
             return        
 
     def get_open_order_qty(self, id, only_active=False, only_conditional=False):
-        """
-        Get order quantity or all orders by id
-        :param id: order id  - returns only first order from the list of orders that will match the id,
-                     since it looks if the id starts with the string you pass as `id`  
+        """        
+        Returns the order quantity of the first open order that starts the given order ID.
+        :param id: The ID of the order to search for
         :param only_active: return qty of active orders only   
         :param only_conditional: return qty of conditonal orders only  
-        :return:
+        :return: The quantity of the first open order or None if no matching order is found
         """        
         quantity_str = ["origQty", "qty"]#"leaves_qty", "leavesQty"]
         order = self.get_open_order(id=id,only_active=only_active, only_conditional=only_conditional)        
         
-        order_qty = [] if order is None else [float(order[q]) for q in quantity_str if q in order]
-        
-        if order_qty is not None and len(order_qty) > 0:            
-            return order_qty[0]       
-        else:
-            return None
+        order_qty = [] if order is None else [float(order[q]) for q in quantity_str if q in order]   
+        return order_qty[0] if order_qty else None
 
     def get_open_order(self, id, only_active=False, only_conditional=False):
         """
-        Get order or all orders by id
+        Returns the order of the first open order that starts with the given order ID.
         :param id: order id  - returns only first order from the list of orders that will match the id,
                      since it looks if the id starts with the string you pass as `id`
         :param only_active: return active orders only      
         :param only_conditional: return conditonal orders only  
-        :return:
+        :return: The first open order that matches the given order ID, or None if no matching order is found
         """        
         orders = self.get_open_orders(id=id,only_active=only_active, only_conditional=only_conditional)
-
-        if orders is not None and len(orders) > 0:
-            return orders[0]       
-        else:
-            return None
+        return orders[0] if orders else None
     
     def get_open_orders(self, id=None, only_active= False, only_conditional=False, separate=False):
         """
@@ -1359,7 +1350,7 @@ class Bybit:
         :param: only_active: return only active
         :param: only_conditional: return only conditional
         :param: separate: returns a dictionary containing separate keys for active and conditional orders                
-        :return: 
+        :return: list of open orders or None
         """
         self.__init_client()
             # Spot

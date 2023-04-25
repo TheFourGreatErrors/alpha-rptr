@@ -1075,24 +1075,24 @@ class BinanceFutures:
         if order is None:
             return None
         
-        order_qty = float(order['origQty']) - float(order['executedQty'])        
-
+        order_qty = float(order['origQty']) - float(order['executedQty'])
         return order_qty
 
     def get_open_order(self, id):
         """
-        Get open order by id
+        Get open order by id         
         :param id: Order id for this pair
-        :return:
+        :return: if multiple found starting with given id return only the first one
         """
         self.__init_client()
         open_orders = retry(lambda: self.client
                             .futures_get_open_orders(symbol=self.pair))                                   
-        open_orders = [o for o in open_orders if o["clientOrderId"].startswith(id)]
-        if len(open_orders) > 0:
-            return open_orders[0]
-        else:
+        filtered_orders = [o for o in open_orders if o["clientOrderId"].startswith(id)]
+        if not filtered_orders:
             return None
+        if len(filtered_orders) > 1:
+            logger.info(f"Found more than 1 order starting with given id. Returning only the first one!")
+        return filtered_orders[0]      
     
     def get_open_orders(self, id=None):
         """
@@ -1103,10 +1103,8 @@ class BinanceFutures:
         self.__init_client()
         open_orders = retry(lambda: self.client
                             .futures_get_open_orders(symbol=self.pair))                                   
-        filtered_orders = [o for o in open_orders if o["clientOrderId"].startswith(id)] if id else open_orders
-        if not filtered_orders:
-            return None
-        return filtered_orders
+        filtered_orders = [o for o in open_orders if o["clientOrderId"].startswith(id)] if id else open_orders 
+        return filtered_orders if filtered_orders else None
 
     def get_orderbook_ticker(self):
         orderbook_ticker = retry(lambda: self.client.futures_orderbook_ticker(symbol=self.pair))
