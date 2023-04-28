@@ -16,17 +16,17 @@ Please note that the author of this software is not liable for any losses, damag
 
 ## Features
 
-- API and Websocket implementation for all exchanges supported (Binance Futures, FTX, BitMEX)
-- Supports all pairs
-- Event-driven
+- API and Websocket implementation for multiple cryptocurrency exchanges, including Bybit, BitMEX, Binance Futures, and FTX.
+- Pre-defined events for market data updates, order updates, and trade executions.
 - all types of orders supported including majority of parameters/combinations - if you miss any, you can request
-- Supports custom strategies
-- Backtesting
-- Testnet for BitMEX and Binance Futures (FTX doesn't have a testnet)
-- Stub trading (paper trading)
-- TA-lib indicators, you can request an indicator if its missing
-- Very easy strategy implementation, should be easy enough to migrate most pine script(tradingview) strategies - see Sample strategy
-- Discord webhooks and Line notifications supported
+- Supports sophisticated order types, such as limit orders, stop-loss orders,trailing stop orders, iceberg orders and limit chasing orders.
+- Custom strategy implementation, allowing traders to define their own trading algorithms and indicators.
+- Backtesting framework to test strategies against historical market data.
+- Testnet for Bybit, BitMEX and Binance Futures, allowing traders to test their strategies without risking real funds.
+- Paper trading or stub trading for simulating trades with fake funds.
+- TA-lib indicators.
+- Simple strategy implementation, allowing traders to migrate strategies from other platforms such as TradingView.
+-  Discord webhooks and Line notifications supported for receiving real-time updates and notifications.
 
 ## Implemented reference strategies
 
