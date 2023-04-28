@@ -326,7 +326,7 @@ class Sample(Bot):
             self.isShortEntry.append(short_entry_condition)          
 ```
 
-## Account Data Endpoints
+## Key functions
 
 ### Orders
 
@@ -454,7 +454,7 @@ self.exchange.order("user_given_id", True, 1, 19500, stop=20 000)
 | `sltp()` |  - | All | - |
 | `exit()` |  - | All | - |
 
-#### Account
+### Account
 | Method | Description | Exchange | Notes |
 | -------- | ----------- | -------- | ----- |
 | `get_balance()` |  - | All | - |
