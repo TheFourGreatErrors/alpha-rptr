@@ -68,101 +68,184 @@ $ git clone https://github.com/TheFourGreatErrors/alpha-rptr.git
 $ cd alpha-rptr/
 $ pip install -r requirements.txt
 ```
+**Disclaimer:** We are using a Python wrapper for the `TA-Lib` library, which provides a wide range of technical analysis functions for financial markets. It is important to note that the underlying TA-Lib library is written in C language. Therefore, in order to install and use this library, it needs to be properly compiled on your system. The Python wrapper allows these functions to be used from within Python code, but the installation process may require some technical knowledge. It is important to ensure that the C library is properly compiled prior to installation in order to avoid errors and ensure that the library functions correctly.
 
 ### 2. Setting keys 
 
-Set your API keys in `src / config.py` file.
+The `src/config.py` file is where you can set your API keys and other configuration settings for the trading bot. Here's how to do it:
+1. Open the config.py file in a text editor or IDE.
+2. Look for the binance_keys section of the configuration dictionary. This is where you'll enter your Binance API keys.
+3. Replace the empty string "" in the API_KEY and SECRET_KEY fields with your actual Binance API key and secret key, respectively. You can find your API keys by logging into your Binance account and navigating to the API Management page.
+4. If you have additional Binance accounts or other exchanges, you can enter their API keys in the corresponding sections of the configuration dictionary.
+5. Save the config.py file.
+
+In addition to API keys, you can also set other configuration settings, such as webhook URLs for Discord and LINE, and health check parameters for monitoring the status of your accounts.
+
+Note that you can also set up different trading profiles using the args_profile field, which allows you to specify different settings for different trading sessions. To use a specific profile, you can run the program with the --profile <profile name> flag.
+
+When setting up your API keys, make sure to keep them secure and not share them with anyone.
 
 ```python
 config = {
     "binance_keys": {
-                    "binanceaccount1": {"API_KEY": "", "SECRET_KEY": ""},
-                    "binanceaccount2": {"API_KEY": "", "SECRET_KEY": ""}
-                    },
+            "binanceaccount1": {"API_KEY": "", "SECRET_KEY": ""},
+            "binanceaccount2": {"API_KEY": "", "SECRET_KEY": ""},
+            # Examaple using environment variable
+            "binanceaccount3": {"API_KEY": os.environ.get("BINANCE_API_KEY_3"), 
+                                "SECRET_KEY": os.environ.get("BINANCE_SECRET_KEY_3")}
+    },
     "binance_test_keys": {
-                    "binancetest1": {"API_KEY": "", "SECRET_KEY": ""},
-                    "binancetest2": {"API_KEY": "", "SECRET_KEY": ""}
-                    },
+            "binancetest1": {"API_KEY": "", "SECRET_KEY": ""},
+            "binancetest2": {"API_KEY": "", "SECRET_KEY": ""}
+    },
+    "bybit_keys": {
+            "bybitaccount1": {"API_KEY": "", "SECRET_KEY": ""},
+            "bybitaccount2": {"API_KEY": "", "SECRET_KEY": ""}
+    },
+    "bybit_test_keys": {
+            "bybittest1": {"API_KEY": "", "SECRET_KEY": ""},
+            "bybittest2": {"API_KEY": "", "SECRET_KEY": ""}
+    },
     "bitmex_keys": {
-                    "bitmexaccount1": {"API_KEY": "", "SECRET_KEY": ""},
-                    "bitmexaccount2": {"API_KEY": "", "SECRET_KEY": ""}
-                    },
+            "bitmexaccount1": {"API_KEY": "", "SECRET_KEY": ""},
+            "bitmexaccount2": {"API_KEY": "", "SECRET_KEY": ""}
+    },
     "bitmex_test_keys": {
-                    "bitmextest1": {"API_KEY": "", "SECRET_KEY": ""},
-                    "bitmextest2": {"API_KEY": "", "SECRET_KEY": ""}
-                    },
+            "bitmextest1":{"API_KEY": "", "SECRET_KEY": ""},
+            "bitmextest2": {"API_KEY": "", "SECRET_KEY": ""}
+    },
     "ftx_keys": {
-                    "ftxaccount1": {"API_KEY": "", "SECRET_KEY": ""},
-                    "ftxaccount2": {"API_KEY": "", "SECRET_KEY": ""}
-                },
+            "ftxaccount1": {"API_KEY": "", "SECRET_KEY": ""},
+            "ftxaccount2": {"API_KEY": "", "SECRET_KEY": ""},                    
+    },  
     "line_apikey": {"API_KEY": ""},
     "discord_webhooks": {
-					"binanceaccount1": "",
-					"binanceaccount2": ""
-                    },
+            "binanceaccount1": "",
+            "binanceaccount2": "",
+            "bybitaccount1": "",
+            "bybitaccount2": ""
+    },
     "healthchecks.io": {
                     "binanceaccount1": {
-                        "websocket_heartbeat": "",
-                        "listenkey_heartbeat": ""
+                            "websocket_heartbeat": "",
+                            "listenkey_heartbeat": ""
+                    },
+                    "bybitaccount1": {
+                            "websocket_heartbeat": "",
+                            "listenkey_heartbeat": ""
                     }
-    }                       
+    },
+    # To use Args profiles, add them here and run by using the flag --profile <your profile string>
+    "args_profile": {"binanceaccount1_Sample_ethusdt": {"--test": False,
+                                                        "--stub": False,
+                                                        "--demo": False,
+                                                        "--hyperopt": False,
+                                                        "--spot": False,
+                                                        "--account": "binanceaccount1",
+                                                        "--exchange": "binance",
+                                                        "--pair": "ETHUSDT",
+                                                        "--strategy": "Sample",
+                                                        "--session": None}}                                              
 }
 ```
 
-If you want to send notifications to LINE or Discord, set LINE's API key and/or Discord webhooks - discord will be sending notifications based on the account you choose to trade with. #todo telegram 
-
+If you want to send notifications to LINE or Discord, set LINE's API key and/or Discord webhooks - discord will be sending notifications based on the account you choose to trade with. #todo telegram
+ 
+### 3. Exchange config
+ This is the configuration dictionary (found in `src/exchange_config.py`) for various exchanges including Binance, Bybit, Bitmex, and FTX. It contains the following parameters:
+ ```py
+ 
+ "binance_f":{"qty_in_usdt": False,
+              "minute_granularity": False,
+              "timeframes_sorted": True, # True for higher first, False for lower first and None when off 
+              "enable_trade_log": True,
+              "order_update_log": True,
+              "ohlcv_len": 100,
+              # Call the strategy function on start. This can be useful if you don't want to wait for the candle to close
+              # to trigger the strategy function. However, this can also be problematic for certain operations such as
+              # sending orders or duplicates of orders that have already been sent, which were calculated based on closed
+              # candle data that is no longer relevant. Be aware of these potential issues and make sure to handle them
+              # appropriately in your strategy implementation.
+              "call_strat_on_start": False,
+              # ==== Papertrading And Backtest Class Config ====
+              "balance": 1000,
+              "leverage": 1,
+              "update_data": True,
+              "check_candles_flag": True,
+              "days": 1200,
+              "search_oldest": 10, # Search for the oldest historical data, integer for increments in days, False or 0 to turn it off
+              # Warmup timeframe - used for loading warmup candles for indicators when minute granularity is need
+              # highest tf, if None its going to find it automatically based on highest tf and ohlcv_len
+              "warmup_tf": None}
+```
+ 
 ## How to execute
-
+ 
+ To use the trading bot, you need to run the main.py script with the appropriate parameters. Here's a breakdown of the available options:
+- `--account`: Specifies the account to use for trading. This should match the name of a configuration file located in the config directory. For example, if you have a file called `binanceaccount1` in the config directory, you would use `--account binanceaccount1`.
+- `--exchange`: Specifies the exchange to use. Currently, the bot supports Binance Futures, BitMEX, Bybit and FTX. Use `--exchange binance` to trade on Binance Futures or `--exchange bitmex` to trade on BitMEX.
+- `--pair`: Specifies the trading pair to use. This should be a valid trading pair on the selected exchange. For example, `--pair BTCUSDT` would specify the Bitcoin/USDT pair on Binance Futures.
+- `--strategy`: Specifies the trading strategy to use. This should match the name of a Python file located in the strategies directory. For example, if you have a file called `sample_strategy.py` in the strategies directory (case sensitive), you would use `--strategy sample_strategy`.
+ 
+To execute the trading bot with the specified parameters, run the following command:
 ```bash
 $ python main.py --account binanceaccount1 --exchange binance --pair BTCUSDT --strategy Sample
  ```
-
-By changing the values of `ACCOUNT` `EXCHANGE` `PAIR` `STRATEGY` you can switch accounts, exchanges, piars, strategies.
-
-#### Case of using Channel Breakout on bitmex with bitmexaccount1 and XBTUSD pair
+For example, if you want to use the Channel Breakout strategy on BitMEX with bitmexaccount1 and the XBTUSD pair, you would run the following command:
 
  ```bash
  $ python main.py --account bitmexaccount1 --exchange bitmex --pair XBTUSD --strategy Doten
  ```
+ The bot also supports other modes of operation, such as backtesting, demo trading on testnet, hyperparameter optimization, and stub trading (paper trading). For more information on these modes and their respective options, run the following command:
+```bash
+$ python main.py --help
+```
 
 ## Mode
 ### 1. Production Trade Mode
-
+In this mode, the script will execute live trades on the Binance exchange for the specified trading account and trading pair using the specified strategy. To run the script in this mode, use the following command:
+ 
 ```bash
 $ python main.py --account binanceaccount1 --exchange binance --pair BTCUSDT --strategy Sample
 ```
 
 ### 2. Demo Trade Mode
-
-It is possible to trade on BitMEX [testnet](https://testnet.bitmex.com/) and Binance Futures [testnet](https://testnet.binancefuture.com/en/futures/BTCUSDT)
+ In this mode, the script will execute demo trades on [BitMEX testnet](https://testnet.bitmex.com/), [Binance Futures testnet](https://testnet.binancefuture.com/en/futures/BTCUSDT) or [Bybit testnet](https://testnet.bybit.com/en-US/) for the specified trading account and trading pair using the specified strategy. To run the script in this mode, use the following command:
 
 ```bash
 $ python main.py --demo --account bitmexaccount1 --exchange bitmex --pair XBTUSD --strategy Sample
 ```
 
 ### 3. Back test Mode
-
+In this mode, the script will back test the specified strategy using historical data for the specified trading pair on the Binance exchange. To run the script in this mode, use the following command:
 ```bash
 $ python main.py --test --account binanceaccount1 --exchange binance --pair BTCUSDT --strategy Sample
 ```
 
 ### 4. Hyperopt Mode
-
+Back test Mode: In this mode, the script will back test the specified strategy using historical data for the specified trading pair on the Binance exchange. To run the script in this mode, use the following command:
 ```bash
 $ python main.py --hyperopt --account binanceaccount1 --exchange binance --pair BTCUSDT --strategy Sample
 ```
 
-### 5. Stub trade Mode
-
+### 5. Stub trade Mode (paper trading)
+In this mode, the script will simulate trades on the Binance exchange for the specified trading account and trading pair using the specified strategy. No actual trades will be executed. To run the script in this mode, use the following command:
 ```bash
 $ python main.py --stub --account binanceaccount1 --exchange binance --pair BTCUSDT --strategy Sample
 ```
 
 ## How to add a custom strategy
 
-You can add a strategy by creating a new file in `src / strategies` and name your strategy class exactly the same as your file(case sensitive).
-Don't forget to import needed files like indicators etc.- copy from other sample strategies.
-Follow this example, which hopefully explains a lot of questions.
+To add a new strategy to the trading bot, follow these steps:
+
+- Create a new file in `src/strategies` folder with a name that is exactly the same as your strategy class name (case sensitive).
+- Import necessary files, such as indicators, from other sample strategies or import your own.
+- Define your strategy class in the new file.
+- Implement your strategy logic inside the strategy method of your class.
+- Use the self.exchange object to execute orders based on your strategy's signals.
+- Optionally, define other methods that your strategy may need.   
+
+This example should help you get started with adding your own strategies to the bot.
 
 ```python
 # sample strategy
@@ -177,82 +260,66 @@ class Sample(Bot):
     def options(self):
         return {}
     
-    # override this bot class function to setup warmup candlestick data - needed for your indicators to calculate from sufficient lenght of candlestick historical data
-    # in our case here we have our longest source requirement length 18(sma2) so 100 is more than enough
+    # Override this bot class function to set the length of historical candlestick data required for your indicators
+    # In our case, the longest indicator we use requires 18(sma2) historical candle data values, so 100 is more than enough
     def ohlcv_len(self):
         return 100
 
     def strategy(self, action, open, close, high, low, volume):    
         # this is your strategy function
         # use action argument for mutli timeframe implementation, since a timeframe string will be passed as `action`        
-        # get lot or set your own value which will be used to size orders 
-        # don't forget to round properly - Binance Futures and FTX should round automatically now, so you dont need to pass `round_decimals` argument or leave it None
-        # careful default lot is about 20x your account size !!!
-        # its always best log the values prior going live!
-        lot = round(self.exchange.get_lot() / 20, 3)
-
-        # Example of a callback function, which we can utilize for order execution etc.
+        
+        # Determine the lot size for your orders
+        # You can set your own value or use your account balance, e.g. lot = self.exchange.get_balance()
+        # Default lot is about 20 times your account size, so use with caution!
+        lot = self.exchange.get_lot()
+     
+        # Example of a callback function, which can be used for order execution
+        # For example, this function will log a message when a long or short entry order is successfully executed
         def entry_callback(avg_price=close[-1]):
             long = True if self.exchange.get_position_size() > 0 else False
             logger.info(f"{'Long' if long else 'Short'} Entry Order Successful")
 
-        # if you are using minute granularity or multiple timeframes its important to use `action` as its going pass a timeframe string
-        # this way you can separate functionality and use proper ohlcv timeframe data that get passed each time
-        if action == '1m':
-            #if you use minute_granularity you can make use of 1m timeframe for various operations
+        # if you are using minute granularity or multiple timeframes
+        # its important to use `action` its going pass a timeframe string
+        # This way, you can separate different operations and OHLCV timeframe data that gets passed each time
+        if action == '1m':            
+            # Perform operations on 1-minute timeframe data (if minute_granularity is used)            
             pass
         if action == '15m':
             # indicator lengths
             fast_len = self.input('fast_len', int, 6)
             slow_len = self.input('slow_len', int, 18)
 
-            # setting indicators, they usually take source and length as arguments
+            # Calculate the indicators using the OHLCV data and indicator lengths as arguments
             sma1 = sma(close, fast_len)
             sma2 = sma(close, slow_len)
 
-            # entry conditions
+            # Define the entry conditions for long and short positions
             long_entry_condition = crossover(sma1, sma2)
             short_entry_condition = crossunder(sma1, sma2)
 
-            # setting a simple stop loss and profit target in % using built-in simple profit take and stop loss implementation 
-            # which is placing the sl and tp automatically after entering a position 
-            # rounding on Binance Futures abd FTX is now automatic so remove `round_decimals` or set it `None`
-            self.exchange.sltp(profit_long=1.25, profit_short=1.25, stop_long=1, stop_short=1.1, round_decimals=0)
-
-            # example of calculation of stop loss price 0.8% round on 2 decimals hardcoded inside this class
-            # sl_long = round(close[-1] - close[-1]*0.8/100, 2)
-            # sl_short = round(close[-1] - close[-1]*0.8/100, 2)
+            # Set a simple stop loss and profit target as percentages of entry price
+            # Use the built-in `sltp` method to automatically place the stop loss and profit target after entering a position         
+            self.exchange.sltp(profit_long=1.25, profit_short=1.25, stop_long=1, stop_short=1.1)
             
-            # order execution logic
+            # Execute orders based on entry conditions
             if long_entry_condition:
-                # entry - True means long for every other order other than entry use self.exchange.order() function
-                self.exchange.entry("Long", True, lot, callback=entry_callback)
-                # stop loss hardcoded inside this class
-                #self.exchange.order("SLLong", False, lot, stop=sl_long, reduce_only=True, when=False)
+                # Enter a long position with the specified
+                # lot, size and a callback function to be executed upon order execution
+                # for non entry orders consider self.exchange.order() function
+                self.exchange.entry("Long", True, lot, callback=entry_callback)                       
                 
             if short_entry_condition:
-                # entry - False means short for every other order other than entry use self.exchange.order() function
-                self.exchange.entry("Short", False, lot, callback=entry_callback)
-                # stop loss hardcoded inside this class
-                # self.exchange.order("SLShort", True, lot, stop=sl_short, reduce_only=True, when=False)
+                # Enter a short position with the specified 
+                # lot, size and a callback function to be executed upon order execution
+                # for non entry orders consider self.exchange.order() function
+                self.exchange.entry("Short", False, lot, callback=entry_callback) 
             
-            # storing history for entry signals, you can store any variable this way to keep historical values
+           # Store historical entry signals, you can store any variable this way to keep historical values
             self.isLongEntry.append(long_entry_condition)
-            self.isShortEntry.append(short_entry_condition)
-
-            # OHLCV and indicator data, you can access history using list index        
-            # log indicator values 
-            logger.info(f"sma1: {sma1[-1]}")
-            logger.info(f"second last sma2: {sma2[-2]}")
-            # log last candle OHLCV values
-            logger.info(f"open: {open[-1]}")
-            logger.info(f"high: {high[-1]}")
-            logger.info(f"low: {low[-1]}")
-            logger.info(f"close: {close[-1]}")
-            logger.info(f"volume: {volume[-1]}")            
-            # log history entry signals
-            #logger.info(f"long entry signal history list: {self.isLongEntry}")
-            #logger.info(f"short entry signal history list: {self.isShortEntry}")    
+            self.isShortEntry.append(short_entry_condition)      
+    
 ```
 
 ## Strategy Session Persistence
