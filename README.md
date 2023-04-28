@@ -30,13 +30,18 @@ Please note that the author of this software is not liable for any losses, damag
 
 ## Implemented reference strategies
 
-1. Channel Breakout
-2. Cross SMA
-3. RCI
-4. Open Close Cross Strategy
-5. Trading View Strategy (implemented but not supported in the current implementation via gmail) - maybe in the future todo tradingview webhooks implementation, until then this project is recommended for tradingview webhooks trading: https://github.com/CryptoMF/frostybot
+**Please note** that the implemented reference strategies are provided as examples for educational and reference purposes only. They are not intended to be used as a fully functional trading strategy for live trading without further modifications and proper testing. The strategies may not be suitable for all market conditions and may result in losses. We highly recommend that you thoroughly understand the strategy and test it extensively before using it for live trading. Always use caution and do your own research before making any trading decisions.
 
-It is not recommended to use these strategies for live trading, as they are here mostly just for reference.
+1. Channel Breakout
+2. Parabolic SAR
+3. CandleTester
+4. CandleTesterMult
+5. Cross SMA
+6. RCI
+7. Open Close Cross Strategy
+8. Trading View Strategy (implemented but not currently supported via Gmail integration)
+
+Note: Although TradingView Strategy is not currently supported in this implementation, you can use the following project for TradingView Webhooks trading: https://github.com/CryptoMF/frostybot.
 
 ## Requirements
 
@@ -318,9 +323,144 @@ class Sample(Bot):
             
            # Store historical entry signals, you can store any variable this way to keep historical values
             self.isLongEntry.append(long_entry_condition)
-            self.isShortEntry.append(short_entry_condition)      
-    
+            self.isShortEntry.append(short_entry_condition)          
 ```
+
+## Account Data Endpoints
+
+### Orders
+
+| Endpoint                                | Method                               |
+| --------------------------------------- | ------------------------------------ |
+| Place Active Order                      | `place_active_order()`               |
+| Get Active Order                        | `get_active_order()`                 |
+| Cancel Active Order                     | `cancel_active_order()`              |
+| Cancel All Active Orders                | `cancel_all_active_orders()`         |
+| Replace Active Order                    | `replace_active_order()`             |
+| Query Active Order                      | `query_active_order()`               |
+| Batch Place Active Orders (USDC)        | `batch_place_active_orders()`         |
+| Fast Cancel Active Order (Spot)         | `fast_cancel_active_order()`         |
+| Batch Cancel Active Order (Spot, USDC)  | `batch_cancel_active_order()`        |
+| Batch Fast Cancel Active Order (Spot)   | `batch_fast_cancel_active_order()`   |
+| Batch Cancel Active Order By IDs (Spot) | `batch_cancel_active_order_by_ids()` |
+| Batch Replace Active Orders (USDC)      | `batch_replace_active_orders()`      |
+
+
+
+| Method | Description | Exchange | Notes |
+| -------- | ----------- | -------- | ----- |
+| `order()` |  Place an order | All | The most flexible/least restrictive. |
+| `entry()` | Place an entry order | All | When an order is placed in a market, it will typically open a position on a particular side (buy or sell). However, if another entry order is sent while the position is still open, and it is on the opposite side, the position will be reversed. This means that the current position will be closed out (effectively covering the existing position), and a new position will be opened on the opposite side. In other words, the order will close out the existing position and enter a new position in the opposite direction. |
+| `entry_pyramiding()` | places an entry order via pyramiding - multiple entries | All | Pyramiding in trading refers to adding to a position as it becomes profitable, with the goal of increasing potential gains while reducing risk. In this function, the order quantity is adjusted based on the pyramiding value set by the user. If the current position size plus the quantity of the new order exceeds the pyramiding value for long positions or if the position size minus the quantity of the new order is less than the negative pyramiding value for short positions, the order quantity is set to the pyramiding value minus the absolute value of the position size. Number of orders -`pyramiding` paramenter to split the quantity into |
+| `amend_order()` | Amend order |BitMEX, Bybit | Amending orders refers to the process of modifying an existing order that has already been placed in a trading system. When an order is placed in a trading system, it can be amended or modified to change its parameters such as price, quantity etc. For example, a trader may want to modify the price of an order if the market conditions have changed since the original order was placed. |
+| `get_open_order()` |  - | All | - |
+| `get_open_orders()` |  - | All | - |
+| `get_open_order_qty()` |  - | All | - |
+| `cancel()` |  - | All | - |
+| `cancel_all()` |  - | All | - |
+
+##### The most common order types with examples 
+
+Here are brief descriptions of the most common types of market orders:
+
+1.   Market Order: This is an order to buy or sell a security at the best available price in the market. The execution of this order is immediate and it is filled at the current market price.
+
+2.   Limit Order: A limit order is an order to buy or sell a security at a specific price or better. This order will only be executed at the specified price or better.
+
+3.    Stop Limit Order: This is an order to buy or sell a security when the price reaches a specific level, but only if the trade can be executed at a specific limit price or better.
+
+4.    Stop Market Order: This is an order to buy or sell a security when the price reaches a specific level. This order is executed as a market order once the stop price is reached.
+
+5.  Reduce-Only Order: This order can only reduce your position size or close out a trade. You cannot add to your position with a reduce-only order.
+
+6.  Post-Only Order: This order is only posted to the order book and will not execute immediately. It is useful for traders who want to ensure that they receive the maker fee instead of the taker fee.
+
+7.    Limit Chasing Order: This is a limit order that moves with the market price. For example, if a trader wants to buy a stock at $10 and the current market price is $9, the limit chasing order will automatically adjust the limit price to $9.50, and then to $9.75 as the market price rises. This order is useful for traders who want to buy at the best possible price without constantly updating their limit order.
+
+8.    Iceberg Order: This is a large order that is split into smaller orders and executed over time. The smaller orders are not visible to the market, so the trader can avoid affecting the market price with a large order. The size of each smaller order is pre-determined and can be adjusted by the trader. This order is useful for traders who want to avoid revealing the full size of their position and potentially causing a market impact.
+
+It's important to note that different trading platforms may have their own specific order types and variations.
+
+These examples are usually in the context of `strategy()`, which can be found inside of Bot class hence we access it via `self.exchange`
+```python
+
+# Bybit order with all parameters and default arguments
+order(
+      id,
+      long,
+      qty,
+      limit,
+      stop=0,
+      post_only=False,
+      reduce_only=False,
+      when=True,
+      callback=None,
+      trigger_by='LastPrice',
+      split=1, # for iceberg order
+      interval=0, # for iceberg order 
+      limit_chase_init_delay=0.0001, # for limit chase order
+      chase_update_rate=0.05, # for limit chase
+      limit_chase_interval=0  # side, qty and this parameter above 0 starts limit chase (currently only supperted on Bybit)
+)
+
+
+# Binance Futures order with all parameters and default arguments
+order(
+      id, # Order ID (user ID)
+      long, # True for a long position, False for a short position
+      qty, # Quantity to be traded
+      limit=0, # Limit price
+      stop=0, # Stop price trigger
+      post_only=False, # If True, the order will be posted as a maker order.
+      reduce_only=False, # If True, the order will only reduce the existing position, not increase it.
+      trailing_stop=0, # Binance futures built in implementation of trailing stop in %
+      activationPrice=0, # price that triggers Binance futures built in trailing stop       
+      when=True, # If True, the order is executed.     
+      callback=None, # A callback function to execute after the order is filled.
+      workingType="CONTRACT_PRICE", # Price type to use, "CONTRACT_PRICE" by default.
+      split=1, # Number of orders to split the quantity into. (iceberg order)
+      interval=0, # Interval between orders. (iceberg order)
+      chaser=False, # If True, a chaser order is placed to follow the Best Bid/Ask Price. As soon as BBA changes, the existing order is cancelled and a new one is placed at the new BBA for the remaining quantity.
+      retry_maker=100 # Number of times to retry placing a maker order if it fails.
+)
+
+
+# Market order - only id, side and quantity are required
+self.exchange.order("User_given_id", True, 1)
+
+# Limit order -  Id, side, limit(price level) are required
+self.exchange.order("user_given_id", True, 1, 20 000)
+
+# Limit order with reduce only -  Id, side, limit(price level) are required
+self.exchange.order("user_given_id", True, 1, 20 000, reduce_only=True)
+
+# Stop market order(Conditional order) with reduce only -  Id, side, stop(price level where it gets triggered) are required
+self.exchange.order("user_given_id", True, 1, stop=20 000)
+
+# Stop limit order(Conditional order) with reduce only -  Id, side, 
+# limit(price level of the future limit order) and stop(price level where it gets triggered) are required
+self.exchange.order("user_given_id", True, 1, 19500, stop=20 000)
+```
+
+### Position
+| Method | Description | Exchange | Notes |
+| -------- | ----------- | -------- | ----- |
+| `close_all()` |  - | All | - |
+| `get_position()` |  - | All | - |
+| `get_position_size()` |  - | All | - |
+| `get_position_avg_price()` |  - | All | - |
+| `get_pnl()` |  - | BF, Bybit | - |
+| `get_profit()` |  - | BF, Bybit | - |
+| `sltp()` |  - | All | - |
+| `exit()` |  - | All | - |
+
+#### Account
+| Method | Description | Exchange | Notes |
+| -------- | ----------- | -------- | ----- |
+| `get_balance()` |  - | All | - |
+| `get_available_balance()` |  - | All | - |
+| `set_leverage()` |  - | All | - |
+| `get_leverage()` |  - | All | - |
 
 ## Strategy Session Persistence
 
@@ -354,7 +494,7 @@ You can use this HTML5 Workbench by executing `python3 -m http.server 8000 --cgi
 This server is dedicated for bug reporting, feature requests and support.
 https://discord.gg/ah3MGeN
 
-## Support
+## Support the Project
 
 if you find this software useful and want to support the development, please feel free to donate.
 
@@ -364,16 +504,10 @@ ETH address: 0x24291B6F1e3e42D73280Dac54d7251482f5d4D99
 
 DOGE adderess: DLWdyMihy6WTvUkdhiQm7HPCTais5QFRJQ
 
-BNB address: bnb1kfmd03rzr7xekrrdmca92qyasv3kx2vfn7tzk6
-
 Tether(BSC): 0x24291B6F1e3e42D73280Dac54d7251482f5d4D99
-
-USDC(BSC): 0x24291B6F1e3e42D73280Dac54d7251482f5d4D99
 
 SOL address: HARKcAFct9tc3L4E7vt2sDb2jkqBfZz1aaaPFBck5s6T
 
 LTC address: LZo5Q7pabhYt5Zhpt9HC3eHDG3W5nZqGhU
 
 XRP address: rLMGyMAhrDDAh3de2yhzDFwidbPPE7ifkt
-
-MATIC address: 0x24291B6F1e3e42D73280Dac54d7251482f5d4D99
