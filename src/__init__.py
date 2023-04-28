@@ -27,6 +27,9 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+status_codes = [400, 401, 402, 403, 404, 429]
+
+
 allowed_range = {
     "1m": ["1m", "1T", 1, 1], "2m":  ["1m", "2T", 2, 2], "3m":  ["1m", "3T", 3, 3],
     "4m": ["1m", "4T", 4, 4], "5m": ["1m", "5T", 5, 5], "6m": ["1m", "6T", 6, 6],
@@ -54,47 +57,34 @@ allowed_range_minute_granularity = {
     # not support yet '1w', '2w', '1M'
 }
 
-def bin_size_converter(bin_size):
-    """    
-    :return: returns object with bin_size and seconds key value pairs
-    """    
 
-    if bin_size == "1m":
-        bin_size = {"bin_size":"1", "seconds": 60}
-        return bin_size
-    elif bin_size == "3m":
-        bin_size = {"bin_size":"3", "seconds": 180}
-        return bin_size
-    elif bin_size == "5m":
-        bin_size = {"bin_size":"5", "seconds": 300}
-        return bin_size
-    elif bin_size == "15m":
-        bin_size = {"bin_size":"15", "seconds": 900}
-        return bin_size 
-    elif bin_size == "30m":
-        bin_size = {"bin_size":"30", "seconds": 1800}
-        return bin_size
-    elif bin_size == "1h":
-        bin_size = {"bin_size":"60", "seconds": 3600}
-        return bin_size
-    elif bin_size == "2h":
-        bin_size = {"bin_size":"120", "seconds": 7200}
-        return bin_size
-    elif bin_size == "4h":
-        bin_size = {"bin_size":"240", "seconds": 14400}
-        return bin_size
-    elif bin_size == "6h":
-        bin_size = {"bin_size":"350", "seconds": 21600}
-        return bin_size
-    elif bin_size == "12h":
-        bin_size = {"bin_size":"720", "seconds": 43200}
-        return bin_size
-    elif bin_size == "1d":
-        bin_size = {"bin_size":"D", "seconds": 86400}
-        return bin_size
-    elif bin_size == "1w":
-        bin_size = {"bin_size":"W", "seconds": 604800}
-        return bin_size
+def bin_size_converter(bin_size):
+    """
+    Converts a bin size string to a dictionary with "bin_size" and "seconds" keys.
+
+    :param bin_size: A string representing the bin size, e.g. "1m", "2h", "1d".
+    :return: A dictionary with "bin_size" and "seconds" keys.
+    :raises ValueError: If the bin size is not recognized.
+    """
+    bin_sizes = {
+        "1m": {"bin_size": "1", "seconds": 60},
+        "3m": {"bin_size": "3", "seconds": 180},
+        "5m": {"bin_size": "5", "seconds": 300},
+        "15m": {"bin_size": "15", "seconds": 900},
+        "30m": {"bin_size": "30", "seconds": 1800},
+        "1h": {"bin_size": "60", "seconds": 3600},
+        "2h": {"bin_size": "120", "seconds": 7200},
+        "4h": {"bin_size": "240", "seconds": 14400},
+        "6h": {"bin_size": "350", "seconds": 21600},
+        "12h": {"bin_size": "720", "seconds": 43200},
+        "1d": {"bin_size": "D", "seconds": 86400},
+        "1w": {"bin_size": "W", "seconds": 604800},
+    }
+
+    if bin_size not in bin_sizes:
+        raise ValueError("Unrecognized bin size: {}".format(bin_size))
+
+    return bin_sizes[bin_size]
 
 
 class RepeatedTimer(object):
@@ -201,6 +191,20 @@ class FatalError(Exception):
     pass
 
 
+def sync_obj_with_config(config, obj, instance=None):
+    """
+    Synchronizes the attributes of an object with a dictionary of configuration values.
+
+    Args:
+        config (dict): A dictionary containing configuration values.
+        obj (object): The object whose attributes should be updated.
+        instance (object, optional): The instance of the object. Defaults to None.
+    """
+    for k,v in config.items():
+        if k in dir(obj):               
+            setattr(instance or obj, k, v)
+
+
 def find_timeframe_string(timeframe_in_minutes):
     """
     finds and returns tf string based on minute count
@@ -273,7 +277,8 @@ def to_data_frame(data):
 
 
 def resample(data_frame, bin_size, minute_granularity=False, label="right", closed="right"):      
-    resample_time = allowed_range_minute_granularity[bin_size][1] if minute_granularity else allowed_range[bin_size][1]
+    resample_time = allowed_range_minute_granularity[bin_size][1] \
+                    if minute_granularity else allowed_range[bin_size][1]
     return data_frame.resample(resample_time, label=label, closed=closed).agg({
         "open": "first",
         "high": "max",
@@ -299,18 +304,23 @@ def retry(func, count=5):
             if status_code >= 500:
                 time.sleep(pow(2, i + 1))
                 continue
-            elif status_code == 400 or \
-                    status_code == 401 or \
-                    status_code == 402 or \
-                    status_code == 403 or \
-                    status_code == 404 or \
-                    status_code == 429:
+            elif status_code in status_codes:
                 raise FatalError(error)
     raise err
 
+
 binance_errors_to_actions = {
     # APIError(code=-1021): Timestamp for this request is outside of the recvWindow.
-    1021: "retry"
+    1021: "retry",
+    # APIError(code=-1022): Signature for this request is not valid
+    1022: "retry",
+    # APIError(code=-2021): Stop Order would immediately trigger.
+    2021: "return",
+    # APIError(code=-5021): Due to the order could not be filled immediately, the FOK order has been rejected. The order will not be recorded in the order history.
+    5021: "return",
+    # APIError(code=-5022): Due to the order could not be executed as maker, the Post Only order will be rejected. The order will not be recorded in the order history.
+    5022: "return"
+
 }
 
 
@@ -349,13 +359,9 @@ def retry_binance_futures(func, count=5):
                 time.sleep(pow(2, i + 1))
                 logger.info(f"Retrying Request - Count: {i+1} - Status: {status_code} - Error: {error.code}")
                 continue
-            elif status_code == 400 or \
-                    status_code == 401 or \
-                    status_code == 402 or \
-                    status_code == 403 or \
-                    status_code == 404 or \
-                    status_code == 429 or \
-                    check_binance_error(error.code) == "error":
+            elif check_binance_error(error.code) == "return":
+                break 
+            elif status_code in status_codes or check_binance_error(error.code) == "error":
                 raise FatalError(error)
         except BinanceRequestException as reqErr:
             logger.info(reqErr)
@@ -364,6 +370,40 @@ def retry_binance_futures(func, count=5):
             continue
 
     raise err
+
+
+def retry_bybit(func, count=5):
+    err = None
+    for i in range(count):
+        try:
+            #logger.info(f"{func()}")
+            ret = func()
+            if 'result' in ret:
+                ret = ret['result']
+
+            #res_header = res.headers['X-MBX-USED-WEIGHT-1M']                   
+            #rate_limit = int(res.headers['X-MBX-USED-WEIGHT-1M'])
+            #todo finish retry limit and status codes
+            
+            # rate_remain = None
+            # try:                
+            #     rate_remain = int(res.headers['X-MBX-ORDER-COUNT-1M'])
+            # except KeyError:             #             
+            #     #return ret
+            #     pass
+            # if rate_remain is not None and rate_remain < 10:
+            #     time.sleep(5 * 60 * (1 + rate_limit - rate_remain) / rate_limit)
+            return ret
+        except HTTPError as error:
+            status_code = error.status_code
+            err = error
+            if status_code >= 500:
+                time.sleep(pow(2, i + 1))
+                continue
+            elif status_code in status_codes:
+                raise FatalError(error)
+    raise err
+
 
 def retry_ftx(func, count=5):
     err = None
@@ -385,12 +425,7 @@ def retry_ftx(func, count=5):
             if status_code >= 500:
                 time.sleep(pow(2, i + 1))
                 continue               
-            elif status_code == 400 or \
-                    status_code == 401 or \
-                    status_code == 402 or \
-                    status_code == 403 or \
-                    status_code == 404 or \
-                    status_code == 429:
+            elif status_code in status_codes:
                 raise FatalError(error)
     raise err
 

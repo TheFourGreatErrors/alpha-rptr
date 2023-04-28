@@ -1,6 +1,7 @@
 # coding: UTF-8
 
-from src import logger
+from src import logger, sync_obj_with_config
+from src.exchange_config import exchange_config
 from src.exchange.ftx.ftx import Ftx
 
 
@@ -61,7 +62,9 @@ class FtxStub(Ftx):
 
         self.order_log = open("orders.csv", "w")
         self.order_log.write("time,type,id,price,quantity,av_price,position,pnl,balance,drawdown\n") #header
-        
+  
+        sync_obj_with_config(exchange_config['ftx'], FtxStub, self)
+
     def get_lot(self):
         """
          Calculate the Lot
@@ -214,21 +217,17 @@ class FtxStub(Ftx):
         if cancel_all:
             self.cancel_all()   
 
-        if long and pos_size < 0:
-            ord_qty = qty + abs(pos_size)
-        elif not long and pos_size > 0:
-            ord_qty = qty + abs(pos_size)
+        if (long and pos_size < 0) or (not long and pos_size > 0):
+            ord_qty = qty + abs(pos_size)        
         else:
             ord_qty = qty  
         
-        if long and (pos_size + qty > pyramiding*qty):
-            ord_qty = (pyramiding*qty) - abs(pos_size)
-
-        if not long and (pos_size - qty < -(pyramiding*qty)):
-            ord_qty = (pyramiding*qty) - abs(pos_size)
+        if (long and pos_size + qty > pyramiding*qty) or (not long and pos_size - qty < -pyramiding*qty):
+            ord_qty = pyramiding*qty - abs(pos_size)
+     
         # make sure it doesnt spam small entries, which in most cases would trigger risk management orders evaluation, you can make this less than 2% if needed  
         if ord_qty < ((pyramiding*qty) / 100) * 2:
-            return
+            return       
 
         ord_qty = round(ord_qty, round_decimals if round_decimals != None else self.asset_rounding)
 
@@ -560,8 +559,12 @@ class FtxStub(Ftx):
                 new_open_orders.append(order)
 
             self.open_orders = new_open_orders
-            self.eval_exit()
-            self.eval_sltp()
+
+            if self.is_exit_order_active:
+                self.eval_exit()
+            if self.is_sltp_active:
+                self.eval_sltp()
+
             strategy(action, open, close, high, low, volume)            
 
         if self.demo == None:

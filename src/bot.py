@@ -10,12 +10,15 @@ from hyperopt import fmin, tpe, STATUS_OK, STATUS_FAIL, Trials
 
 from src import logger, notify
 from src.exchange.bitmex.bitmex import BitMex
+from src.exchange.bybit.bybit import Bybit
 from src.exchange.binance_futures.binance_futures import BinanceFutures
 from src.exchange.ftx.ftx import Ftx
 from src.exchange.bitmex.bitmex_stub import BitMexStub
+from src.exchange.bybit.bybit_stub import BybitStub
 from src.exchange.binance_futures.binance_futures_stub import BinanceFuturesStub
-from src.exchange.bitmex.bitmex_backtest import BitMexBackTest
 from src.exchange.ftx.ftx_stub import FtxStub
+from src.exchange.bitmex.bitmex_backtest import BitMexBackTest
+from src.exchange.bybit.bybit_backtest import BybitBackTest
 from src.exchange.binance_futures.binance_futures_backtest import BinanceFuturesBackTest
 from src.exchange.ftx.ftx_backtest import FtxBackTest
 
@@ -38,6 +41,8 @@ class Bot:
     bin_size = '1h'
     # Pair
     pair = 'BTCUSDT'
+    # Cancel all orders when stopping the bot
+    cancel_all_orders_at_stop = True
     # Periods
     periods = 20
     # Run on test net?
@@ -46,6 +51,8 @@ class Bot:
     back_test = False
     # Stub Test(paper trading)?
     stub_test = False
+    # Spot trading?
+    spot = False
     # Parameter optimization?
     hyperopt = False
     # Session Persistence
@@ -85,20 +92,28 @@ class Bot:
 
     def input(self, title, type, defval):
         """
-        function to get param
-        :param title: title of the parm
-        :param defval: default value
-        :return value
+        Returns input for a given parameter title or the default value if not provided.
+
+        :param title: the title of the parameter to be retrieved
+        :param type: the type of the parameter (e.g., int, float, str)
+        :param defval: the default value to be returned if no user input is provided
+
+        :return: the user input value for the parameter or the default value    
         """
+        # If there are already parameters defined, set the parameter dictionary to that, otherwise create an empty dictionary
         p = {} if self.params is None else self.params
+        # If the title of the parameter is in the parameter dictionary, 
+        # return the value of that parameter converted to the specified type
         if title in p:
             return type(p[title])
+        # If the title of the parameter is not in the parameter dictionary, return the default value
         else:
             return defval
 
-    def strategy(self, open, close, high, low, volume):
+    def strategy(self, action,  open, close, high, low, volume):
         """
         Strategy function, when creating a bot please inherit and implement this fn. 
+        :param action: action
         :param open: open price
         :param close: close price
         :param high: high price
@@ -144,6 +159,16 @@ class Bot:
                         'status': STATUS_OK,
                         'loss': 1/profit_factor
                     }
+                if self.exchange_arg == 'bybit':
+                    self.params = args
+                    self.exchange = BybitBackTest(account=self.account, pair=self.pair)
+                    self.exchange.on_update(self.bin_size, self.strategy)
+                    profit_factor = self.exchange.win_profit/self.exchange.lose_loss
+                    logger.info(f"Profit Factor : {profit_factor}")
+                    ret = {
+                        'status': STATUS_OK,
+                        'loss': 1/profit_factor
+                    }
             except Exception as e:
                 ret = {
                     'status': STATUS_FAIL
@@ -171,6 +196,8 @@ class Bot:
                 self.exchange = BinanceFuturesStub(account=self.account, pair=self.pair)
             elif self.exchange_arg == "bitmex":
                 self.exchange = BitMexStub(account=self.account, pair=self.pair)
+            elif self.exchange_arg == "bybit":
+                self.exchange = BybitStub(account=self.account, pair=self.pair)    
             elif self.exchange_arg == "ftx":
                 self.exchange = FtxStub(account=self.account, pair=self.pair)
             else:
@@ -180,6 +207,8 @@ class Bot:
             logger.info(f"Bot Mode : Back test")
             if self.exchange_arg == "binance":
                 self.exchange = BinanceFuturesBackTest(account=self.account, pair=self.pair)
+            elif self.exchange_arg == "bybit":
+                self.exchange = BybitBackTest(account=self.account, pair=self.pair)
             elif self.exchange_arg == "bitmex":
                 self.exchange = BitMexBackTest(account=self.account, pair=self.pair)
             elif self.exchange_arg == "ftx":
@@ -191,6 +220,8 @@ class Bot:
             logger.info(f"Bot Mode : Trade")
             if self.exchange_arg == "binance":
                 self.exchange = BinanceFutures(account=self.account, pair=self.pair, demo=self.test_net)
+            elif self.exchange_arg == "bybit":
+                self.exchange = Bybit(account=self.account, pair=self.pair, demo=self.test_net, spot=self.spot)
             elif self.exchange_arg == "bitmex":
                 self.exchange = BitMex(account=self.account, pair=self.pair, demo=self.test_net)
             elif self.exchange_arg == "ftx":
@@ -230,5 +261,7 @@ class Bot:
             logger.info(f"Saved Session to {self.session_file_name}")
 
         self.exchange.stop()
-        self.exchange.cancel_all()
+        if self.cancel_all_orders_at_stop:
+            self.exchange.cancel_all()
+
         sys.exit(0)

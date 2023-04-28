@@ -1,6 +1,6 @@
 # coding: UTF-8
 
-import os, tempfile
+import os
 import time
 import math
 from datetime import timedelta, datetime, timezone
@@ -8,16 +8,19 @@ import dateutil.parser
 
 import pandas as pd
 
-from src import logger, allowed_range, allowed_range_minute_granularity, retry, delta, load_data, resample, \
-    find_timeframe_string, sync_obj_with_config
+from src import (logger, allowed_range,
+                 allowed_range_minute_granularity,
+                 retry, delta, load_data,
+                 resample, symlink, sync_obj_with_config,
+                 find_timeframe_string)
 from src.exchange_config import exchange_config
-from src.exchange.ftx.ftx_stub import FtxStub
+from src.exchange.bybit.bybit_stub import BybitStub
 
 OHLC_DIRNAME = os.path.join(os.path.dirname(__file__), "../ohlc/{}/{}/{}")
 OHLC_FILENAME = os.path.join(os.path.dirname(__file__), "../ohlc/{}/{}/{}/data.csv")
 
 
-class FtxBackTest(FtxStub):      
+class BybitBackTest(BybitStub):   
     # Update Data before Backtest
     update_data = True
     # Minute granularity
@@ -26,6 +29,8 @@ class FtxBackTest(FtxStub):
     check_candles_flag = True
     # Number of days to download and test historical data 
     days = 120
+    # Search for the oldest historical data
+    search_oldest = 10 # Search for the oldest historical data, integer for increments in days, False or 0 to turn it off
     # Enable log output
     enable_trade_log = True
     # Start balance
@@ -40,15 +45,13 @@ class FtxBackTest(FtxStub):
         :pair:
         :param periods:
         """
-        FtxStub.__init__(self, account, pair, demo=None, threading=False)
+        BybitStub.__init__(self, account, pair=pair, threading=False)
         # Pair
         self.pair = pair
-        # Enable log output
-        self.enable_trade_log = True
+        # Market price
+        self.market_price = 0         
         # Balance
         self.start_balance = self.get_balance()
-        # Market price
-        self.market_price = 0
         # OHLCV
         self.df_ohlcv = None
         # Current time axis
@@ -63,16 +66,16 @@ class FtxBackTest(FtxStub):
         self.sell_signals = []
         # EXIT history
         self.close_signals = []
-        # Drawdown history
-        self.draw_down_history = []
         # Balance history
         self.balance_history = []        
+        # Drawdown history
+        self.draw_down_history = []
         # Plot data
         self.plot_data = {}
         # Resample data
         self.resample_data = {}
 
-        sync_obj_with_config(exchange_config['ftx'], FtxBackTest, self)
+        sync_obj_with_config(exchange_config['bybit'], BybitBackTest, self)
         
     def get_market_price(self):
         """
@@ -86,9 +89,18 @@ class FtxBackTest(FtxStub):
         current time
         :return:
         """
-        return self.time
-
-    def commit(self, id, long, qty, price, need_commission=True, callback=None):
+        return self.time    
+    
+    def commit(
+        self,
+        id,
+        long,
+        qty,
+        price,
+        need_commission=False,
+        callback=None,
+        reduce_only=False
+    ):
         """
         Commit
         :param id: order
@@ -96,8 +108,18 @@ class FtxBackTest(FtxStub):
         :param qty: quantity
         :param price: price
         :param need_commission: use commision or not?
+        :param callback
         """
-        FtxStub.commit(self, id, long, qty, price, need_commission, callback)
+        BybitStub.commit(
+            self,
+            id,
+            long,
+            qty,
+            price,
+            need_commission,
+            callback,
+            reduce_only
+        )
 
         if long:
             self.buy_signals.append(self.index)
@@ -110,9 +132,9 @@ class FtxBackTest(FtxStub):
         """
         if self.get_position_size() == 0:
             return 
-        FtxStub.close_all(self, callback)
+        BybitStub.close_all(self, callback)
         self.close_signals.append(self.index)
-
+    
     def close_all_at_price(self, price, callback=None):
         """
         close the current position at price, for backtesting purposes its important to have a function that closes at given price
@@ -120,8 +142,8 @@ class FtxBackTest(FtxStub):
         """
         if self.get_position_size() == 0:
             return 
-        FtxStub.close_all_at_price(self, price, callback)
-        self.close_signals.append(self.index) 
+        BybitStub.close_all_at_price(self, price, callback)
+        self.close_signals.append(self.index)        
 
     def __crawler_run(self):
         """
@@ -139,15 +161,15 @@ class FtxBackTest(FtxStub):
         if self.timeframe_data is None: 
             self.timeframe_data = {}          
             for t in self.bin_size:            
-                self.timeframe_data[t] = resample(self.df_ohlcv, t, minute_granularity=self.minute_granularity) if self.minute_granularity \
-                    else self.df_ohlcv # if a single timeframe is used without minute_granularity it already resampled the data after downloading it 
-
+                self.timeframe_data[t] = resample(self.df_ohlcv, t, minute_granularity=self.minute_granularity) \
+                                        if self.minute_granularity else self.df_ohlcv # if a single timeframe is used without minute_granularity
+                                                                                      # it already resampled the data after downloading it 
                 self.timeframe_info[t] = {
-                                            "allowed_range": allowed_range_minute_granularity[t][0] if self.minute_granularity else self.bin_size[0], #allowed_range[t][0],
-                                            "ohlcv": self.timeframe_data[t][:-1], # Dataframe with closed candles,
-                                            "last_action_index": math.ceil(self.warmup_len / allowed_range_minute_granularity[t][3]) if self.minute_granularity \
-                                                else self.warmup_len
-                                        }                     
+                    "allowed_range": allowed_range_minute_granularity[t][0] if self.minute_granularity else self.bin_size[0], #allowed_range[t][0],
+                    "ohlcv": self.timeframe_data[t][:-1], # Dataframe with closed candles,
+                    "last_action_index": math.ceil(self.warmup_len / allowed_range_minute_granularity[t][3]) \
+                                                if self.minute_granularity else self.warmup_len
+                }                     
 
         #logger.info(f"timeframe info: {self.timeframe_info}")
         for i in range(self.warmup_len):
@@ -161,8 +183,8 @@ class FtxBackTest(FtxStub):
             
             # action is either the(only) key of self.timeframe_info dictionary, which is a single timeframe string
             # or "1m" when minute granularity is needed - multiple timeframes or self.minute_granularity = True
-            action = "1m" if (self.minute_granularity or len(self.timeframe_info) > 1) else self.bin_size[0]
-            
+            action = "1m" if (self.minute_granularity or len(self.timeframe_info) > 1) else self.bin_size[0]          
+  
             # Timeframes to be updated
             timeframes_to_process = [allowed_range_minute_granularity[t][3] if self.timeframes_sorted != None else 
                                 t for t in self.timeframe_info if self.timeframe_info[t]['allowed_range'] == action] 
@@ -200,12 +222,10 @@ class FtxBackTest(FtxStub):
                     if self.get_position_size() < 0 and high[-1] < self.get_trail_price():
                         self.set_trail_price(high[-1])
                     self.market_price = close[-1]
-                    self.OHLC = {
-                                'open': open,
-                                'high': high,
-                                'low': low,
-                                'close': close
-                                }
+                    self.OHLC = {'open': open,
+                                 'high': high,
+                                 'low': low,
+                                 'close': close}
             
                     self.index = index
                     self.balance_history.append((self.get_balance() - self.start_balance)) #/ 100000000 * self.get_market_price())    
@@ -220,7 +240,7 @@ class FtxBackTest(FtxStub):
                 #self.eval_sltp()
 
         self.close_all()
-        logger.info(f"Back test time : {time.time() - start}")      
+        logger.info(f"Back test time : {time.time() - start}")    
 
     def on_update(self, bin_size, strategy):
         """
@@ -229,13 +249,12 @@ class FtxBackTest(FtxStub):
         """
         self.__load_ohlcv(bin_size)
 
-        FtxStub.on_update(self, bin_size, strategy)
+        BybitStub.on_update(self, bin_size, strategy)
         self.__crawler_run()
-
+    
     def security(self, bin_size, data=None):
         """
-        Recalculate and obtain data of a timeframe higher than the current timeframe
-        without looking into the furute that would cause undesired effects.
+        Recalculate and obtain data of a timeframe higher than the current chart timeframe without looking into the furute that would cause undesired effects.
         """
         if data == None and bin_size not in self.bin_size:           
             timeframe_list = [allowed_range_minute_granularity[t][3] for t in self.bin_size] # minute count of a timeframe for sorting when sorting is needed 
@@ -245,7 +264,7 @@ class FtxBackTest(FtxStub):
           
         self.resample_data[bin_size] = resample(data, bin_size)
         return self.resample_data[bin_size][:self.data.iloc[-1].name].iloc[-1 * self.ohlcv_len:, :]
-
+ 
     def check_candles(self, df):
         """
         Check for missing candles
@@ -289,42 +308,67 @@ class FtxBackTest(FtxStub):
 
         logger.info(f"Total Missing Candles = {count}")
         logger.info("-------")
-
+    
     def save_csv(self, data, file):
 
         if not os.path.exists(os.path.dirname(file)):
             os.makedirs(os.path.dirname(file))
 
         data.to_csv(file, index_label="time")
-
+    
     def download_data(self, bin_size, start_time, end_time):
         """
-        download or get the data and set variables related to ohlcv data
+        download or get amd return ohlcv data
         """ 
         data = pd.DataFrame()        
         left_time = None
         source = None
-        is_last_fetch = False                             
+        is_last_fetch = False
+        file = OHLC_FILENAME.format("bybit", self.pair, self.bin_size)
+        search_left = self.search_oldest
+        last_search_ts = None                 
 
-        if self.minute_granularity == True:
-            #self.timeframe = bin_size.add('1m')  # add 1m timeframe to the set (sets wont allow duplicates) in case we need minute granularity 
+        if self.minute_granularity == True:            
             bin_size = '1m' 
         else:
-            bin_size = bin_size[0]                                
+            bin_size = bin_size[0]        
 
         while True:
-            if left_time is None:
-                left_time = start_time
-                right_time = left_time + delta(allowed_range[bin_size][0]) * 99
-            else:
-                left_time = source.iloc[-1].name #+ delta(allowed_range[bin_size][0]) * allowed_range[bin_size][2]
-                right_time = left_time + delta(allowed_range[bin_size][0]) * 99
+            try:
+                if left_time is None:
+                    left_time = start_time 
+                    right_time = left_time + delta(allowed_range[bin_size][0]) * 99
+                else:
+                    left_time = source.iloc[-1].name #+ delta(allowed_range[bin_size][0]) * allowed_range[bin_size][2]
+                    right_time = left_time + delta(allowed_range[bin_size][0]) * 99
 
-            if right_time > end_time:
-                right_time = end_time
-                is_last_fetch = True
+                if right_time > end_time:
+                    right_time = end_time
+                    is_last_fetch = True    
+            
+            except IndexError as e:                   
+                start_time = start_time + timedelta(days=self.search_oldest if self.search_oldest else 1)
+                left_time = None
+                logger.info(f"Failed to fetch data, start stime is too far in history. \n"
+                            f"                               >>>  Searching, please wait. <<<\n"
+                            f"Searching for oldest viable historical data, next start time attempt: {start_time}")
+                time.sleep(0.25)
+                continue 
 
             source = self.fetch_ohlcv(bin_size=bin_size, start_time=left_time, end_time=right_time)      
+
+            if search_left and not os.path.exists(file):                            
+                logger.info(f"Searching for older historical data. \n"
+                            f"                               >>>  Searching, please wait. <<<")                
+                start_time = start_time - timedelta(days=self.search_oldest)
+                left_time = None       
+                #logger.info(f"last: {last_search_ts}           new: {source.iloc[-1].name}")
+                if len(source) == 0 or (last_search_ts is not None and last_search_ts == source.iloc[-1].name):
+                    search_left = False
+                    continue
+                last_search_ts = source.iloc[-1].name
+                time.sleep(0.25)   
+                continue 
             
             # if(data.shape[0]):
             #     logger.info(f"Last: {data.iloc[-1].name} Left: {left_time} Start: {source.iloc[0].name} Right: {right_time} End: {source.iloc[-1].name}")         
@@ -334,7 +378,7 @@ class FtxBackTest(FtxStub):
             if is_last_fetch:
                 return data
 
-            time.sleep(0.5)
+            time.sleep(0.25)
 
     def __load_ohlcv(self, bin_size):
         """
@@ -343,7 +387,7 @@ class FtxBackTest(FtxStub):
         """
         start_time = datetime.now(timezone.utc) - 1 * timedelta(days=self.days)
         end_time = datetime.now(timezone.utc)
-        file = OHLC_FILENAME.format("FTX", self.pair, bin_size)
+        file = OHLC_FILENAME.format("bybit", self.pair, bin_size)
         
         # Force minute granularity if multiple timeframes are used
         if len(bin_size) > 1:
@@ -385,60 +429,16 @@ class FtxBackTest(FtxStub):
 
         if self.check_candles_flag:
             self.check_candles(self.df_ohlcv)
-
-    # https://stackoverflow.com/questions/8299386/modifying-a-symlink-in-python/55742015#55742015
-    def symlink(self, target, link_name, overwrite=False):        
-        '''
-        Create a symbolic link named link_name pointing to target.
-        If link_name exists then FileExistsError is raised, unless overwrite=True.
-        When trying to overwrite a directory, IsADirectoryError is raised.
-        '''
-        if not overwrite:
-            os.symlink(target, link_name)
-            return
-
-        # os.replace() may fail if files are on different filesystems
-        link_dir = os.path.dirname(link_name)
-
-        # Create link to target with temporary filename
-        while True:
-            temp_link_name = tempfile.mktemp(dir=link_dir)
-
-            # os.* functions mimic as closely as possible system functions
-            # The POSIX symlink() returns EEXIST if link_name already exists
-            # https://pubs.opengroup.org/onlinepubs/9699919799/functions/symlink.html
-            try:
-                os.symlink(target, temp_link_name)
-                break
-            except FileExistsError:
-                pass
-
-        # Replace link_name with temp_link_name
-        try:
-            # Pre-empt os.replace on a directory with a nicer message
-            if not os.path.islink(link_name) and os.path.isdir(link_name):
-                raise IsADirectoryError(f"Cannot symlink over existing directory: '{link_name}'")
-            os.replace(temp_link_name, link_name)
-        except:
-            if os.path.islink(temp_link_name):
-                os.remove(temp_link_name)
-            raise
-        
-    def stop(self):
-        """
-        Stop the crawler
-        """
-        self.is_running = False
-
+			    
     def show_result(self):
         """
         Display results
         """
-        DATA_FILENAME = OHLC_FILENAME.format("FTX", self.pair, self.bin_size)
-        self.symlink(DATA_FILENAME, 'html/data/data.csv', overwrite=True)
-        ORDERS_FILENAME = os.path.join(os.path.dirname(__file__), "../orders.csv")
-        self.symlink(ORDERS_FILENAME, 'html/data/orders.csv', overwrite=True)
-
+        DATA_FILENAME = OHLC_FILENAME.format("bybit", self.pair, self.bin_size)
+        symlink(DATA_FILENAME, 'html/data/data.csv', overwrite=True)
+        ORDERS_FILENAME = os.path.join(os.getcwd(), "./orders.csv")
+        symlink(ORDERS_FILENAME, 'html/data/orders.csv', overwrite=True)
+        
         logger.info(f"============== Result ================")
         logger.info(f"TRADE COUNT         : {self.order_count}")
         logger.info(f"BALANCE             : {self.get_balance()}")
@@ -464,8 +464,8 @@ class FtxBackTest(FtxStub):
                 color = v['color']
                 plt.plot(self.df_ohlcv.index, self.df_ohlcv[k], color)
         plt.ylabel("Price(USD)")
-        ymin = min(self.df_ohlcv["low"]) - 0.5
-        ymax = max(self.df_ohlcv["high"]) + 0.5
+        ymin = min(self.df_ohlcv["low"]) - 0.05
+        ymax = max(self.df_ohlcv["high"]) + 0.05
         plt.vlines(self.buy_signals, ymin, ymax, "blue", linestyles='dashed', linewidth=1)
         plt.vlines(self.sell_signals, ymin, ymax, "red", linestyles='dashed', linewidth=1)
         plt.vlines(self.close_signals, ymin, ymax, "green", linestyles='dashed', linewidth=1)
@@ -484,9 +484,8 @@ class FtxBackTest(FtxStub):
         plt.plot(self.df_ohlcv.index, self.balance_history)
         plt.hlines(y=0, xmin=self.df_ohlcv.index[0],
                    xmax=self.df_ohlcv.index[-1], colors='k', linestyles='dashed')
-        plt.ylabel("PL(USD)")
-      
-        plt.show()        
+        plt.ylabel("PL(USD)")        
+        plt.show()
 
     def plot(self, name, value, color, overlay=True):
         """

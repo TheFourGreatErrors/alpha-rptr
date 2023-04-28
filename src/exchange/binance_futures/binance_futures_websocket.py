@@ -55,8 +55,10 @@ class BinanceFuturesWs:
         # listen key
         self.listenKey = None
         # API keys
-        self.api_key = conf['binance_test_keys'][self.account]['API_KEY'] if self.testnet else conf['binance_keys'][self.account]['API_KEY']
-        self.api_secret = conf['binance_test_keys'][self.account]['SECRET_KEY'] if self.testnet else conf['binance_keys'][self.account]['SECRET_KEY']        
+        self.api_key = conf['binance_test_keys'][self.account]['API_KEY'] \
+                            if self.testnet else conf['binance_keys'][self.account]['API_KEY']
+        self.api_secret = conf['binance_test_keys'][self.account]['SECRET_KEY'] \
+                            if self.testnet else conf['binance_keys'][self.account]['SECRET_KEY']        
         if test:
             self.domain = 'stream.binancefuture.com'
         else:
@@ -77,7 +79,7 @@ class BinanceFuturesWs:
         if len(self.bin_size) > 0: 
             for t in self.bin_size: 
                 klines += self.pair + '@kline_' + t + '/'
-        return 'wss://' + self.domain + '/stream?streams=' + self.listenKey + '/' + self.pair + '@ticker/' + klines
+        return 'wss://' + self.domain + '/stream?streams=' + self.listenKey + '/' + self.pair + '@ticker/' + self.pair + '@bookTicker/' + klines
    
     def __get_auth_user_data_streams(self):
         """
@@ -190,16 +192,16 @@ class BinanceFuturesWs:
                     data[0]['timestamp'] = datetime.fromtimestamp(data[0]['timestamp']/1000).astimezone(UTC)                                        
                     self.__emit(obj['data']['k']['i'], obj['data']['k']['i'], to_data_frame([data[0]]))                    
                 elif e.startswith("24hrTicker"):
-                    self.__emit(e, action, datas)               
+                    self.__emit('instrument', action, datas)               
 
                 elif e.startswith("ACCOUNT_UPDATE"):
-                    self.__emit(e, action, datas['a']['P'])
+                    self.__emit('position', action, datas['a']['P'])
                     self.__emit('wallet', action, datas['a']['B'][0])
                     self.__emit('margin', action, datas['a']['B'][0])                  
                     
-                # todo  ORDER_TRADE_UPDATE
+                # ORDER_TRADE_UPDATE
                 elif e.startswith("ORDER_TRADE_UPDATE"):
-                    self.__emit(e, action, datas['o'])
+                    self.__emit('order', action, datas['o'])
                 #todo orderbook stream
                 # elif table.startswith(""):
                 #     self.__emit(e, action, data)
@@ -210,12 +212,9 @@ class BinanceFuturesWs:
                     #self.__on_close(ws)
                     self.ws.close()
 
-            elif not 'e' in obj['data']:
-                e = 'IndividualSymbolBookTickerStreams'
-                action = ''
-                data = obj['data']
-                #logger.info(f"{data}")
-                self.__emit(e, action, data)
+                elif e.startswith("bookTicker"):
+                    #logger.info(f"bookticker: {obj['data']}")                   
+                    self.__emit('bookticker', action, obj['data'])
 
         except Exception as e:
             logger.error(e)
@@ -240,7 +239,7 @@ class BinanceFuturesWs:
             logger.info(f"Websocket On Close: Restart")
             notify(f"Websocket On Close: Restart")
 
-            time.sleep(60)
+            time.sleep(1)
             # Listen Key can change after disconnects, so the url can change too
             self.ws = websocket.WebSocketApp(self.__get_wss_endpoint(),
                                  on_message=self.__on_message,
@@ -264,28 +263,7 @@ class BinanceFuturesWs:
         :param key:
         :param func:
         """
-        if key == '1m':
-            self.handlers['1m'] = func
-        if key == '5m':
-            self.handlers['5m'] = func
-        if key == '1h':
-            self.handlers['1h'] = func
-        if key == '1d':
-            self.handlers['1d'] = func
-        if key == 'instrument':
-            self.handlers['24hrTicker'] = func
-        if key == 'margin':
-            self.handlers['margin'] = func
-        if key == 'position':
-            self.handlers['ACCOUNT_UPDATE'] = func
-        if key == 'order':
-            self.handlers['ORDER_TRADE_UPDATE'] = func
-        if key == 'wallet':
-            self.handlers['wallet'] = func
-        if key == 'IndividualSymbolBookTickerStreams':
-            self.handlers['IndividualSymbolBookTickerStreams'] = func
-        if key == 'orderBookL2':
-            self.handlers['orderBookL2'] = func
+        self.handlers[key] = func
 
     def close(self):
         """

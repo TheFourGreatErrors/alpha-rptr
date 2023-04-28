@@ -1,22 +1,22 @@
 # coding: UTF-8
 
-from src import logger,sync_obj_with_config
-from src.exchange.bitmex.bitmex import BitMex
+from src import logger, sync_obj_with_config
 from src.exchange_config import exchange_config
+from src.exchange.bybit.bybit import Bybit
 
 
 # stub (paper trading)
-class BitMexStub(BitMex): 
+class BybitStub(Bybit):   
     # Positions in USDT?
-    qty_in_usdt = True 
+    qty_in_usdt = False
     # Minute granularity
     minute_granularity = False
     # Enable log output
-    enable_trade_log = True   
-    # Default Balance in USDT 
-    balance = 1000 # * 100000000
+    enable_trade_log = True 
+    # Default Balance (1000 USDT)    
+    balance = 1000
     # Default Leverage
-    leverage = 1    
+    leverage = 1 
 
     def __init__(self, account, pair, threading=True):
         """
@@ -24,8 +24,8 @@ class BitMexStub(BitMex):
         :account:
         :pair:
         :param threading:
-        """        
-        BitMex.__init__(self, account, pair, threading=threading)        
+        """       
+        Bybit.__init__(self, account, pair, threading=threading)
         # Pair
         self.pair = pair
         # Balance all time high
@@ -61,15 +61,14 @@ class BitMexStub(BitMex):
         self.order_log = open("orders.csv", "w")
         self.order_log.write("time,type,id,price,quantity,av_price,position,pnl,balance,drawdown\n") #header
 
-        sync_obj_with_config(exchange_config['bitmex'], BitMexStub, self)
+        sync_obj_with_config(exchange_config['bybit'], BybitStub, self)
         
     def get_lot(self):
         """
-        Calculate the Lot
-        :return:
-        """
-        #return int((1 - self.get_retain_rate()) * self.get_balance() / self.get_leverage() * self.get_market_price() * 100000000)
-        return float(self.get_balance() * self.get_leverage()) / (1 if self.qty_in_usdt else self.get_market_price())
+         Calculate the Lot
+         :return:
+         """
+        return float( self.get_balance() * self.get_leverage() / self.get_market_price())
 
     def get_balance(self):
         """
@@ -99,15 +98,25 @@ class BitMexStub(BitMex):
         """
         return self.position_avg_price
 
+    def get_pnl(self):
+        """
+        get profit and loss calculation in %
+        :return:
+        """
+        # PnL calculation in % 
+        entry_price = self.get_position_avg_price()
+        pnl = (self.market_price - entry_price) * 100 / entry_price
+        return pnl        
+
     def cancel_all(self):
         """
-        cancel all current orders
+        cancel the current orders
         """
         self.open_orders = []
 
     def close_all(self, callback=None):
         """
-        close the current orders
+        close all current orders 
         """
         pos_size = self.position_size
         if pos_size == 0:
@@ -137,21 +146,22 @@ class BitMexStub(BitMex):
         """
         self.open_orders = [o for o in self.open_orders if o["id"] != id]
         return True
-
+    
     def order(
-            self,
-            id,
-            long,
-            qty,
-            limit=0,
-            stop=0,
-            post_only=False,
-            reduce_only=False,
-            when=True,
-            callback=None
+        self,
+        id,
+        long,
+        qty,
+        limit=0,
+        stop=0,
+        post_only=False,
+        reduce_only=False,
+        when=True,
+        callback=None,
+        workingType="CONTRACT_PRICE"
     ):
         """
-        places an order
+        Places an order.         
         : param id: number of order
         : param long: long or short
         : param qty: order quantity
@@ -179,29 +189,30 @@ class BitMexStub(BitMex):
 
         if limit > 0 or stop > 0:
             self.open_orders.append({"id": id,
-                                     "long": long,
-                                     "qty": ord_qty,
-                                     "limit": limit,
-                                     "stop": stop,
-                                     "post_only": post_only,
-                                     "reduce_only": reduce_only,
-                                     "callback": callback})
+                                    "long": long,
+                                    "qty": ord_qty,
+                                    "limit": limit,
+                                    "stop": stop,
+                                    "post_only": post_only,
+                                    "reduce_only": reduce_only,
+                                    "callback": callback})
         else:
             self.commit(id, long, ord_qty, self.get_market_price(), True, reduce_only, callback)
             return
 
     def close_partial(
-            self,
-            id,
-            ord_qty,
-            limit=0,
-            stop=0,
-            trailValue=0,
-            post_only=False,
-            reduce_only=False,
-            when=True,
-            need_commission=True,
-            callback=None
+        self,
+        id,
+        ord_qty,
+        limit=0,
+        stop=0,
+        trailValue=0,
+        post_only=False,
+        reduce_only=False,
+        when=True,
+        need_commission=True,
+        callback=None,
+        workingType="CONTRACT_PRICE"
     ):
         """
         """
@@ -222,23 +233,23 @@ class BitMexStub(BitMex):
                                      "limit": limit,
                                      "stop": stop,
                                      "post_only": post_only,
-                                     "reduce_only": False,
                                      "callback": callback})
         else:
             self.commit(id, long, abs(ord_qty), self.get_market_price(), True, reduce_only, callback)
             return
 
     def entry(
-            self,
-            id,
-            long,
-            qty,
-            limit=0,
-            stop=0,
-            post_only=False,
-            when=True,
-            round_decimals=None,
-            callback=None
+        self,
+        id,
+        long,
+        qty,
+        limit=0,
+        stop=0,
+        post_only=False,
+        when=True,
+        round_decimals=None,
+        callback=None,
+        workingType="CONTRACT_PRICE"
     ):
         """
          I place an order. Equivalent function to pine's function.
@@ -269,35 +280,37 @@ class BitMexStub(BitMex):
 
         if limit > 0 or stop > 0:
             self.open_orders.append({"id": id,
-                                     "long": long,
-                                     "qty": ord_qty,
-                                     "limit": limit,
-                                     "stop": stop,
-                                     "post_only": post_only,
-                                     "reduce_only": False,
-                                     "callback": callback})
+                                    "long": long,
+                                    "qty": ord_qty,
+                                    "limit": limit,
+                                    "stop": stop,
+                                    "post_only": post_only,
+                                    "reduce_only": False,
+                                    "callback": callback})
         else:
             self.commit(id, long, ord_qty, self.get_market_price(), True, False, callback)
             return
-
+    
     def entry_pyramiding(
-            self,
-            id,
-            long,
-            qty,
-            limit=0,
-            stop=0,
-            post_only=False,
-            reduce_only=False,
-            cancel_all=False,
-            pyramiding=2,
-            when=True,
-            round_decimals=None,
-            callback=None
+        self,
+        id,
+        long,
+        qty,
+        limit=0,
+        stop=0,
+        trailValue= 0,
+        post_only=False,
+        reduce_only=False,
+        ioc=False,
+        cancel_all=False,
+        pyramiding=2,
+        when=True,
+        round_decimals=None,
+        callback=None,
+        workingType="CONTRACT_PRICE"
     ):
         """
-        places an entry orders,
-        works as equivalent to tradingview pine script implementation with pyramiding        
+        Places an entry order, works as equivalent to tradingview pine script implementation with pyramiding        
         :param id: Order id
         :param long: Long or Short
         :param qty: Quantity
@@ -344,30 +357,30 @@ class BitMexStub(BitMex):
             return       
 
         ord_qty = round(ord_qty, round_decimals if round_decimals != None else self.asset_rounding)
-        
+
         if limit > 0 or stop > 0:
             self.open_orders.append({"id": id,
-                                     "long": long,
-                                     "qty": ord_qty,
-                                     "limit": limit,
-                                     "stop": stop,
-                                     "post_only": post_only,
-                                     "reduce_only": False,
-                                     "callback": callback})
+                                    "long": long,
+                                    "qty": ord_qty,
+                                    "limit": limit,
+                                    "stop": stop,
+                                    "post_only": post_only,
+                                    "reduce_only": False,
+                                    "callback": callback})
         else:
             self.commit(id, long, ord_qty, self.get_market_price(), True, reduce_only, callback)
             return
 
     def commit(
-            self,
-            id,
-            long,
-            qty,
-            price,
-            need_commission=False,
-            reduce_only=False,
-            callback=None
-    ):
+        self,
+        id,
+        long,
+        qty,
+        price,
+        need_commission=False,            
+        reduce_only=False,
+        callback=None
+    ):        
         """         
          : param id: order number
          : param long: long or short
@@ -408,7 +421,7 @@ class BitMexStub(BitMex):
                 if close_rate*self.leverage < self.max_draw_down:
                     self.max_draw_down = close_rate*self.leverage
 
-            self.balance += profit #* self.get_market_price() / 100 #*100000000
+            self.balance += profit #* self.get_market_price() / 100
 
             if self.balance_ath < self.balance:
                     self.balance_ath = self.balance
@@ -431,7 +444,7 @@ class BitMexStub(BitMex):
                 )
             self.order_log.flush()
 
-            self.position_size = self.get_position_size() + order_qty                                   
+            self.position_size = self.get_position_size() + order_qty    
 
             if self.enable_trade_log:
                 logger.info(f"========= Close Position =============")
@@ -479,7 +492,7 @@ class BitMexStub(BitMex):
                                  f"{self.position_avg_price:.2f},{self.position_size:.2f},{'-'},"\
                                  f"{self.get_balance():.2f},{self.drawdown:.2f}\n")
             self.order_log.flush()
-           
+
             self.set_trail_price(price)
 
             if callback != None:
@@ -526,7 +539,7 @@ class BitMexStub(BitMex):
                 0 < self.get_exit_order()['profit'] < abs(unrealised_pnl):
             logger.info(f"Take profit by stop profit: {self.get_exit_order()['profit']}")
             self.close_all(self.get_exit_order()['profit_callback'])
-    
+
     def eval_sltp(self):
         """
         Simple take profit and stop loss implementation
@@ -558,9 +571,9 @@ class BitMexStub(BitMex):
             if pos_size < 0:
                 sl_price_short = round(avg_entry + (avg_entry*sl_percent_short), self.quote_rounding)
                 if self.OHLC['high'][-1] >= sl_price_short:                 
-                    self.close_all_at_price(sl_price_short, self.get_sltp_values()['stop_short_callback'])        
-        
-        # eval_tp_next_candle
+                    self.close_all_at_price(sl_price_short, self.get_sltp_values()['stop_short_callback'])    
+
+    # eval_tp_next_candle
         if (self.isLongEntry[-1] == True and self.isLongEntry[-2] == False and self.get_sltp_values()['eval_tp_next_candle']) or \
             (self.isShortEntry[-1] == True and self.isShortEntry[-2] == False and self.get_sltp_values()['eval_tp_next_candle']):
             return
@@ -582,7 +595,7 @@ class BitMexStub(BitMex):
                     tp_price_short = best_bid
                 if self.OHLC['low'][-1] <= tp_price_short:               
                     self.close_all_at_price(tp_price_short, self.get_sltp_values()['profit_short_callback'])
-
+    
     def on_update(self, bin_size, strategy):
         """
         Registering and updating strategy function.
@@ -667,7 +680,8 @@ class BitMexStub(BitMex):
                 self.eval_exit()
             if self.is_sltp_active:
                 self.eval_sltp()
-
+                
             strategy(action, open, close, high, low, volume)
+            
 
-        BitMex.on_update(self, bin_size, __override_strategy)
+        Bybit.on_update(self, bin_size, __override_strategy)

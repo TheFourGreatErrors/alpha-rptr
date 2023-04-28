@@ -8,8 +8,11 @@ import dateutil.parser
 
 import pandas as pd
 
-from src import logger, allowed_range, allowed_range_minute_granularity, retry, delta, load_data, resample, symlink, \
-    find_timeframe_string
+from src import (logger, allowed_range,
+                 allowed_range_minute_granularity, 
+                 retry, delta, load_data, resample, symlink,
+                find_timeframe_string, sync_obj_with_config)
+from src.exchange_config import exchange_config
 from src.exchange.binance_futures.binance_futures_stub import BinanceFuturesStub
 
 OHLC_DIRNAME = os.path.join(os.path.dirname(__file__), "../ohlc/{}/{}/{}")
@@ -25,6 +28,8 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
     check_candles_flag = True
     # Number of days to download and test historical data 
     days = 120
+    # Search for the oldest historical data
+    search_oldest = 10 # Search for the oldest historical data, integer for increments in days, False or 0 to turn it off
     # Enable log output
     enable_trade_log = True
     # Start balance
@@ -69,6 +74,8 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
         # Resample data
         self.resample_data = {}
 
+        sync_obj_with_config(exchange_config['binance_f'], BinanceFuturesBackTest, self)
+
     def get_market_price(self):
         """
         get market price
@@ -82,25 +89,17 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
         :return:
         """
         return self.time    
-    
-    def entry(self, id, long, qty, limit=0, stop=0, post_only=False, when=True, round_decimals=None, callback=None, workingType="CONTRACT_PRICE"):
-        """
-        places an entry order, works equivalent to tradingview pine script implementation
-        https://jp.tradingview.com/study-script-reference/#fun_strategy{dot}entry
-        :param id: Order id
-        :param long: Long or Short
-        :param qty: Quantity
-        :param limit: Limit price
-        :param stop: Stop limit
-        :param post_only: Post only        
-        :param when: Do you want to execute the order or not - True for live trading
-        :round_decimals: Round qty to decimals
-        :callback
-        :return:
-        """
-        BinanceFuturesStub.entry(self, id, long, qty, limit, stop, post_only, when, round_decimals, callback)
 
-    def commit(self, id, long, qty, price, need_commission=False, callback=None, reduce_only=False):
+    def commit(
+        self, 
+        id, 
+        long, 
+        qty, 
+        price, 
+        need_commission=False, 
+        callback=None, 
+        reduce_only=False
+    ):
         """
         Commit
         :param id: order
@@ -110,7 +109,8 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
         :param need_commission: use commision or not?
         :param callback
         """
-        BinanceFuturesStub.commit(self, id, long, qty, price, need_commission, callback, reduce_only)
+        BinanceFuturesStub.commit(self, id, long, qty, price, 
+                                  need_commission, callback, reduce_only)
 
         if long:
             self.buy_signals.append(self.index)
@@ -128,7 +128,8 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
     
     def close_all_at_price(self, price, callback=None):
         """
-        close the current position at price, for backtesting purposes its important to have a function that closes at given price
+        close the current position at price,
+        for backtesting purposes its important to have a function that closes at given price
         :param price: price
         """
         if self.get_position_size() == 0:
@@ -152,19 +153,19 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
         if self.timeframe_data is None: 
             self.timeframe_data = {}          
             for t in self.bin_size:            
-                self.timeframe_data[t] = resample(self.df_ohlcv, t, minute_granularity=self.minute_granularity) if self.minute_granularity \
-                    else self.df_ohlcv # if a single timeframe is used without minute_granularity it already resampled the data after downloading it 
-
+                self.timeframe_data[t] = resample(self.df_ohlcv, t, minute_granularity=self.minute_granularity) \
+                                        if self.minute_granularity else self.df_ohlcv # if a single timeframe is used without minute_granularity
+                                                                                      # it already resampled the data after downloading it 
                 self.timeframe_info[t] = {
-                                            "allowed_range": allowed_range_minute_granularity[t][0] if self.minute_granularity else self.bin_size[0], #allowed_range[t][0],
-                                            "ohlcv": self.timeframe_data[t][:-1], # Dataframe with closed candles,
-                                            "last_action_index": math.ceil(self.warmup_len / allowed_range_minute_granularity[t][3]) if self.minute_granularity \
-                                                else self.warmup_len
-                                        }                     
+                    "allowed_range": allowed_range_minute_granularity[t][0] if self.minute_granularity else self.bin_size[0], #allowed_range[t][0],
+                    "ohlcv": self.timeframe_data[t][:-1], # Dataframe with closed candles,
+                    "last_action_index": math.ceil(self.warmup_len / allowed_range_minute_granularity[t][3]) \
+                                        if self.minute_granularity else self.warmup_len
+                }                     
 
         #logger.info(f"timeframe info: {self.timeframe_info}")
         for i in range(self.warmup_len):
-            self.balance_history.append((self.get_balance() - self.start_balance))#/100000000*self.get_market_price())
+            self.balance_history.append((self.get_balance() - self.start_balance))
             self.draw_down_history.append(self. max_draw_down_session_perc)
 
         for i in range(len(self.df_ohlcv) - self.warmup_len):
@@ -176,12 +177,9 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
             # or "1m" when minute granularity is needed - multiple timeframes or self.minute_granularity = True
             action = "1m" if (self.minute_granularity or len(self.timeframe_info) > 1) else self.bin_size[0]
             
-            timeframes_to_process = []
-
-            for t in self.timeframe_info:            
-                if self.timeframe_info[t]["allowed_range"] == action:
-                    # append minute count of a timeframe when sorting when sorting is need otherwise just add a string timeframe
-                    timeframes_to_process.append(allowed_range_minute_granularity[t][3]) if self.timeframes_sorted != None else timeframes_to_process.append(t)  
+            # Timeframes to be updated
+            timeframes_to_process = [allowed_range_minute_granularity[t][3] if self.timeframes_sorted != None else 
+                                t for t in self.timeframe_info if self.timeframe_info[t]['allowed_range'] == action] 
 
             # Sorting timeframes that will be updated
             if self.timeframes_sorted == True:
@@ -216,22 +214,20 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
                     if self.get_position_size() < 0 and high[-1] < self.get_trail_price():
                         self.set_trail_price(high[-1])
                     self.market_price = close[-1]
-                    self.OHLC = {
-                                'open': open,
-                                'high': high,
-                                'low': low,
-                                'close': close
-                                }
+                    self.OHLC = {'open': open,
+                                 'high': high,
+                                 'low': low,
+                                 'close': close}
             
                     self.index = index
-                    self.balance_history.append((self.get_balance() - self.start_balance)) #/ 100000000 * self.get_market_price())    
+                    self.balance_history.append((self.get_balance() - self.start_balance)) 
 
                 #self.eval_sltp()
                 self.timestamp = tf_ohlcv_data.iloc[-1].name.isoformat().replace("T"," ")
                 self.strategy(t, open, close, high, low, volume)      
                 self.timeframe_info[t]['last_action_index'] += 1           
 
-                #self.balance_history.append((self.get_balance() - self.start_balance)) #/ 100000000 * self.get_market_price())
+                #self.balance_history.append((self.get_balance() - self.start_balance)) 
                 #self.eval_exit()
                 #self.eval_sltp()
 
@@ -250,22 +246,17 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
 
     def security(self, bin_size, data=None):
         """
-        Recalculate and obtain different time frame data
+        Recalculate and obtain data of a timeframe higher than the current timeframe
+        without looking into the furute that would cause undesired effects.
         """
-        if data == None and bin_size not in self.bin_size:   
-            timeframe_list = []
-
-            for t in self.bin_size:               
-                    # append minute count of a timeframe when sorting when sorting is needed 
-                    timeframe_list.append(allowed_range_minute_granularity[t][3]) 
+        if data == None and bin_size not in self.bin_size:           
+            timeframe_list = [allowed_range_minute_granularity[t][3] for t in self.bin_size] # minute count of a timeframe for sorting when sorting is needed 
             timeframe_list.sort(reverse=True)
             t = find_timeframe_string(timeframe_list[-1])   
             data = self.timeframe_data[t]
-            self.resample_data[bin_size] = resample(data, bin_size)     
-            return self.resample_data[bin_size][:self.data.iloc[-1].name].iloc[-1 * self.ohlcv_len:, :] 
-        else:
-            self.resample_data[bin_size] = resample(data, bin_size)
-            return self.resample_data[bin_size][:self.data.iloc[-1].name].iloc[-1 * self.ohlcv_len:, :]
+          
+        self.resample_data[bin_size] = resample(data, bin_size)
+        return self.resample_data[bin_size][:self.data.iloc[-1].name].iloc[-1 * self.ohlcv_len:, :]
  
     def check_candles(self, df):
         """
@@ -325,28 +316,50 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
         data = pd.DataFrame()        
         left_time = None
         source = None
-        is_last_fetch = False                             
+        is_last_fetch = False                  
+        file = OHLC_FILENAME.format("binance_futures", self.pair, self.bin_size)
+        search_left = self.search_oldest           
 
         if self.minute_granularity == True:
             #self.timeframe = bin_size.add('1m')  # add 1m timeframe to the set (sets wont allow duplicates) in case we need minute granularity 
-            bin_size = '1m'
-            minute_gran = True                              
+            bin_size = '1m'                                  
         else:
             bin_size = bin_size[0]                                
 
         while True:
-            if left_time is None:
-                left_time = start_time
-                right_time = left_time + delta(allowed_range[bin_size][0]) * 99
-            else:
-                left_time = source.iloc[-1].name #+ delta(allowed_range[bin_size][0]) * allowed_range[bin_size][2]
-                right_time = left_time + delta(allowed_range[bin_size][0]) * 99
+            try:
+                if left_time is None:
+                    left_time = start_time
+                    right_time = left_time + delta(allowed_range[bin_size][0]) * 99
+                else:
+                    left_time = source.iloc[-1].name #+ delta(allowed_range[bin_size][0]) * allowed_range[bin_size][2]
+                    right_time = left_time + delta(allowed_range[bin_size][0]) * 99
 
-            if right_time > end_time:
-                right_time = end_time
-                is_last_fetch = True
+                if right_time > end_time:
+                    right_time = end_time
+                    is_last_fetch = True
+            
+            except IndexError as e:                
+                time.sleep(0.25)
+                start_time = start_time + timedelta(days=self.search_oldest if self.search_oldest else 1)
+                left_time = None
+                logger.info(f"Failed to fetch data, start stime is too far in history. \n"
+                            f"                               >>>  Searching, please wait. <<<\n"
+                            f"Searching for oldest viable historical data, next start time attempt: {start_time}")
+                continue
 
             source = self.fetch_ohlcv(bin_size=bin_size, start_time=left_time, end_time=right_time)       
+
+            if search_left and not os.path.exists(file):
+                time.sleep(0.35)                
+                logger.info(f"Searching for older historical data. \n"
+                            f"                               >>>  Searching, please wait. <<<")                
+                start_time = start_time - timedelta(days=self.search_oldest)
+                left_time = None
+                
+                if len(source) == 0:
+                    search_left = False
+                continue
             
             # if(data.shape[0]):
             #     logger.info(f"Last: {data.iloc[-1].name} Left: {left_time} Start: {source.iloc[0].name} Right: {right_time} End: {source.iloc[-1].name}")         
@@ -442,8 +455,8 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
                 color = v['color']
                 plt.plot(self.df_ohlcv.index, self.df_ohlcv[k], color)
         plt.ylabel("Price(USD)")
-        ymin = min(self.df_ohlcv["low"]) - 0.5
-        ymax = max(self.df_ohlcv["high"]) + 0.5
+        ymin = min(self.df_ohlcv["low"]) - 0.05
+        ymax = max(self.df_ohlcv["high"]) + 0.05
         plt.vlines(self.buy_signals, ymin, ymax, "blue", linestyles='dashed', linewidth=1)
         plt.vlines(self.sell_signals, ymin, ymax, "red", linestyles='dashed', linewidth=1)
         plt.vlines(self.close_signals, ymin, ymax, "green", linestyles='dashed', linewidth=1)

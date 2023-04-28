@@ -22,6 +22,7 @@ class BotFactory():
             bot.test_net  = args.demo
             bot.back_test = args.test
             bot.stub_test = args.stub
+            bot.spot = args.spot
             bot.hyperopt  = args.hyperopt
             bot.account = args.account
             bot.exchange_arg = args.exchange

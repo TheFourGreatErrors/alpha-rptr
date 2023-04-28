@@ -10,8 +10,11 @@ import numpy
 from hyperopt import hp
 
 from src import logger, notify
-from src.indicators import highest, lowest, med_price, avg_price, typ_price, atr, MAX, sma, bbands, macd, adx, sar, cci, rsi, crossover, crossunder, \
-    last, rci, double_ema, ema, triple_ema, wma, ssma, hull, supertrend, rsx, donchian
+from src.indicators import (highest, lowest, med_price, avg_price, typ_price, 
+                            atr, MAX, sma, bbands, macd, adx, sar, sarext, 
+                            cci, rsi, crossover, crossunder, last, rci, 
+                            double_ema, ema, triple_ema, wma, ssma, hull, 
+                            supertrend, rsx, donchian)
 from src.exchange.bitmex.bitmex import BitMex
 from src.exchange.binance_futures.binance_futures import BinanceFutures
 from src.exchange.ftx.ftx import Ftx

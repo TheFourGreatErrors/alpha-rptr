@@ -13,10 +13,11 @@ from bravado.exception import HTTPNotFound
 from pytz import UTC
 
 from src import logger, bin_size_converter, allowed_range, allowed_range_minute_granularity, to_data_frame, \
-    resample, find_timeframe_string, delta, FatalError, notify, ord_suffix, RepeatedTimer
+    resample, find_timeframe_string, delta, FatalError, notify, ord_suffix, RepeatedTimer, sync_obj_with_config
 from src import retry_ftx as retry
 from src.exchange.ftx.ftx_api import FtxClient
 from src.config import config as conf
+from src.exchange_config import exchange_config
 from src.exchange.ftx.ftx_websocket import FtxWs
 
 
@@ -33,8 +34,11 @@ class Ftx:
     order_update_log = True  
     # OHLCV length
     ohlcv_len = 100    
-    # Call strategy function on start, this can be useful when you dont want to wait for the candle to close to trigger the strategy function
-    # this also can be problematic for certain operations like sending orders(or duplicates of orders that were already sent) calculated based on closed candle data that are no longer relevant etc.    
+    # Call the strategy function on start. This can be useful if you don't want to wait for the candle to close
+    # to trigger the strategy function. However, this can also be problematic for certain operations such as
+    # sending orders or duplicates of orders that have already been sent, which were calculated based on closed
+    # candle data that is no longer relevant. Be aware of these potential issues and make sure to handle them
+    # appropriately in your strategy implementation.
     call_strat_on_start = False
 
     def __init__(self, account, pair, demo=False, threading=True):
@@ -103,7 +107,9 @@ class Ftx:
                         'profit_short_callback': None,
                         'stop_long_callback': None,
                         'stop_short_callback': None
-                        }         
+                        }     
+        # Is SLTP active
+        self.is_sltp_active = False    
          # Profit, Loss and Trail Offset
         self.exit_order = {
                         'profit': 0, 
@@ -113,6 +119,8 @@ class Ftx:
                         'loss_callback': None,
                         'trail_callbak': None
                         }
+        # Is exit order active
+        self.is_exit_order_active = False
         # Trailing Stop
         self.trail_price = 0   
         # Order callbacks
@@ -123,8 +131,10 @@ class Ftx:
         self.best_ask_price = None     
         # Warmup long and short entry lists for tp_next_candle option for sltp()
         self.isLongEntry = [False, False]
-        self.isShortEntry = [False,False]        
-    
+        self.isShortEntry = [False,False] 
+
+        sync_obj_with_config(exchange_config['ftx'], Ftx, self)
+
     def __init_client(self):
         """
         initialization of client
@@ -530,20 +540,17 @@ class Ftx:
         if cancel_all:
             self.cancel_all()   
 
-        if long and pos_size < 0:
-            ord_qty = qty + abs(pos_size)
-        elif not long and pos_size > 0:
-            ord_qty = qty + abs(pos_size)
+        if (long and pos_size < 0) or (not long and pos_size > 0):
+            ord_qty = qty + abs(pos_size)        
         else:
             ord_qty = qty  
         
-        if long and (pos_size + qty > pyramiding*qty):
-            ord_qty = (pyramiding*qty) - abs(pos_size)
-        if not long and (pos_size - qty < -(pyramiding*qty)):
-            ord_qty = (pyramiding*qty) - abs(pos_size)
+        if (long and pos_size + qty > pyramiding*qty) or (not long and pos_size - qty < -pyramiding*qty):
+            ord_qty = pyramiding*qty - abs(pos_size)
+     
         # make sure it doesnt spam small entries, which in most cases would trigger risk management orders evaluation, you can make this less than 2% if needed  
-        if ord_qty < (((pyramiding*qty) / 100) * 2):        
-            return
+        if ord_qty < ((pyramiding*qty) / 100) * 2:
+            return       
         
         ord_qty = round(ord_qty, round_decimals if round_decimals != None else self.asset_rounding)
         
@@ -574,7 +581,7 @@ class Ftx:
             return
         
         side = "buy" if long else "sell"
-        ord_qty = round(qty, round_decimals if round_decimals != None else self.asset_rounding)        
+        ord_qty = abs(round(qty, round_decimals if round_decimals != None else self.asset_rounding))        
 
         if allow_amend:
             order = self.get_open_order(id)
@@ -646,10 +653,11 @@ class Ftx:
 
     def exit(self, profit=0, loss=0, trail_offset=0, profit_callback=None, loss_callback=None, trail_callback=None):
         """
-        profit taking and stop loss and trailing, if both stop loss and trailing offset are set trailing_offset takes precedence
-        :param profit: Profit (specified in ticks)
-        :param loss: Stop loss (specified in ticks)
-        :param trail_offset: Trailing stop price (specified in ticks)
+        profit taking and stop loss and trailing, 
+        if both stop loss and trailing offset are set trailing_offset takes precedence
+        :param profit: Profit
+        :param loss: Stop loss
+        :param trail_offset: Trailing stop price
         """
         self.exit_order = {
                             'profit': profit, 
@@ -659,6 +667,9 @@ class Ftx:
                             'loss_callback': loss_callback,
                             'trail_callback': trail_callback
                             }
+        self.is_exit_order_active = self.exit_order['profit'] > 0 \
+                                    or self.exit_order['loss'] > 0 \
+                                    or self.exit_order['trail_offset'] >  0     
 
     def sltp(self, profit_long=0, profit_short=0, stop_long=0, stop_short=0, eval_tp_next_candle=False, use_perc=True, round_decimals=None,
                  profit_long_callback=None, profit_short_callback=None, stop_long_callback=None, stop_short_callback=None):
@@ -682,6 +693,11 @@ class Ftx:
                             'stop_long_callback': stop_long_callback,
                             'stop_short_callback': stop_short_callback
                             }        
+        self.is_sltp_active = self.sltp_values['profit_long'] > 0 \
+                                or self.sltp_values['profit_short'] > 0 \
+                                or self.sltp_values['stop_long'] >  0 \
+                                or self.sltp_values['stop_short'] > 0    
+         
         if self.quote_rounding == None and round_decimals != None:
             self.quote_rounding = round_decimals
 
@@ -877,20 +893,15 @@ class Ftx:
 
     def security(self, bin_size, data=None):
         """
-        Recalculate and obtain different time frame data
+        Recalculate and obtain data of a timeframe higher than the current chart timeframe without looking into the furute that would cause undesired effects.
         """     
         if data == None:   
-            timeframe_list = []
-
-            for t in self.bin_size:               
-                    # append minute count of a timeframe for sorting when sorting is needed
-                    timeframe_list.append(allowed_range_minute_granularity[t][3]) 
+            timeframe_list = [allowed_range_minute_granularity[t][3] for t in self.bin_size] # minute count of a timeframe for sorting when sorting is needed 
             timeframe_list.sort(reverse=True)
             t = find_timeframe_string(timeframe_list[-1])     
             data = self.timeframe_data[t]      
-            return resample(data, bin_size)[:-1]   
-        else:        
-            return resample(data, bin_size)[:-1]    
+            
+        return resample(data, bin_size)[:-1]    
 
     def __update_ohlcv(self, action=None, new_data=None):
         """
@@ -927,30 +938,27 @@ class Ftx:
 
         if self.timeframe_data is None:
             self.timeframe_data = {}
-            for t in self.bin_size:
-                bin_size = t
+            for t in self.bin_size:              
                 end_time = datetime.now(timezone.utc)
-                start_time = end_time - self.ohlcv_len * delta(bin_size)
-                self.timeframe_data[bin_size] = self.fetch_ohlcv(bin_size, start_time, end_time)
-                self.timeframe_info[bin_size] = {
+                start_time = end_time - self.ohlcv_len * delta(t)
+                self.timeframe_data[t] = self.fetch_ohlcv(t, start_time, end_time)
+                self.timeframe_info[t] = {
                                                     "allowed_range": allowed_range_minute_granularity[t][0] if self.minute_granularity else allowed_range[t][0], 
                                                     "ohlcv": self.timeframe_data[t][:-1], # Dataframe with closed candles                                                   
-                                                    "last_action_time": None,#self.timeframe_data[bin_size].iloc[-1].name, # Last strategy execution time
-                                                    "last_candle": self.timeframe_data[bin_size].iloc[-2].values,  # Store last complete candle
-                                                    "partial_candle": self.timeframe_data[bin_size].iloc[-1].values  # Store incomplete candle
+                                                    "last_action_time": None,#self.timeframe_data[t].iloc[-1].name, # Last strategy execution time
+                                                    "last_candle": self.timeframe_data[t].iloc[-2].values,  # Store last complete candle
+                                                    "partial_candle": self.timeframe_data[t].iloc[-1].values  # Store incomplete candle
                                                 }
                 # The last candle is an incomplete candle with timestamp in future                
-                if self.timeframe_data[bin_size].iloc[-1].name > end_time:
+                if self.timeframe_data[t].iloc[-1].name > end_time:
                     last_candle = self.timeframe_data[t].iloc[-1].values # Store last candle
-                    self.timeframe_data[bin_size] = self.timeframe_data[t][:-1] # Exclude last candle
-                    self.timeframe_data[bin_size].loc[end_time.replace(microsecond=0)] = last_candle #set last candle to end_time   
+                    self.timeframe_data[t] = self.timeframe_data[t][:-1] # Exclude last candle
+                    self.timeframe_data[t].loc[end_time.replace(microsecond=0)] = last_candle #set last candle to end_time   
 
-        timeframes_to_update = []
-
-        for t in self.timeframe_info:            
-            if self.timeframe_info[t]["allowed_range"] == action:
-                # append minute count of a timeframe when sorting when sorting is need otherwise just add a string timeframe
-                timeframes_to_update.append(allowed_range_minute_granularity[t][3]) if self.timeframes_sorted != None else timeframes_to_update.append(t)  
+        # Timeframes to be updated
+        timeframes_to_update = [allowed_range_minute_granularity[t][3] if self.timeframes_sorted != None else 
+                                t for t in self.timeframe_info if self.timeframe_info[t]['allowed_range'] == action]        
+        #logger.info(f"timeframes to update: {timeframes_to_update}")
 
         # Sorting timeframes that will be updated
         if self.timeframes_sorted == True:
@@ -1054,7 +1062,7 @@ class Ftx:
         """
         self.last_fill = fills
         logger.info(f"last fill: {self.last_fill}")        
-        self.eval_sltp()    
+        #self.eval_sltp()    
         pos_size = self.get_position_size(force_api_call=True)
         logger.info(f"position size: {pos_size}")        
 
@@ -1071,9 +1079,11 @@ class Ftx:
         # Evaluation of profit and loss
        
         logger.info(f"on update order:{self.order_update}")
-     
-        self.eval_sltp()
-        self.eval_exit()
+
+        if self.is_sltp_active:
+            self.eval_sltp()
+        if self.is_exit_order_active:
+            self.eval_exit()
 
     def on_update(self, bin_size, strategy):
         """
@@ -1103,8 +1113,7 @@ class Ftx:
             self.ws.bind('ticker', self.__on_update_ticker)          
             self.ws.bind('orders', self.__on_update_order)
             self.ws.bind('fills', self.__on_update_fills)            
-            # self.ob = OrderBook(self.ws)
-        logger.info(f" on_update(self, bin_size, strategy)")        
+            # self.ob = OrderBook(self.ws)       
 
     def stop(self):
         """
