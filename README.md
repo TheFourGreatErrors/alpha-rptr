@@ -330,23 +330,6 @@ class Sample(Bot):
 
 ### Orders
 
-| Endpoint                                | Method                               |
-| --------------------------------------- | ------------------------------------ |
-| Place Active Order                      | `place_active_order()`               |
-| Get Active Order                        | `get_active_order()`                 |
-| Cancel Active Order                     | `cancel_active_order()`              |
-| Cancel All Active Orders                | `cancel_all_active_orders()`         |
-| Replace Active Order                    | `replace_active_order()`             |
-| Query Active Order                      | `query_active_order()`               |
-| Batch Place Active Orders (USDC)        | `batch_place_active_orders()`         |
-| Fast Cancel Active Order (Spot)         | `fast_cancel_active_order()`         |
-| Batch Cancel Active Order (Spot, USDC)  | `batch_cancel_active_order()`        |
-| Batch Fast Cancel Active Order (Spot)   | `batch_fast_cancel_active_order()`   |
-| Batch Cancel Active Order By IDs (Spot) | `batch_cancel_active_order_by_ids()` |
-| Batch Replace Active Orders (USDC)      | `batch_replace_active_orders()`      |
-
-
-
 | Method | Description | Exchange | Notes |
 | -------- | ----------- | -------- | ----- |
 | `order()` |  Place an order | All | The most flexible/least restrictive. |
