@@ -73,7 +73,7 @@ $ git clone https://github.com/TheFourGreatErrors/alpha-rptr.git
 $ cd alpha-rptr/
 $ pip install -r requirements.txt
 ```
-**Disclaimer:** We are using a Python wrapper for the `TA-Lib` library, which provides a wide range of technical analysis functions for financial markets. It is important to note that the underlying TA-Lib library is written in C language. Therefore, in order to install and use this library, it needs to be properly compiled on your system. The Python wrapper allows these functions to be used from within Python code, but the installation process may require some technical knowledge. It is important to ensure that the C library is properly compiled prior to installation in order to avoid errors and ensure that the library functions correctly.
+**Note:** We are using a Python wrapper for the `TA-Lib` library, which provides a wide range of technical analysis functions for financial markets. It is important to note that the underlying TA-Lib library is written in C language. Therefore, in order to install and use this library, it needs to be properly compiled on your system. The Python wrapper allows these functions to be used from within Python code, but the installation process may require some technical knowledge. It is important to ensure that the C library is properly compiled prior to installation in order to avoid errors and ensure that the library functions correctly.
 
 ### 2. Setting keys 
 
