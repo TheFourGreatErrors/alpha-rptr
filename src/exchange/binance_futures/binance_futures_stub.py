@@ -114,7 +114,7 @@ class BinanceFuturesStub(BinanceFutures):
         """
         self.open_orders = []
 
-    def close_all(self, callback=None):
+    def close_all(self, callback=None, chaser=True):
         """
         close all current orders 
         """
@@ -125,7 +125,7 @@ class BinanceFuturesStub(BinanceFutures):
         ord_qty = abs(pos_size)
         self.commit("Close", long, ord_qty, self.get_market_price(), True, False, callback)
     
-    def close_all_at_price(self, price, callback=None):
+    def close_all_at_price(self, price, callback=None, chaser=True):
         """
         close the current position at price,
         for backtesting purposes its important to have a function that closes at given price
