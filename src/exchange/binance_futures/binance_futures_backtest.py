@@ -117,16 +117,16 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
         else:
             self.sell_signals.append(self.index)
 
-    def close_all(self, callback=None):
+    def close_all(self, callback=None, chaser=True):
         """
         Close all positions
         """
         if self.get_position_size() == 0:
             return 
-        BinanceFuturesStub.close_all(self, callback)
+        BinanceFuturesStub.close_all(self, callback, chaser=chaser)
         self.close_signals.append(self.index)
     
-    def close_all_at_price(self, price, callback=None):
+    def close_all_at_price(self, price, callback=None, chaser=True):
         """
         close the current position at price,
         for backtesting purposes its important to have a function that closes at given price
@@ -134,7 +134,7 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
         """
         if self.get_position_size() == 0:
             return 
-        BinanceFuturesStub.close_all_at_price(self, price, callback)
+        BinanceFuturesStub.close_all_at_price(self, price, callback, chaser=chaser)
         self.close_signals.append(self.index)        
 
     def __crawler_run(self):
