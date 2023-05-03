@@ -73,7 +73,7 @@ class OCC(Bot):
             low_val = val_open[-1]
 
         sma_val = sma(close, sma_len)
-        logger.info("lagging log")
+        
         self.exchange.plot('val_open', val_open[-1], 'b')
         self.exchange.plot('val_close', val_close[-1], 'r')
 
