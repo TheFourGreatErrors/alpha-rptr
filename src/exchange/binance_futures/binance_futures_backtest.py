@@ -117,7 +117,7 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
         else:
             self.sell_signals.append(self.index)
 
-    def close_all(self, callback=None, chaser=True):
+    def close_all(self, callback=None, chaser=False):
         """
         Close all positions
         """
@@ -126,7 +126,7 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
         BinanceFuturesStub.close_all(self, callback, chaser=chaser)
         self.close_signals.append(self.index)
     
-    def close_all_at_price(self, price, callback=None, chaser=True):
+    def close_all_at_price(self, price, callback=None, chaser=False):
         """
         close the current position at price,
         for backtesting purposes its important to have a function that closes at given price

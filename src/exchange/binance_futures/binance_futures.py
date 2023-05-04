@@ -641,7 +641,8 @@ class BinanceFutures:
         ord_qty = round(ord_qty, round_decimals if round_decimals != None else self.asset_rounding)
 
         self.order(id, long, ord_qty, limit=limit, stop=stop, post_only=post_only, reduce_only=reduce_only,
-                    trailing_stop=trailing_stop, activationPrice=activationPrice, when=when, callback=callback, workingType=workingType, split=split, interval=interval, chaser=chaser, retry_maker=retry_maker)
+                    trailing_stop=trailing_stop, activationPrice=activationPrice, when=when, callback=callback, 
+                    workingType=workingType, split=split, interval=interval, chaser=chaser, retry_maker=retry_maker)
 
     def entry_pyramiding(
         self,
@@ -725,7 +726,8 @@ class BinanceFutures:
         ord_qty = round(ord_qty, round_decimals if round_decimals != None else self.asset_rounding)
 
         self.order(id, long, ord_qty, limit=limit, stop=stop, post_only=post_only, reduce_only=reduce_only,
-                    trailing_stop=trailing_stop, activationPrice=activationPrice, when=when, callback=callback, workingType=workingType, split=split, interval=interval, chaser=chaser, retry_maker=retry_maker)
+                    trailing_stop=trailing_stop, activationPrice=activationPrice, when=when, callback=callback, 
+                    workingType=workingType, split=split, interval=interval, chaser=chaser, retry_maker=retry_maker)
 
     def order(
         self,
@@ -813,12 +815,16 @@ class BinanceFutures:
                         sub_ord_callback = type(self)(self.count+1)
                     
                     # Override stop for subsequent sub orders
-                    exchange.order(sub_ord_id, long, s_ord_qty, limit=limit, stop=0, post_only=post_only, reduce_only=reduce_only,
-                                    trailing_stop=trailing_stop, activationPrice=activationPrice, workingType=workingType, callback=sub_ord_callback)
+                    exchange.order(sub_ord_id, long, s_ord_qty, limit=limit, stop=0, 
+                                   post_only=post_only, reduce_only=reduce_only,
+                                    trailing_stop=trailing_stop, activationPrice=activationPrice, 
+                                    workingType=workingType, callback=sub_ord_callback)
 
             sub_ord_id = f"{id}_sub1"
-            self.order(sub_ord_id, long, sub_ord_qty, limit=limit, stop=stop, post_only=post_only, reduce_only=reduce_only,
-                        trailing_stop=trailing_stop, activationPrice=activationPrice, workingType=workingType, callback=split_order(1))
+            self.order(sub_ord_id, long, sub_ord_qty, limit=limit, stop=stop, 
+                       post_only=post_only, reduce_only=reduce_only,
+                        trailing_stop=trailing_stop, activationPrice=activationPrice, 
+                        workingType=workingType, callback=split_order(1))
             return
 
         if chaser:
