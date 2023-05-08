@@ -314,6 +314,8 @@ binance_errors_to_actions = {
     1021: "retry",
     # APIError(code=-1022): Signature for this request is not valid
     1022: "retry",
+    # APIError(code=-5028): Timestamp for this request is outside of the ME recvWindow.
+    5028: "retry",
     # APIError(code=-2021): Stop Order would immediately trigger.
     2021: "return",
     # APIError(code=-5021): Due to the order could not be filled immediately, the FOK order has been rejected. The order will not be recorded in the order history.
