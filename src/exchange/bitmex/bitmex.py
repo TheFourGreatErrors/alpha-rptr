@@ -120,6 +120,10 @@ class BitMex:
         self.trail_price = 0
         # Order callbacks
         self.callbacks = {}
+        # Best bid price
+        self.best_bid_price = None
+        # Best ask price
+        self.best_ask_price = None 
         # Last strategy execution time
         self.last_action_time = None
 
@@ -168,6 +172,10 @@ class BitMex:
         self.market_price = self.get_market_price()
         # Margin
         self.margin = self.get_margin()
+        # Best bid price
+        self.best_bid_price = self.ob.best_bid_price
+        # Best ask price
+        self.best_ask_price = self.ob.best_ask_price
 
     def now_time(self):
         """

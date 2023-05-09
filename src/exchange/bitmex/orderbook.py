@@ -51,6 +51,8 @@ class OrderBook:
 
     def get_prices(self):
         return self.best_bid_price, self.best_ask_price
+    
+    
 if __name__ == '__main__':
     ws = BitMexWs(account=BitMexWs.account, pair=BitMexWs.pair)
     ob = OrderBook(ws)
