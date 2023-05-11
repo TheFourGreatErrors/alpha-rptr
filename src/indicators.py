@@ -541,6 +541,14 @@ def lyapunov_exponent(data, dt):
     return average_lyapunov
 
 
+def autocorrelation(data):
+    n = len(data)
+    mean = np.mean(data)
+    autocorr = np.correlate(data - mean, data - mean, mode='full')
+    autocorr /= autocorr[n - 1]
+    return autocorr[n - 1:]
+
+
 def vwap(high, low, volume):
     average_price = volume * (high + low) / 2
     return average_price.sum() / volume.sum()
