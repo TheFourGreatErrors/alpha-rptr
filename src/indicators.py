@@ -1,5 +1,7 @@
 # coding: UTF-8
 
+from collections.abc import Iterable
+
 import numpy as np
 from numpy import nan as npNaN
 import pandas as pd
@@ -486,6 +488,57 @@ def hurst_exponent(data):
     avg_rs = np.mean(rs[:, 0] / rs[:, 1])
     
     return np.log2(avg_rs)
+
+
+def lyapunov_exponent(data, dt):  
+    """
+    Calculate the Lyapunov exponent for a given time series data.
+    Parameters:
+        data: Time series data of the dynamical system.
+        dt (float): Time step between consecutive state vectors.
+
+    Returns: float: The Lyapunov exponent.
+    """
+    data = data if isinstance(data[0], Iterable) else [data]
+    #n = np.shape(data)[0]  # Length of data
+    #d = np.shape(data)[1] if len(np.shape(data)) > 1 else 1  # Dimensionality of data 
+    n = len(data)
+    d = len(data[0])   
+    epsilon = 1e-8  # small constant to avoid division by zero
+
+    # Initialize the Lyapunov sum
+    sum_lyapunov = 0.0
+
+    for i in range(n):
+        x = data[i]
+
+        # Initialize the tangent vector
+        v = np.zeros(d)
+        v[0] = 1.0
+
+        # Integrate the tangent vector
+        for j in range(d):
+            x_forward = data[(i + j) % n]
+            x_backward = data[(i - j) % n]
+
+            forward_difference = x_forward - x
+            backward_difference = x - x_backward
+
+            norm_forward = np.linalg.norm(forward_difference) + epsilon
+            norm_backward = np.linalg.norm(backward_difference) + epsilon
+
+            v += np.log(norm_forward / norm_backward) * backward_difference / norm_backward
+
+            # Orthogonalize the tangent vector
+            v -= np.dot(v, x) * x / np.dot(x, x)
+
+        # Calculate the local Lyapunov exponent
+        sum_lyapunov += np.log(np.linalg.norm(v) + epsilon) / dt
+
+    # Calculate the average Lyapunov exponent
+    average_lyapunov = sum_lyapunov / n
+
+    return average_lyapunov
 
 
 def vwap(high, low, volume):
