@@ -469,6 +469,25 @@ def donchian(high, low, lower_length=None, upper_length=None, offset=None, **kwa
     return dcdf
 
 
+def hurst_exponent(data):
+    """Calculate the Hurst exponent using the R/S method.    
+    Args: data (numpy.ndarray or list): The input time series data.    
+    Returns: float: The calculated Hurst exponent.
+    """
+    data = np.asarray(data)
+    n = len(data)
+    rs = np.zeros((len(data)//2, 2))
+    
+    for i in range(1, n//2 + 1):
+        cumsum = np.cumsum(data - np.mean(data))
+        rs[i-1, 0] = np.max(cumsum[:i]) - np.min(cumsum[:i])
+        rs[i-1, 1] = np.std(data)
+    
+    avg_rs = np.mean(rs[:, 0] / rs[:, 1])
+    
+    return np.log2(avg_rs)
+
+
 def vwap(high, low, volume):
     average_price = volume * (high + low) / 2
     return average_price.sum() / volume.sum()
