@@ -632,6 +632,33 @@ def brownian_bridge(timesteps, dt, initial_value, final_value):
     return path    
 
 
+def bessel_process(timesteps, dt, initial_value):
+    """Simulates a Bessel process path.
+    Args:
+        timesteps (int): Number of time steps to simulate.
+        dt (float): Time step size.
+        initial_value (float): Initial value of the process.
+
+    Returns:
+        numpy.ndarray: Array of simulated values.
+    """
+    num_dimensions = 1  # We simulate a 1-dimensional process
+
+    # Calculate the number of increments
+    num_increments = int(timesteps / dt)
+
+    # Generate random normal increments
+    increments = np.random.normal(loc=0, scale=np.sqrt(dt), size=(num_increments, num_dimensions))
+
+    # Calculate the cumulative sum of the increments
+    path = np.cumsum(increments, axis=0)
+
+    # Apply the Bessel process transformation
+    path = np.sqrt(initial_value**2 + 2 * np.cumsum(path, axis=0))
+
+    return path
+
+
 def is_under(src, value, p):
     for i in range(p, -1, -1):
         if src[-i - 1] > value:
