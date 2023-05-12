@@ -659,6 +659,34 @@ def bessel_process(timesteps, dt, initial_value):
     return path
 
 
+def ornstein_uhlenbeck_process(timesteps, dt, mean_reversion, volatility, initial_value):
+    """Simulates an Ornstein-Uhlenbeck process.
+    Args:
+        timesteps (int): Number of time steps to simulate.
+        dt (float): Time step size.
+        mean_reversion (float): Mean reversion rate.
+        volatility (float): Volatility parameter.
+        initial_value (float): Initial value of the process.
+    Returns:
+        numpy.ndarray: Array of simulated values.
+    """
+    num_dimensions = 1  # We simulate a 1-dimensional process
+
+    # Calculate the number of increments
+    num_increments = int(timesteps / dt)
+
+    # Generate random normal increments
+    increments = np.random.normal(loc=0, scale=np.sqrt(dt), size=(num_increments, num_dimensions))
+
+    # Calculate the cumulative sum of the increments
+    path = np.cumsum(increments, axis=0)
+
+    # Apply the Ornstein-Uhlenbeck process transformation
+    path = initial_value + mean_reversion * path + volatility * np.sqrt(dt) * np.random.normal(loc=0, scale=1, size=(num_increments, num_dimensions))
+
+    return path
+
+
 def is_under(src, value, p):
     for i in range(p, -1, -1):
         if src[-i - 1] > value:
