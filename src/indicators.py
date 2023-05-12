@@ -1,5 +1,6 @@
 # coding: UTF-8
 
+import math
 from collections.abc import Iterable
 
 import numpy as np
@@ -473,8 +474,10 @@ def donchian(high, low, lower_length=None, upper_length=None, offset=None, **kwa
 
 def hurst_exponent(data):
     """Calculate the Hurst exponent using the R/S method.    
-    Args: data (numpy.ndarray or list): The input time series data.    
-    Returns: float: The calculated Hurst exponent.
+    Args: 
+        data (numpy.ndarray or list): The input time series data.    
+    Returns: 
+        float: The calculated Hurst exponent.
     """
     data = np.asarray(data)
     n = len(data)
@@ -496,8 +499,8 @@ def lyapunov_exponent(data, dt):
     Parameters:
         data: Time series data of the dynamical system.
         dt (float): Time step between consecutive state vectors.
-
-    Returns: float: The Lyapunov exponent.
+    Returns: 
+        float: The Lyapunov exponent.
     """
     data = data if isinstance(data[0], Iterable) else [data]
     #n = np.shape(data)[0]  # Length of data
@@ -552,6 +555,21 @@ def autocorrelation(data):
 def vwap(high, low, volume):
     average_price = volume * (high + low) / 2
     return average_price.sum() / volume.sum()
+
+
+def shannon_entropy(probabilities):
+    """
+    Calculates the Shannon entropy of a probability distribution.
+    Args: 
+        probabilities (list): List of probabilities.
+    Returns: 
+        float: Shannon entropy value.
+    """
+    entropy = 0
+    for probability in probabilities:
+        if probability > 0:
+            entropy -= probability * math.log2(probability)
+    return entropy
 
 
 def is_under(src, value, p):

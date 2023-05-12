@@ -1,5 +1,6 @@
 matplotlib
 numpy==1.19.5
+scipy==1.4.1
 ta-lib==0.4.18
 pandas==1.0.3
 bravado
