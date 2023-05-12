@@ -572,6 +572,38 @@ def shannon_entropy(probabilities):
     return entropy
 
 
+def brownian_motion(timesteps, dt, initial_position=0, drift=0, volatility=1):
+    """Simulates a Brownian motion path.
+    Args:
+        timesteps (int): Number of time steps to simulate.
+        dt (float): Time step size.
+        initial_position (float, optional): Initial position of the Brownian motion. Defaults to 0.
+        drift (float, optional): Drift parameter. Defaults to 0.
+        volatility (float, optional): Volatility parameter. Defaults to 1.
+
+    Returns:
+        numpy.ndarray: Array of simulated positions.
+    """
+    num_dimensions = 1  # We simulate a 1-dimensional Brownian motion
+
+    # Calculate the number of increments
+    num_increments = int(timesteps / dt)
+
+    # Generate random normal increments
+    increments = np.random.normal(loc=0, scale=np.sqrt(dt), size=(num_increments, num_dimensions))
+
+    # Calculate the cumulative sum of the increments
+    path = np.cumsum(increments, axis=0)
+
+    # Add drift and volatility
+    path = drift * dt + volatility * path
+
+    # Add initial position
+    path = initial_position + path
+
+    return path
+
+
 def is_under(src, value, p):
     for i in range(p, -1, -1):
         if src[-i - 1] > value:
