@@ -604,6 +604,34 @@ def brownian_motion(timesteps, dt, initial_position=0, drift=0, volatility=1):
     return path
 
 
+def brownian_bridge(timesteps, dt, initial_value, final_value):
+    """Simulates a Brownian bridge path.
+    Args:
+        timesteps (int): Number of time steps to simulate.
+        dt (float): Time step size.
+        initial_value (float): Initial value of the bridge.
+        final_value (float): Final value of the bridge.
+
+    Returns:
+        numpy.ndarray: Array of simulated values.
+    """
+    num_dimensions = 1  # We simulate a 1-dimensional process
+
+    # Calculate the number of increments
+    num_increments = int(timesteps / dt)
+
+    # Generate random normal increments
+    increments = np.random.normal(loc=0, scale=np.sqrt(dt), size=(num_increments, num_dimensions))
+
+    # Calculate the cumulative sum of the increments
+    path = np.cumsum(increments, axis=0)
+
+    # Scale the path to match the initial and final values
+    path = initial_value + path * ((final_value - initial_value) / path[-1])
+
+    return path    
+
+
 def is_under(src, value, p):
     for i in range(p, -1, -1):
         if src[-i - 1] > value:
