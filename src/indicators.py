@@ -580,7 +580,6 @@ def brownian_motion(timesteps, dt, initial_position=0, drift=0, volatility=1):
         initial_position (float, optional): Initial position of the Brownian motion. Defaults to 0.
         drift (float, optional): Drift parameter. Defaults to 0.
         volatility (float, optional): Volatility parameter. Defaults to 1.
-
     Returns:
         numpy.ndarray: Array of simulated positions.
     """
@@ -611,7 +610,6 @@ def brownian_bridge(timesteps, dt, initial_value, final_value):
         dt (float): Time step size.
         initial_value (float): Initial value of the bridge.
         final_value (float): Final value of the bridge.
-
     Returns:
         numpy.ndarray: Array of simulated values.
     """
@@ -638,7 +636,6 @@ def bessel_process(timesteps, dt, initial_value):
         timesteps (int): Number of time steps to simulate.
         dt (float): Time step size.
         initial_value (float): Initial value of the process.
-
     Returns:
         numpy.ndarray: Array of simulated values.
     """

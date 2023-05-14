@@ -45,7 +45,7 @@ Note: Although TradingView Strategy is not currently supported in this implement
 
 ## Requirements
 
-- Python: 3.6.5
+- Python: 3.8
 
 ## How to install
 

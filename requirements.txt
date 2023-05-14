@@ -1,8 +1,8 @@
-matplotlib
-numpy==1.19.5
+matplotlib==3.7.0
+numpy==1.20.3
 scipy==1.4.1
 ta-lib==0.4.18
-pandas==1.0.3
+pandas==1.5.3
 bravado
 websocket-client==0.52.0
 hyperopt
