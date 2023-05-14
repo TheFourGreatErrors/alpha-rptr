@@ -756,6 +756,51 @@ def heston_model(timesteps, dt, initial_price, mean_reversion, long_term_volatil
     return stock_path
 
 
+def jump_diffusion_model(timesteps, dt, initial_price, mean_return, volatility, jump_intensity, jump_mean, jump_std):
+    """Simulates a stock price path using the Jump Diffusion model.
+    Args:
+        timesteps (int): Number of time steps to simulate.
+        dt (float): Time step size.
+        initial_price (float): Initial price of the stock.
+        mean_return (float): Mean return rate.
+        volatility (float): Volatility of the stock.
+        jump_intensity (float): Intensity of the jumps.
+        jump_mean (float): Mean of the jump sizes.
+        jump_std (float): Standard deviation of the jump sizes.
+    Returns:
+        numpy.ndarray: Array of simulated stock prices.
+    """
+    num_dimensions = 1  # We simulate a 1-dimensional process
+
+    # Calculate the number of increments
+    num_increments = int(timesteps / dt)
+
+    # Generate random normal increments
+    increments = np.random.normal(loc=0, scale=np.sqrt(dt), size=(num_increments, num_dimensions))
+
+    # Generate Poisson-distributed jump occurrences
+    jump_occurrences = np.random.poisson(lam=jump_intensity * dt, size=num_increments)
+
+    # Initialize array to store the paths
+    path = np.zeros(num_increments + 1)
+    path[0] = initial_price
+
+    for i in range(num_increments):
+        # Calculate the drift component
+        drift = mean_return * dt
+
+        # Calculate the diffusion component
+        diffusion = volatility * increments[i]
+
+        # Calculate the jump component
+        jump = jump_occurrences[i] * np.random.normal(loc=jump_mean, scale=jump_std)
+
+        # Calculate the stock price at time step i+1
+        path[i+1] = path[i] + drift + diffusion + jump
+
+    return path
+
+
 def is_under(src, value, p):
     for i in range(p, -1, -1):
         if src[-i - 1] > value:
