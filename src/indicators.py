@@ -713,6 +713,49 @@ def cir_process(timesteps, dt, mean_reversion, volatility, long_term_mean, initi
     return path
 
 
+def heston_model(timesteps, dt, initial_price, mean_reversion, long_term_volatility, volatility_of_volatility, correlation, initial_volatility):
+    """Simulates a stock price path using the Heston model.
+    Args:
+        timesteps (int): Number of time steps to simulate.
+        dt (float): Time step size.
+        initial_price (float): Initial price of the stock.
+        mean_reversion (float): Mean reversion rate of the volatility.
+        long_term_volatility (float): Long-term volatility of the stock.
+        volatility_of_volatility (float): Volatility of the volatility.
+        correlation (float): Correlation between the stock and volatility.
+        initial_volatility (float): Initial volatility value.
+    Returns:
+        numpy.ndarray: Array of simulated stock prices.
+    """
+    num_dimensions = 2  # We simulate a 2-dimensional process (stock price and volatility)
+
+    # Calculate the number of increments
+    num_increments = int(timesteps / dt)
+
+    # Generate random normal increments
+    increments = np.random.normal(loc=0, scale=np.sqrt(dt), size=(num_increments, num_dimensions))
+
+    # Initialize arrays to store the paths
+    stock_path = np.zeros(num_increments + 1)
+    volatility_path = np.zeros(num_increments + 1)
+    stock_path[0] = initial_price
+    volatility_path[0] = initial_volatility
+
+    for i in range(num_increments):
+        # Calculate the volatility at time step i
+        volatility = volatility_path[i] + mean_reversion * (long_term_volatility - volatility_path[i]) * dt + \
+                     volatility_of_volatility * np.sqrt(volatility_path[i]) * increments[i, 1]
+
+        # Calculate the stock price at time step i+1
+        stock_path[i+1] = stock_path[i] + correlation * volatility_path[i] * increments[i, 0] + \
+                          np.sqrt(1 - correlation**2) * np.sqrt(volatility_path[i]) * increments[i, 1]
+
+        # Update the volatility path
+        volatility_path[i+1] = volatility
+
+    return stock_path
+
+
 def is_under(src, value, p):
     for i in range(p, -1, -1):
         if src[-i - 1] > value:
