@@ -563,6 +563,65 @@ def lyapunov_exponent(data, dt):
     return average_lyapunov
 
 
+def detrended_fluctuation_analysis(data, window_sizes):
+    """
+    Perform Detrended Fluctuation Analysis (DFA) on the given data.    
+    Parameters:
+        data: 1-D array or list containing the data.
+        window_sizes: List of window sizes (list of integers).    
+    Returns:
+        List of tuples (window_size, fluctuation) representing the detrended fluctuation values.
+    """
+    # Convert data to a numpy array
+    data = np.asarray(data)
+    
+    # Calculate the cumulative sum of the data
+    cumulative_sum = np.cumsum(data - np.mean(data))
+    
+    # Initialize a list to store the fluctuation values
+    fluctuation = []
+    
+    # Iterate over the window sizes
+    for window_size in window_sizes:
+        # Check if the window size is greater than the length of the data
+        if window_size > len(data):
+            continue
+        
+        # Calculate the number of windows
+        num_windows = len(data) // window_size
+        
+        # Initialize lists to store the local trends and local detrended data
+        local_trends = []
+        local_detrended_data = []
+        
+        # Iterate over the windows
+        for i in range(num_windows):
+            # Get the data points within the current window
+            window_data = cumulative_sum[i*window_size : (i+1)*window_size]
+            
+            # Fit a least-squares polynomial to the data points
+            polynomial = np.polyfit(np.arange(window_size), window_data, 1)
+            
+            # Calculate the local trend
+            local_trend = np.polyval(polynomial, np.arange(window_size))
+            local_trends.extend(local_trend)
+            
+            # Calculate the local detrended data
+            local_detrended_data.extend(window_data - local_trend)
+        
+        # Convert the local trends and local detrended data to numpy arrays
+        local_trends = np.asarray(local_trends)
+        local_detrended_data = np.asarray(local_detrended_data)
+        
+        # Calculate the root mean square of the local detrended data
+        rms = np.sqrt(np.mean(local_detrended_data**2))
+        
+        # Calculate the fluctuation as a function of the window size
+        fluctuation.append((window_size, rms))
+    
+    return fluctuation
+
+
 def psd(sig, fs):
     """
     Compute the Power Spectral Density (PSD) of a given signal.
