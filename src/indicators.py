@@ -121,6 +121,25 @@ def wma(src, length):
     return talib.WMA(src, length)
 
 
+def ewma(data, alpha):
+    """
+    Calculate Exponentially Weighted Moving Average (EWMA) using Pandas.
+    Args:
+        data (list or numpy array): Input data for calculating EWMA.
+        alpha (float): Smoothing factor for EWMA.
+    Returns:
+        list: List containing the calculated EWMA values.
+    """
+    ewma_series = pd.Series(data).ewm(alpha=alpha).mean()
+    ewma_list = ewma_series.tolist()
+    return ewma_list
+
+
+def vwap(high, low, volume):
+    average_price = volume * (high + low) / 2
+    return average_price.sum() / volume.sum()
+
+
 def ssma(src, length):
     return pd.Series(src).ewm(alpha=1.0 / length).mean().values.flatten()
 
@@ -550,11 +569,6 @@ def autocorrelation(data):
     autocorr = np.correlate(data - mean, data - mean, mode='full')
     autocorr /= autocorr[n - 1]
     return autocorr[n - 1:]
-
-
-def vwap(high, low, volume):
-    average_price = volume * (high + low) / 2
-    return average_price.sum() / volume.sum()
 
 
 def shannon_entropy(probabilities):
