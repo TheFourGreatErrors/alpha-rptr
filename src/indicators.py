@@ -827,3 +827,19 @@ def is_over(src, value, p):
         if src[-i - 1] < value:
             return False
     return True
+
+
+def sharpe_ratio(returns, risk_free_rate):
+    """
+    Calculates the Sharpe ratio given a list of returns.
+    Args:
+        returns (list or array-like): List of decimal returns.
+        risk_free_rate (float): Risk-free rate of return.
+    Returns:
+        float: Sharpe ratio.
+    """
+    returns = np.array(returns)  # Convert the list of returns to a NumPy array
+    excess_returns = returns - risk_free_rate
+    std_dev = np.std(returns)
+    sharpe_ratio = np.mean(excess_returns) / std_dev
+    return sharpe_ratio

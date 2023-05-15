@@ -12,6 +12,7 @@ from src import (logger, allowed_range,
                  allowed_range_minute_granularity, 
                  retry, delta, load_data, resample, symlink,
                 find_timeframe_string, sync_obj_with_config)
+from src.indicators import sharpe_ratio
 from src.exchange_config import exchange_config
 from src.exchange.binance_futures.binance_futures_stub import BinanceFuturesStub
 
@@ -436,6 +437,7 @@ class BinanceFuturesBackTest(BinanceFuturesStub):
         logger.info(f"PROFIT RATE         : {self.get_balance()/self.start_balance*100} %")
         logger.info(f"WIN RATE            : {0 if self.order_count == 0 else self.win_count/(self.win_count + self.lose_count)*100} %")
         logger.info(f"PROFIT FACTOR       : {self.win_profit if self.lose_loss == 0 else self.win_profit/self.lose_loss}")
+        logger.info(f"SHARPE RATIO        : {sharpe_ratio(self.balance_history, 0)}")
         logger.info(f"MAX DRAW DOWN TOTAL : {round(self.max_draw_down_session, 4)} or {round(self.max_draw_down_session_perc, 2)}%")
         logger.info(f"======================================")
 
