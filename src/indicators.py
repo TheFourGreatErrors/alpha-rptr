@@ -563,6 +563,20 @@ def lyapunov_exponent(data, dt):
     return average_lyapunov
 
 
+def psd(sig, fs):
+    """
+    Compute the Power Spectral Density (PSD) of a given signal.
+    Parameters:
+        sig (array-like): Input signal.
+        fs (float): Sampling frequency of the signal.
+    Returns:
+        f (array-like): Frequency values.
+        psd (array-like): Power Spectral Density values.
+    """
+    f, psd = scipy.welch(sig, fs=fs, nperseg=len(sig))
+    return f, psd
+
+
 def autocorrelation(data):
     n = len(data)
     mean = np.mean(data)
