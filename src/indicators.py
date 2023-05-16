@@ -88,6 +88,20 @@ def atr(high, low, close, period):
     return talib.ATR(high, low, close, period)
 
 
+def natr(high, low, close, period):
+    """
+    Calculate Normalized Average True Range (NATR) using TA-Lib.
+    Args:
+        high (list or np.ndarray): List or array of high prices.
+        low (list or np.ndarray): List or array of low prices.
+        close (list or np.ndarray): List or array of closing prices.
+        period (int): Period for NATR calculation.
+    Returns:
+        np.ndarray: Array of NATR values.
+    """    
+    return talib.NATR(high, low, close, timeperiod=period)
+
+
 def stdev(source, period):
     return pd.Series(source).rolling(period).std().values
 
