@@ -32,14 +32,15 @@ Please note that the author of this software is not liable for any losses, damag
 
 **Please note** that the implemented reference strategies are provided as examples for educational and reference purposes only. They are not intended to be used as a fully functional trading strategy for live trading without further modifications and proper testing. The strategies may not be suitable for all market conditions and may result in losses. We highly recommend that you thoroughly understand the strategy and test it extensively before using it for live trading. Always use caution and do your own research before making any trading decisions.
 
-1. Channel Breakout
+1. Supertrend strategy
 2. Parabolic SAR
 3. CandleTester
 4. CandleTesterMult
-5. Cross SMA
-6. RCI
-7. Open Close Cross Strategy
-8. Trading View Strategy (implemented but not currently supported via Gmail integration)
+5. Channel Breakout
+6. Cross SMA
+7. RCI
+8. Open Close Cross Strategy
+9. Trading View Strategy (implemented but not currently supported via Gmail integration)
 
 Note: Although TradingView Strategy is not currently supported in this implementation, you can use the following project for TradingView Webhooks trading: https://github.com/CryptoMF/frostybot.
 
