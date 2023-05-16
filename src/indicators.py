@@ -4,6 +4,7 @@ import math
 from collections.abc import Iterable
 
 import numpy as np
+import scipy 
 from numpy import nan as npNaN
 import pandas as pd
 from pandas import Series
@@ -503,6 +504,34 @@ def donchian(high, low, lower_length=None, upper_length=None, offset=None, **kwa
     dcdf.category = mid.category
 
     return dcdf
+
+
+def linreg(close, period):
+    """
+    Calculate Linear Regression (LINEARREG) using TA-Lib.
+
+    Args:
+        close (list or np.ndarray): List or array of closing prices.
+        period (int): Period for LINEARREG calculation.
+
+    Returns:
+        np.ndarray: Array of LINEARREG values.
+    """    
+    return talib.LINEARREG(close, timeperiod=period)
+
+
+def linreg_slope(close, period):
+    """
+    Calculate Linear Regression Slope (LINEARREG_SLOPE) using TA-Lib.
+
+    Args:
+        close (list or np.ndarray): List or array of closing prices.
+        period (int): Period for LINEARREG_SLOPE calculation.
+
+    Returns:
+        np.ndarray: Array of LINEARREG_SLOPE values.
+    """    
+    return talib.LINEARREG_SLOPE(close, timeperiod=period)
 
 
 def hurst_exponent(data):
