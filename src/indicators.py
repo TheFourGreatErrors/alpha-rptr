@@ -461,6 +461,107 @@ def tv_supertrend(high, low, close, length=14, multiplier=3):
     }, index=close.index)
 
 
+class Supertrend:
+    def __init__(self, high, low, close, length, multiplier):
+        """
+        Initialize the Supertrend indicator.
+        Using this class as a supertrend indicator make its calculation much faster and more reliable,
+        since there are issues associated with lookback and keeping track of the trend with the other implementations.
+        Args:            
+            high (list or ndarray): List or array of high prices.
+            low (list or ndarray): List or array of low prices.
+            close (list or ndarray): List or array of close prices.
+            length (int): Length parameter for ATR calculation.
+            multiplier (float): Multiplier parameter for Supertrend calculation.
+        """        
+        self.high = pd.Series(high)
+        self.low = pd.Series(low)
+        self.close = pd.Series(close)
+        self.length = length
+        self.multiplier = multiplier
+        self.trend = None
+        self.dir = None
+        self.lowerband = None
+        self.upperband = None
+
+    def update(self, high, low, close):
+        """
+        Update the Supertrend indicator with new price data.
+        Args:
+            high (list or ndarray): List or array of high prices.
+            low (list or ndarray): List or array of low prices.
+            close (list or ndarray): List or array of close prices.
+        """
+        high = pd.Series(high)
+        low = pd.Series(low)
+        close = pd.Series(close)
+
+        # Calculate ATR
+        price_diffs = [high - low,
+                       high - close.shift(),
+                       low - close.shift()]
+        true_range = pd.concat(price_diffs, axis=1)
+        true_range = true_range.abs().max(axis=1)
+        true_range[0] = (high[0] + low[0]) / 2
+        # Default ATR calculation in Supertrend indicator
+        atr = true_range.ewm(alpha=1 / self.length, min_periods=self.length, ignore_na=True, adjust=False).mean()
+        atr.fillna(0, inplace=True)
+
+        # HL2 is simply the average of high and low prices
+        hl2 = (high + low) / 2
+        # Upperband and lowerband calculation
+        # Notice that final bands are set to be equal to the respective bands
+        upperband = hl2 + (self.multiplier * atr)
+        lowerband = hl2 - (self.multiplier * atr)
+
+        if self.trend is None:
+            self.trend = [np.nan] * close.size
+            self.dir = [np.nan] * close.size
+
+            for i in range(1, len(close)):
+                curr, prev = i, i - 1
+                
+                lowerband[curr] = lowerband[curr] if lowerband[curr] > lowerband[prev] \
+                                or close[prev] < lowerband[prev] else lowerband[prev]
+              
+                upperband[curr] = upperband[curr] if upperband[curr] < upperband[prev] \
+                                or close[prev] > upperband[prev] else upperband[prev]
+
+                if np.isnan(atr[prev]):
+                    self.dir[curr] = -1
+                elif self.trend[prev] == upperband[prev]:
+                    self.dir[curr] = 1 if close[curr] > upperband[curr] else -1
+                else:
+                    self.dir[curr] = -1 if close[curr] < lowerband[curr] else 1
+
+                self.trend[curr] = lowerband[curr] if self.dir[curr] == 1 else upperband[curr]
+            
+            self.lowerband = lowerband.values
+            self.upperband = upperband.values
+            return
+        
+        close = close.values
+        upperband = upperband.values
+        lowerband = lowerband.values
+
+        lowerbandd = lowerband[-1] if lowerband[-1] > self.lowerband[-1] \
+                        or close[-1] < self.lowerband[-1] else self.lowerband[-1]
+        upperbandd = upperband[-1] if upperband[-1] < self.upperband[-1] \
+                        or close[-1] > self.upperband[-1] else self.upperband[-1]
+
+        if self.trend[-1] == self.upperband[-1]:
+            dir = 1 if close[-1] > self.upperband[-1] else -1
+        else:
+            dir = -1 if close[-1] < self.lowerband[-1] else 1
+
+        trend = lowerbandd if dir == 1 else upperbandd
+
+        self.trend.append(trend)
+        self.dir.append(dir)
+        self.lowerband = np.append(self.lowerband, [lowerbandd])
+        self.upperband = np.append(self.upperband, [upperbandd])
+
+
 def donchian(high, low, lower_length=None, upper_length=None, offset=None, **kwargs):
     """
     Indicator: Donchian Channels (DC)
