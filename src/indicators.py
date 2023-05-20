@@ -1060,3 +1060,30 @@ def sharpe_ratio(returns, risk_free_rate):
     std_dev = np.std(returns)
     sharpe_ratio = np.mean(excess_returns) / std_dev
     return sharpe_ratio
+
+
+def compute_log_returns(balance_changes):
+    """
+    Computes the log returns of a list or NumPy array of balance changes.
+    Args:
+        balance_changes: A list or NumPy array of balance changes.
+    Returns:
+        log_returns: A list containing the log returns of the balance changes.
+    """
+    if isinstance(balance_changes, np.ndarray):
+        # If input is a NumPy array, compute log returns using masked arrays
+        mask = balance_changes > 0  # Create a mask for positive values
+        masked_balance_changes = np.ma.array(balance_changes, mask=~mask)  # Mask non-positive values
+        log_returns = np.ma.log(masked_balance_changes).filled(0)  # Compute log returns, fill masked values with 0
+    else:
+        # If input is a list, compute log returns using list comprehension and math.log()
+        log_returns = []
+        for i, balance_change in enumerate(balance_changes):
+            if balance_change > 0:
+                log_returns.append(math.log(balance_change))
+            else:
+                log_returns.append(0.0)
+        # Pad the log_returns list with zeros to match the length of balance_changes
+        if len(log_returns) < len(balance_changes):
+            log_returns.extend([0.0] * (len(balance_changes) - len(log_returns)))
+    return log_returns
