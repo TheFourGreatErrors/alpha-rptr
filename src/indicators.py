@@ -1062,6 +1062,29 @@ def sharpe_ratio(returns, risk_free_rate):
     return sharpe_ratio
 
 
+def ulcer_index(data):
+    """
+    Calculate the Ulcer Index of a given data series.    
+    Parameters:
+        data (numpy.ndarray): Input data series.    
+    Returns:
+        float: Ulcer Index value.
+    """
+    # Calculate the maximum drawdown
+    max_drawdown = np.maximum.accumulate(data) - data
+
+    # Square the maximum drawdown
+    squared_drawdown = np.square(max_drawdown)
+
+    # Calculate the average of squared drawdowns
+    average_squared_drawdown = np.mean(squared_drawdown)
+
+    # Take the square root to obtain the Ulcer Index
+    ulcer_index = np.sqrt(average_squared_drawdown)
+
+    return ulcer_index
+
+
 def compute_log_returns(balance_changes):
     """
     Computes the log returns of a list or NumPy array of balance changes.
