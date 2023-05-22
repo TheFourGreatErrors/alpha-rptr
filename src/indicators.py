@@ -7,6 +7,7 @@ import numpy as np
 import scipy 
 from numpy import nan as npNaN
 import pandas as pd
+import matplotlib.pyplot as plt
 from pandas import Series
 import talib
 
@@ -1030,6 +1031,75 @@ def jump_diffusion_model(timesteps, dt, initial_price, mean_return, volatility, 
         path[i+1] = path[i] + drift + diffusion + jump
 
     return path
+
+
+def monte_carlo_simulation(start_equity, profit_to_loss_ratio, num_simulations, win_rate, num_steps, risk_per_trade, randomize_winrate=0, compounding=False):
+    """
+    Perform Monte Carlo simulation for equity growth.
+    Parameters:
+        start_equity (float): Initial equity value.
+        profit_to_loss_ratio (float): Ratio of profit to loss per trade.
+        num_simulations (int): Number of simulations to run.
+        win_rate (float): Probability of winning a trade. (0.1 is 10% etc.)
+        num_steps (int): Number of steps in each simulation.
+        risk_per_trade (float): Risk per trade as a percentage of equity. (0.01 is 1% etc.)
+        randomize_winrate (float): Percentage of winrate to randomize (default: 0). (0.1 is 10% etc.)
+        compounding (bool): Whether to apply compounding (default: False).
+
+    """
+    equity_curves = []
+
+    for _ in range(num_simulations):
+        equity_curve = [start_equity]
+        equity = start_equity
+
+        for _ in range(num_steps):
+            # Randomize winrate if specified
+            if randomize_winrate:
+                random_factor = np.random.uniform(1 - randomize_winrate, 1 + randomize_winrate)
+                randomized_win_rate = win_rate * random_factor
+            else:
+                randomized_win_rate = win_rate
+
+            # Simulate profit/loss based on winrate
+            if np.random.rand() < randomized_win_rate:
+                profit = profit_to_loss_ratio * risk_per_trade
+            else:
+                profit = -risk_per_trade
+
+            # Update equity based on compounding or non-compounding logic
+            if compounding:
+                equity = equity + equity * profit
+            else:
+                equity = equity + profit if equity + profit >= 0 else 0
+
+            equity_curve.append(equity)
+
+        equity_curves.append(equity_curve)
+
+    # Plotting the equity curves
+    plt.figure(figsize=(10, 6))
+    for i, curve in enumerate(equity_curves):
+        plt.plot(curve, label=f'Simulation {i+1}')
+
+    # Calculate drawdowns
+    max_drawdowns = [np.max(np.maximum.accumulate(curve) - curve) / start_equity * 100 for curve in equity_curves]
+    average_drawdowns = [np.mean(np.maximum.accumulate(curve) - curve) / start_equity * 100 for curve in equity_curves]
+
+
+    # Display statistics in legend
+    win_rate_text = f'Win Rate: {randomized_win_rate * 100:.2f}%'
+    max_drawdown_text = f'Max Drawdown: {np.max(max_drawdowns):.2f}%'
+    average_drawdown_text = f'Average Drawdown: {np.mean(average_drawdowns):.2f}%'
+
+    plt.legend([win_rate_text, max_drawdown_text, average_drawdown_text])
+
+    plt.xlabel('Steps')
+    plt.ylabel('Equity')
+    plt.title('Monte Carlo Simulation')
+    plt.grid(True)
+    plt.show()
+
 
 
 def is_under(src, value, p):
