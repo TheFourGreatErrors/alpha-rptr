@@ -1033,7 +1033,7 @@ def jump_diffusion_model(timesteps, dt, initial_price, mean_return, volatility, 
     return path
 
 
-def monte_carlo_simulation(start_equity, profit_to_loss_ratio, num_simulations, win_rate, num_steps, risk_per_trade, randomize_winrate=0, compounding=False):
+def monte_carlo_simulation(start_equity, profit_to_loss_ratio, num_simulations, win_rate, num_steps, risk_per_trade_input, randomize_winrate=0, compounding=False):
     """
     Perform Monte Carlo simulation for equity growth.
     Parameters:
@@ -1042,10 +1042,9 @@ def monte_carlo_simulation(start_equity, profit_to_loss_ratio, num_simulations, 
         num_simulations (int): Number of simulations to run.
         win_rate (float): Probability of winning a trade. (0.1 is 10% etc.)
         num_steps (int): Number of steps in each simulation.
-        risk_per_trade (float): Risk per trade as a percentage of equity. (0.01 is 1% etc.)
+        risk_per_trade_input (float): Risk per trade as a percentage of equity. (0.01 is 1% etc.)
         randomize_winrate (float): Percentage of winrate to randomize (default: 0). (0.1 is 10% etc.)
         compounding (bool): Whether to apply compounding (default: False).
-
     """
     equity_curves = []
 
@@ -1060,6 +1059,9 @@ def monte_carlo_simulation(start_equity, profit_to_loss_ratio, num_simulations, 
                 randomized_win_rate = win_rate * random_factor
             else:
                 randomized_win_rate = win_rate
+            
+            # Calculate risk per trade as a percentage of equity
+            risk_per_trade = start_equity * risk_per_trade_input
 
             # Simulate profit/loss based on winrate
             if np.random.rand() < randomized_win_rate:
@@ -1099,7 +1101,6 @@ def monte_carlo_simulation(start_equity, profit_to_loss_ratio, num_simulations, 
     plt.title('Monte Carlo Simulation')
     plt.grid(True)
     plt.show()
-
 
 
 def is_under(src, value, p):
