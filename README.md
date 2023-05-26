@@ -229,7 +229,7 @@ $ python main.py --test --account binanceaccount1 --exchange binance --pair BTCU
 ```
 
 ### 4. Hyperopt Mode
-Back test Mode: In this mode, the script will back test the specified strategy using historical data for the specified trading pair on the Binance exchange. To run the script in this mode, use the following command:
+Hyperopt mode is a feature that automatically searches for the best values of hyperparameters to optimize the performance of a trading strategy. To run the script in this mode, use the following command:
 ```bash
 $ python main.py --hyperopt --account binanceaccount1 --exchange binance --pair BTCUSDT --strategy Sample
 ```
