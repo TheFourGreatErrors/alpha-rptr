@@ -24,7 +24,7 @@ from src.bot import Bot
 from src.gmail_sub import GmailSub
 
 
-class Supertrend_strat(Bot):
+class SupertrendStrat(Bot):
 
     leverage = 1
 
@@ -77,7 +77,7 @@ class Supertrend_strat(Bot):
         trade_side = None # True for long only, False for short only, None trading both       
         # -------------------------------------------------------------------------------------------------- #
         # -------------------------------------------------------------------------------------------------- #  
-        
+        # ------- Parameters ------------------------------------------------------------------------------- #
         length = 10
         multiplier = 5
         #//////////////////////////////   Supertrend      ////////////////////////////////////////////////////      
@@ -85,7 +85,7 @@ class Supertrend_strat(Bot):
         if self.supertrend == None:
             self.supertrend = Supertrend(high, low, close, length, multiplier)
 
-        # Update Supertrend    
+        #/////////////////////////////  Update Supertrend  /////////////////////////////////////////////////// 
         self.supertrend.update(high, low, close)  
 
         trend = self.supertrend.trend
@@ -93,7 +93,7 @@ class Supertrend_strat(Bot):
         lower_band = self.supertrend.lowerband
         upper_band = self.supertrend.upperband   
 
-        #// Signals
+        #///////////////////////////////     Signals      /////////////////////////////////////////////////////
 
         long = dir[-1] == 1
         short = dir[-1] == -1
@@ -106,6 +106,9 @@ class Supertrend_strat(Bot):
         if short and trade_side != True:           
             self.exchange.entry("Short", False, abs(self.entry_position_size(balance)))
 
-        #/////////////////////////////      plot Supertrned    /////////////////////////////////////////////////
+        #/////////////////////////////      Plot Supertrned    /////////////////////////////////////////////////
 
-        self.exchange.plot('st', trend[-1], 'b')        
+        if dir[-1] == 1:
+            self.exchange.plot('st_uptrend', trend[-1], 'b')        
+        else:
+            self.exchange.plot('st_downtrend', trend[-1], 'r')
