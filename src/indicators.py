@@ -888,6 +888,30 @@ def bessel_process(timesteps, dt, initial_value):
     return path
 
 
+def bessel_process_euler_maruyama(T, dt, x0, n_paths):
+    """
+    Simulates paths of the Bessel process using the Euler-Maruyama method.
+    Args:
+        T (float): Total time.
+        dt (float): Time step size.
+        x0 (float): Initial value.
+        n_paths (int): Number of paths to simulate.
+    Returns:
+        paths (ndarray): Array of shape (n_paths, n_steps) containing the simulated paths.
+        t (ndarray): Array of time points.
+    """
+    t = np.arange(0, T, dt)
+    n_steps = len(t)
+    paths = np.zeros((n_paths, n_steps))
+    paths[:, 0] = x0
+
+    for i in range(1, n_steps):
+        dW = np.random.normal(0, np.sqrt(dt), n_paths)
+        paths[:, i] = np.sqrt(paths[:, i - 1] + 0.5 * dt) * dW + paths[:, i - 1]
+
+    return paths, t
+
+
 def ornstein_uhlenbeck_process(timesteps, dt, mean_reversion, volatility, initial_value):
     """Simulates an Ornstein-Uhlenbeck process.
     Args:
