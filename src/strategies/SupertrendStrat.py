@@ -39,10 +39,6 @@ class SupertrendStrat(Bot):
         position = balance*self.leverage/self.exchange.get_market_price()
         return round(position, self.asset_rounding)
 
-    def entry_position_size(self, balance):
-        position = balance*self.leverage/self.exchange.get_market_price()
-        return round(position, self.asset_rounding)
-
     def pnl(self, close, avg_entry_price, position_size, commission):
 
         profit = 0
