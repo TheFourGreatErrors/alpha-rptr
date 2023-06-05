@@ -184,6 +184,24 @@ def di_minus(high, low, close, period=14):
     return talib.MINUS_DI(high, low, close, period)
 
 
+def stochastic(high, low, close, fastK_period=14, slowk_period=5, d_period=3):
+    """
+    Calculate the Stochastic indicator.
+    Parameters:
+        high: A list or array of high prices.
+        low: A list or array of low prices.
+        close: A list or array of closing prices.
+        period: The number of periods to consider for the Stochastic calculation. Default is 14.
+        k_period: The number of periods to consider for the %K line. Default is 5.
+        d_period: The number of periods to consider for the %D line. Default is 3.
+    Returns:
+        slowk: The slow %K line values.
+        slowd: The slow %D line values.
+    """
+    slowk, slowd = talib.STOCH(high, low, close, fastk_period=fastK_period, slowk_period=slowk_period, slowd_period=d_period)
+    return slowk, slowd
+
+
 def rsi(close, period=14):
     return talib.RSI(close, period)
 
