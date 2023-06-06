@@ -184,6 +184,35 @@ def di_minus(high, low, close, period=14):
     return talib.MINUS_DI(high, low, close, period)
 
 
+def obv(close, volume):
+    """
+    Calculates the On-Balance Volume (OBV) indicator using the ta-lib library.
+    Args:
+        close (list): List of closing prices.
+        volume (list): List of volume values.
+    Returns:
+        list: OBV values.
+    """
+    obv = talib.OBV(close, volume)
+    return obv
+
+
+def mfi(high, low, close, volume, period=14):
+    """
+    Calculates the Money Flow Index (MFI) using the ta-lib library.
+    Args:
+        high (list): List of high prices.
+        low (list): List of low prices.
+        close (list): List of closing prices.
+        volume (list): List of volume values.
+        period (int, optional): Number of periods to consider (default is 14).
+    Returns:
+        list: MFI values.
+    """
+    mfi = talib.MFI(high, low, close, volume, timeperiod=period)
+    return mfi
+
+
 def stochastic(high, low, close, fastK_period=14, slowk_period=5, d_period=3):
     """
     Calculate the Stochastic indicator.
