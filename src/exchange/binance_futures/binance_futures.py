@@ -929,17 +929,20 @@ class BinanceFutures:
                 def end(self):
                     exchange.remove_ob_callback(self.order_id)
 
-                def stats(self, status="FILLED"):
-                    logger.info(f"--------------------------------------")
-                    logger.info(f"Order: {self.order_id} Status: {status}")
-                    logger.info(f"Start Price: {self.start_price}")
-                    logger.info(f"--------------------------------------")
+                def avg_price(self):
                     order_value = 0
                     for key, value in self.filled.items():
                         if value[0] > 0:
                             logger.info(f"{key} - {value[0]} @ {value[1]}")
                             order_value += value[0]*value[1]
-                    avg_price = round(order_value/self.qty, exchange.quote_rounding)
+                    return round(order_value/self.qty, exchange.quote_rounding)
+
+                def stats(self, status="FILLED"):
+                    logger.info(f"--------------------------------------")
+                    logger.info(f"Order: {self.order_id} Status: {status}")
+                    logger.info(f"Start Price: {self.start_price}")
+                    logger.info(f"--------------------------------------")
+                    avg_price = self.avg_price()
                     slippage = (avg_price - self.start_price if self.long else self.start_price - avg_price)/self.start_price
                     logger.info(f"--------------------------------------")
                     logger.info(f"Avg Price: {avg_price}")
@@ -1020,7 +1023,8 @@ class BinanceFutures:
                                 order['filled'] = self.filled_qty()
                                 order['qty'] = self.qty
                                 order['limit'] = self.limit
-                                order['stop'] = self.stop                                
+                                order['stop'] = self.stop  
+                                order['avgprice'] = self.avg_price()                              
 
                                 self.callback(order)
                             else:
@@ -1037,6 +1041,7 @@ class BinanceFutures:
                                     order['qty'] = self.qty
                                     order['limit'] = self.limit
                                     order['stop'] = self.stop     
+                                    order['avgprice'] = self.avg_price()
                                     
                                     self.callback(order)
                         else:
