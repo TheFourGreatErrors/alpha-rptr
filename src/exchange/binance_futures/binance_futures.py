@@ -1642,7 +1642,7 @@ class BinanceFutures:
 
         order_log = False
 
-        callback = self.callbacks.pop(order['c'], None)
+        callback = self.callbacks.get(order['c'], None)
         all_updates = None
         if callable(callback):
             if len(signature(callback).parameters) > 0: # check if the callback accepts order argument
