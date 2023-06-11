@@ -4,8 +4,9 @@ import math
 from collections.abc import Iterable
 
 import numpy as np
-import scipy 
 from numpy import nan as npNaN
+import scipy 
+from scipy import stats
 import pandas as pd
 import matplotlib.pyplot as plt
 from pandas import Series
@@ -1186,6 +1187,37 @@ def is_over(src, value, p):
         if src[-i - 1] < value:
             return False
     return True
+
+
+def min_max_normalization(data):
+    """
+    Min-max normalization scales the values to a specific range, typically between 0 and 1. 
+    """
+    normalized = (data - np.min(data)) / (np.max(data) - np.min(data))
+    return normalized
+
+
+def z_score_normalization(data):
+    """
+    Z-score normalization (also known as standardization) transforms the values to have a mean of 0 and a standard deviation of 1. 
+    """
+    return stats.zscore(data)
+
+
+def decimal_scaling_normalization(data):
+    """
+    Decimal scaling normalizes the values by dividing them by a suitable power of 10, based on the maximum absolute value in the dataset, 
+    often between -1 and 1.
+    """
+    magnitude = np.ceil(np.log10(np.max(np.abs(data))))
+    return data / 10**magnitude
+
+
+def log_normalization(data):
+    """
+    This method applies the natural logarithm function to the data, which can help reduce the impact of outliers and skewness.
+    """
+    return np.log1p(data)
 
 
 def sharpe_ratio(returns, risk_free_rate):
