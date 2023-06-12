@@ -1220,6 +1220,51 @@ def log_normalization(data):
     return np.log1p(data)
 
 
+def robust_normalization(data):
+    """
+    This method is robust to outliers and uses the median and interquartile range (IQR) to scale the data.
+    """
+    return stats.robust_scale(data)
+
+
+def unit_vector_normalization(data):
+    """
+    Unit vector normalization (also known as vector normalization or L2 normalization) 
+    scales the values such that the Euclidean norm (L2 norm) of the vector is 1. 
+    """
+    norms = scipy.linalg.norm(data, axis=1)
+    return data / norms[:, np.newaxis]
+
+
+def power_normalization(data, method='box-cox', power=1.0):
+    """
+    Apply power normalization to the given data.
+    Parameters:
+        data (array-like): Input data to be normalized.
+        method (str, optional): Normalization method. Default is 'box-cox'.
+        - 'box-cox': Box-Cox transformation.
+        - 'yeo-johnson': Yeo-Johnson transformation.
+        power (float, optional): Power parameter for the chosen method. Default is 1.0.
+    Returns:
+        normalized_data (ndarray): Normalized data.
+    """
+    # Convert data to numpy array
+    data = np.asarray(data)
+
+    # Check if the method is valid
+    valid_methods = ['box-cox', 'yeo-johnson']
+    if method not in valid_methods:
+        raise ValueError(f"Invalid method '{method}'. Supported methods are: {valid_methods}")
+
+    # Apply the chosen power transformation
+    if method == 'box-cox':
+        normalized_data, _ = stats.boxcox(data, lmbda=power)
+    else:  # method == 'yeo-johnson'
+        normalized_data, _ = stats.yeojohnson(data, lmbda=power)
+
+    return normalized_data
+
+
 def sharpe_ratio(returns, risk_free_rate):
     """
     Calculates the Sharpe ratio given a list of returns.
