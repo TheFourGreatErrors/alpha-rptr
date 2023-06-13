@@ -1265,6 +1265,32 @@ def power_normalization(data, method='box-cox', power=1.0):
     return normalized_data
 
 
+def softmax_normalization(data):
+    """
+    This method is commonly used in machine learning
+    for normalizing a set of values into a probability distribution where the sum of all values is equal to 1.
+    """
+    exp_vals = np.exp(data)
+    return exp_vals / np.sum(exp_vals)
+
+
+def median_normalization(data):
+    """
+    This method scales the data by subtracting the median and dividing by the median absolute deviation (MAD).
+    """
+    median_val = np.median(data)
+    mad_val = stats.median_absolute_deviation(data)
+    return (data - median_val) / mad_val
+
+
+def pareto_scaling(data):
+    """
+    This method scales the data by dividing each value by the square root of the standard deviation.
+    """
+    std_val = np.std(data)
+    return data / np.sqrt(std_val)
+
+
 def sharpe_ratio(returns, risk_free_rate):
     """
     Calculates the Sharpe ratio given a list of returns.
