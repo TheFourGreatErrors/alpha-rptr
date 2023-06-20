@@ -474,6 +474,54 @@ The workbench also helps you save to and retrieve backtests from the inbuilt lib
 
 You can use this HTML5 Workbench by executing `python3 -m http.server 8000 --cgi` in the `html` folder and browsing to http://127.0.0.1:8000/ to view backtest results and access the library.
 
+## Logging Metrics to InfluxDB
+
+Step 1: Intall Influx DB client
+
+`pip install -r requirments.txt`
+
+or 
+
+`pip install influxdb-client[ciso]`
+
+Step 2: Configure the url, org, token and bucket in config.py.
+
+more info - https://github.com/influxdata/influxdb-client-python
+
+Step 3: Call log_metrics
+
+```python
+log_metrics(timestamp, collection, metrics, tags)
+```
+
+Usage:
+
+```python
+from src import log_metrics
+from datetime import datetime
+
+log_metrics(datetime.utcnow(), "test", {
+        "balance": 1000,
+        "pnl": -500,
+        "margin": 500
+    },
+    {
+        "account": "binance1",
+        "pair": "BTCUSDT",
+        "base_asset": "BTC",
+        "quote_asset": "USDT",
+        "strategy": "SMA"
+    })
+```
+
+By default we log Margin related metrics from Binance Websocket Stream (collection=margin)
+and Chaser realted metrics for orders using limit chaser (collection=chaser)
+
+log_metrics to InfluxDB mapping:
+
+1. collection -> measurement
+2. metrics -> fields
+3. tags -> tags
 ## Dedicated discord server
 This server is dedicated for bug reporting, feature requests and support.
 https://discord.gg/ah3MGeN

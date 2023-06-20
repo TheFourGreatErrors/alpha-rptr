@@ -16,6 +16,9 @@ from bravado.exception import HTTPError
 #Install discord_webhook module 
 from discord_webhook import DiscordWebhook, DiscordEmbed
 
+from influxdb_client import InfluxDBClient, Point
+from influxdb_client.client.write_api import SYNCHRONOUS
+
 from src.config import config as conf
 from src.exchange.binance_futures.exceptions import BinanceAPIException, BinanceRequestException
 
@@ -473,3 +476,71 @@ def notify(message: object, fileName: object = None) -> object:
             requests.post(url, data=payload, headers=headers, files=files)
         except:
             pass
+
+class InfluxDB():
+
+    client = None #will be False if not configured
+    writer = None #will be False if not configured
+
+    def __new__(cls):
+        if not hasattr(cls, 'instance'):
+            cls.instance = super(InfluxDB, cls).__new__(cls)
+        return cls.instance
+
+    def __init__(self):
+        try: 
+            url = conf["influx_db"][conf["args"].account]["url"]
+            token = conf["influx_db"][conf["args"].account]["token"]
+            org = conf["influx_db"][conf["args"].account]["org"]
+            self.client = InfluxDBClient(url=url, token=token, org=org)
+            self.writer = self.client.write_api(write_options=SYNCHRONOUS)
+        except Exception as e:
+            self.client = False
+            self.writer = False
+            logger.info(e)
+            pass
+
+    def log(self, timestamp, measurement, fields, tags):
+
+        if self.writer is not False:
+            try:
+                self.writer.write(bucket=conf["influx_db"][conf["args"].account]["bucket"],
+                                record=[
+                                    {
+                                        "time": timestamp, #"2009-11-10T23:00:00Z"
+                                        "measurement": measurement, #"my-type"
+                                        "fields": fields, #kv pairs
+                                        "tags": tags #kv pairs
+                                    }
+                                ])
+            except Exception as e:
+                logger.info(e)
+                pass
+
+        return
+
+##############################################
+# Implements logging metrics to InfluxDB
+# 
+# multiple related metrics can be logged together 
+# with the given tags as part of the given collection
+# 
+# collection
+# |
+# |--- tags
+#       |
+#       |---metrics
+#
+# InfluxDB allows filtering by collection and tags
+# 
+# log_metrics to InfluxDB mapping:
+#
+# 1. collection -> measurement
+# 2. metrics -> fields
+# 3. tags -> tags
+###############################################
+
+def log_metrics(timestamp, collection, metrics={}, tags = {}):
+    influx_db = InfluxDB()
+    influx_db.log(timestamp, collection, metrics, tags)
+    return
