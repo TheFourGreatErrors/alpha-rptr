@@ -50,6 +50,20 @@ config = {
                             "listenkey_heartbeat": ""
                     }
     },
+    "influx_db": {
+                "binanceaccount1": {
+                                "url" : "",
+                                "org": "",
+                                "token": "",
+                                "bucket": ""
+                },
+                "bybitaccount1": {
+                                "url" : "",
+                                "org": "",
+                                "token": "",
+                                "bucket": ""
+                }
+    },
     # To use Args profiles, add them here and run by using the flag --profile <your profile string>
     "args_profile": {"binanceaccount1_Sample_ethusdt": {"--test": False,
                                                         "--stub": False,

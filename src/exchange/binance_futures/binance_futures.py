@@ -15,7 +15,7 @@ from pytz import UTC
 
 from src import (logger, allowed_range, allowed_range_minute_granularity,
                  find_timeframe_string, to_data_frame, resample, delta,
-                 FatalError, notify, ord_suffix, sync_obj_with_config)
+                 FatalError, notify, log_metrics, ord_suffix, sync_obj_with_config)
 from src import retry_binance_futures as retry
 from src.config import config as conf
 from src.exchange_config import exchange_config
@@ -949,6 +949,22 @@ class BinanceFutures:
                     logger.info(f"Slippage: {slippage*100:.2f}%")
                     logger.info(f"--------------------------------------")
 
+                    log_metrics(datetime.utcnow(), "chaser", {
+                        "side": "BUY" if self.long else "SELL",
+                        "quantity": self.qty,
+                        "start_price": self.start_price,
+                        "avg_price": avg_price,
+                        "slippage": round(slippage*100, 3)                        
+                    },
+                    {
+                        "exchange": conf["args"].exchange,
+                        "account": exchange.account,
+                        "pair": exchange.pair,
+                        "base_asset": exchange.base_asset,
+                        "quote_asset": exchange.quote_asset,
+                        "strategy": conf["args"].strategy
+                    })
+
                 def cancel(self):
                     self.started = False #canceled
                     exchange.cancel(self.current_order_id)
@@ -1774,11 +1790,27 @@ class BinanceFutures:
                              }             
         else: self.get_margin() 
 
+        balance = float(self.margin[0]['balance'])
         position_size = self.get_position_size()
         pnl = round(self.get_pnl())
         profit = self.get_profit()
-        notify(f"Balance: {self.margin[0]['balance']}\nPosition Size: {position_size}\nPnL: {profit:.2f}({pnl}%)")
-        logger.info(f"Balance: {self.margin[0]['balance']} Position Size: {position_size} PnL: {profit:.2f}({pnl}%)")     
+        notify(f"Balance: {balance}\nPosition Size: {position_size}\nPnL: {profit:.2f}({pnl}%)")
+        logger.info(f"Balance: {balance} Position Size: {position_size} PnL: {profit:.2f}({pnl}%)")     
+
+        log_metrics(datetime.utcnow(), "margin", {
+            "balance": balance,
+            "margin": balance+profit,
+            "profit": profit,
+            "pnl": pnl
+        },
+        {
+            "exchange": conf["args"].exchange,
+            "account": self.account,
+            "pair": self.pair,
+            "base_asset": self.base_asset,
+            "quote_asset": self.quote_asset,
+            "strategy": conf["args"].strategy
+        })
 
     def add_ob_callback(self, id, callback):
         self.best_bid_ask_change_callback[id] = callback

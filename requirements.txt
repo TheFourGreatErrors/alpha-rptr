@@ -12,3 +12,4 @@ oauth2client
 discord-webhook
 pybit==2.4.1
 ciso8601
+influxdb-client[ciso]
