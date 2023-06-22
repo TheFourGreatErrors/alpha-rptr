@@ -1672,10 +1672,15 @@ class BinanceFutures:
                 all_updates = False # call the callback without any arguements only once the order is filled
 
         # currently only these events will use callbacks
-        if(order_info['status'] == "CANCELED" 
+        if(order_info['status'] == "NEW"
+           or order_info['status'] == "CANCELED" 
            or order_info['status'] == "EXPIRED" 
            or order_info['status'] == "PARTIALLY_FILLED" 
            or order_info['status'] == "FILLED"):
+            
+            if(order_info['status'] == "NEW"):
+                if all_updates:
+                    callback(order_info)    
 
             # If STOP PRICE is set for a GTC Order and filled quanitity is 0 then EXPIRED means TRIGGERED
             # When stop price is hit, the stop order expires and converts into a limit/market order
