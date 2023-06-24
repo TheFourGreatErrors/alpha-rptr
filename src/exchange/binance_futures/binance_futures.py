@@ -1841,7 +1841,7 @@ class BinanceFutures:
             best_ask_changed = True
             
         if best_bid_changed or best_ask_changed:
-            for callback in self.best_bid_ask_change_callback.values():
+            for callback in self.best_bid_ask_change_callback.copy().values():
                 if callable(callback):
                     callback(best_bid_changed, best_ask_changed)  
 
