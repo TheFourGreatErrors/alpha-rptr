@@ -865,13 +865,13 @@ class BinanceFutures:
                     self.started = None
                     self.start_price = 0
                     self.count = 0
-                    self.current_order_id = self.sub_order_id()
+                    self.current_order_id = None
                     # if no limit price is set, set it to best bid/ask price
                     self.current_order_price = self.limit if self.limit != 0 else self.price()
                     # First order will be sent without post-only flag irrespective
                     # and post-only will be used once the order is triggered
                     self.order(retry_maker, 
-                               self.current_order_id, 
+                               self.sub_order_id(), 
                                self.long, self.qty, 
                                self.current_order_price, 
                                self.stop, self.post_only if self.stop==0 else False, 
@@ -881,12 +881,6 @@ class BinanceFutures:
                     
                     self.filled = {}
                     
-                    # market order - start chasing immediately
-                    if self.stop == 0 and self.limit == 0:
-                        self.start()
-                    elif self.stop == 0 and self.limit != 0:
-                        self.limit_tracker(self.limit)                        
-
                 def sub_order_id(self):
                     return f"{self.order_id}_{self.count}"
                 
@@ -909,7 +903,7 @@ class BinanceFutures:
                 # is crossed. Useful for TP orders.
                 def limit_tracker(self, limit):
 
-                    logger.info(f"Limit Tracker Active: {self.order_id}")
+                    logger.info(f"Chaser: Limit Tracker Active: {self.order_id}")
 
                     #watch for best bid/ask price to cross limit price
                     limit_chaser = self
@@ -924,25 +918,28 @@ class BinanceFutures:
                 def start(self):
                     self.started = True #started
                     self.start_price = self.price()
-                    exchange.add_ob_callback(self.order_id, self.on_bid_ask_change)                    
+                    exchange.add_ob_callback(self.order_id, self.on_bid_ask_change)      
+                    logger.info(f"Chaser Active: {self.order_id}")              
 
                 def end(self):
                     exchange.remove_ob_callback(self.order_id)
 
-                def avg_price(self):
+                def avg_price(self, print_suborders=False):
                     order_value = 0
                     for key, value in self.filled.items():
                         if value[0] > 0:
-                            logger.info(f"{key} - {value[0]} @ {value[1]}")
+                            if print_suborders:
+                                logger.info(f"{key} - {value[0]} @ {value[1]}")
                             order_value += value[0]*value[1]
                     return round(order_value/self.qty, exchange.quote_rounding)
 
                 def stats(self, status="FILLED"):
+                    logger.info(f"Chaser Order Stats:")
                     logger.info(f"--------------------------------------")
                     logger.info(f"Order: {self.order_id} Status: {status}")
                     logger.info(f"Start Price: {self.start_price}")
                     logger.info(f"--------------------------------------")
-                    avg_price = self.avg_price()
+                    avg_price = self.avg_price(True)
                     slippage = (avg_price - self.start_price if self.long else self.start_price - avg_price)/self.start_price
                     logger.info(f"--------------------------------------")
                     logger.info(f"Avg Price: {avg_price}")
@@ -967,7 +964,19 @@ class BinanceFutures:
 
                 def cancel(self):
                     self.started = False #canceled
-                    exchange.cancel(self.current_order_id)
+                    if self.current_order_id is not None:
+                        exchange.remove_ob_callback(self.order_id)
+                        self.cancel_order(self.current_order_id)
+
+                def cancel_order(self, id):
+                    try:
+                        exchange.cancel(id)
+                    except BinanceAPIException as e:
+                        error_code  = abs(int(e.code))
+                        if (error_code == 2011):
+                            logger.info("Chaser: Cancel Order: Unknown order. Already filled?")
+                            return
+                        raise e
 
                 def order(self, retry, id, long, qty, limit, stop, post_only, reduce_only, workingType, callback):
                     # try fixed number of times
@@ -1006,22 +1015,34 @@ class BinanceFutures:
                 def on_bid_ask_change(self, best_bid_changed, best_ask_changed):
 
                     if (self.long and best_bid_changed) or (not self.long and best_ask_changed):
-                        logger.info(f"Price Changed - {self.price()}")
+                        logger.info(f"Chaser: Price Changed - {self.price()}")
 
-                    if self.current_order_id is not None and \
-                        ((self.long and best_bid_changed) or (not self.long and best_ask_changed)):
-
-                        exchange.cancel(self.current_order_id)
-                        logger.info(f"Cancelled : {self.order_id} : Price Changed - {self.current_order_price} -> {self.price()}")
-                        self.current_order_id = None
+                        if self.current_order_id is not None :
+                            exchange.remove_ob_callback(self.order_id)
+                            self.cancel_order(self.current_order_id)
+                            logger.info(f"Chaser: Cancel Order : {self.current_order_id} : Price Changed - {self.current_order_price} -> {self.price()}")
+                            self.current_order_id = None
                         
                 def on_order_update(self, order):
                     
                     #save filled qty
                     self.filled[order["id"]] = [order["filled"], order["avgprice"]]
                     
+                    if order["status"] == "NEW":
+                        logger.info(f"Chaser Event: Order Accepted - {order['id']}")
+                        if self.started is None:
+                            # market order - start chasing immediately
+                            if self.stop == 0 and self.limit == 0:
+                                self.start()
+                            # limit order - start limit tracker
+                            elif self.stop == 0 and self.limit != 0:
+                                self.limit_tracker(self.limit)        
+                        else:
+                            # new sub-order - start ob chaser
+                            exchange.add_ob_callback(self.order_id, self.on_bid_ask_change)
+
                     if self.stop != 0 and order["status"] == "TRIGGERED":
-                        logger.info(f"{order['id']} is Triggered @ {order['stop']}!")
+                        logger.info(f"Chaser Event: {order['id']} is Triggered @ {order['stop']}!")
                         if self.limit == self.stop:
                             # there was no limit set
                             self.start()
@@ -1047,9 +1068,9 @@ class BinanceFutures:
                                 self.callback()
 
                     if order["status"] == "CANCELED" or order["status"] == "EXPIRED":
-                        logger.info(f"Order Cancelled: {order['id']} @ {order['limit']}")
+                        logger.info(f"Chaser Event: Order Cancelled: {order['id']} @ {order['limit']}")
                         if self.started is not True: #Chaser did not Cancel this order internally
-                            exchange.remove_ob_callback(self.order_id)
+                            self.end()
                             if self.callback_type is not None:
                                 if self.callback_type:
                                     order['id'] = self.order_id
