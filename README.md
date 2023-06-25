@@ -34,13 +34,14 @@ Please note that the author of this software is not liable for any losses, damag
 
 1. Supertrend strategy
 2. Parabolic SAR
-3. CandleTester
-4. CandleTesterMult
-5. Channel Breakout
-6. Cross SMA
-7. RCI
-8. Open Close Cross Strategy
-9. Trading View Strategy (implemented but not currently supported via Gmail integration)
+3. MACD 
+4. CandleTester
+5. CandleTesterMult
+6. Channel Breakout
+7. Cross SMA
+8. RCI
+9. Open Close Cross Strategy
+10. Trading View Strategy (implemented but not currently supported via Gmail integration)
 
 Note: Although TradingView Strategy is not currently supported in this implementation, you can use the following project for TradingView Webhooks trading: https://github.com/CryptoMF/frostybot.
 
