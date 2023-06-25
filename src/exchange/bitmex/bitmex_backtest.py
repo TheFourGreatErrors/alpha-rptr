@@ -5,7 +5,9 @@ import time
 import math
 from datetime import timedelta, datetime, timezone
 import dateutil.parser
+import random
 
+import numpy as np
 import pandas as pd
 
 from src import (logger, allowed_range,
@@ -318,7 +320,7 @@ class BitMexBackTest(BitMexStub):
         left_time = None
         source = None
         is_last_fetch = False          
-        file = OHLC_FILENAME.format("bitmex", self.pair, self.bin_size)
+        file = OHLC_FILENAME.format("BitMEX", self.pair, self.bin_size)
         search_left = self.search_oldest
         last_search_ts = None                                           
 
@@ -493,10 +495,20 @@ class BitMexBackTest(BitMexStub):
         plt.subplot(plt_num,1,i)
         plt.plot(self.df_ohlcv.index, self.df_ohlcv["high"])
         plt.plot(self.df_ohlcv.index, self.df_ohlcv["low"])
+
         for k, v in self.plot_data.items():
             if v['overlay']:
                 color = v['color']
-                plt.plot(self.df_ohlcv.index, self.df_ohlcv[k], color)
+                # Filter columns for 
+                filtered_columns = [col for col in self.df_ohlcv if col.startswith(k)]               
+
+                if len(filtered_columns) == 1:
+                    plt.plot(self.df_ohlcv.index, self.df_ohlcv[k], color)
+                else:          
+                    # Iterate over columns if multiple values are needed to plot per sublot          
+                    for column in filtered_columns:
+                        plt.plot(self.df_ohlcv.index, self.df_ohlcv[column], f'#{random.randint(0, 0xFFFFFF):06x}')
+                        
         plt.ylabel("Price(USD)")
         ymin = min(self.df_ohlcv["low"]) - 0.05
         ymax = max(self.df_ohlcv["high"]) + 0.05
@@ -508,9 +520,19 @@ class BitMexBackTest(BitMexStub):
 
         for k, v in self.plot_data.items():
             if not v['overlay']:
-                plt.subplot(plt_num,1,i)
+                plt.subplot(plt_num,1,i)                                
                 color = v['color']
-                plt.plot(self.df_ohlcv.index, self.df_ohlcv[k], color)
+
+                # Filter columns for 
+                filtered_columns = [col for col in self.df_ohlcv if col.startswith(k)]               
+
+                if len(filtered_columns) == 1:
+                    plt.plot(self.df_ohlcv.index, self.df_ohlcv[k], color)
+                else:          
+                    # Iterate over columns if multiple values are needed to plot per sublot          
+                    for column in filtered_columns:
+                        plt.plot(self.df_ohlcv.index, self.df_ohlcv[column], f'#{random.randint(0, 0xFFFFFF):06x}')
+
                 plt.ylabel(f"{k}")
                 i = i + 1
 
@@ -525,7 +547,28 @@ class BitMexBackTest(BitMexStub):
     def plot(self, name, value, color, overlay=True):
         """
         Draw the graph
-        """
-        self.df_ohlcv.at[self.index, name] = value
+        Args:
+            name (str): The name of the graph.
+            value (dict, int, float): The data values for the graph. 
+                If a dict is provided, each key-value pair represents a column name and its corresponding value.
+                If a list or np.ndarray is provided, it represents a single column of values.
+            color (str): The color of the graph.
+            overlay (bool, optional): Specifies whether to overlay the graph on existing data.
+                Defaults to True.
+        Returns:
+            None
+        """        
+        try:
+            if isinstance(value, dict):
+                for k,v in value.items():
+                    self.df_ohlcv.at[self.index, name + '_' + k] = v
+                            
+            elif isinstance(value, (int, float, np.number)): #elif isinstance(value, list) or isinstance(value, np.ndarray):
+                self.df_ohlcv.at[self.index, name] = value
+            else:
+                raise ValueError("Invalid value type. Expected dict, integer, or float.")
+        except Exception as e:
+            print(f"Error: {e}")    
+
         if name not in self.plot_data:
             self.plot_data[name] = {'color': color, 'overlay': overlay}
