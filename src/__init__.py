@@ -324,7 +324,9 @@ binance_errors_to_actions = {
     # APIError(code=-5021): Due to the order could not be filled immediately, the FOK order has been rejected. The order will not be recorded in the order history.
     5021: "return",
     # APIError(code=-5022): Due to the order could not be executed as maker, the Post Only order will be rejected. The order will not be recorded in the order history.
-    5022: "return"
+    5022: "return",
+    # APIError(code=-2011): Unknown order sent.
+    2011: "return"
 
 }
 
