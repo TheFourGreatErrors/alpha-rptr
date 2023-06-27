@@ -51,7 +51,7 @@ drawdown_chart_series = chart.addAreaSeries({
 chart.subscribeCrosshairMove((param) => {
     if (param.time) 
     {
-        const price = param.seriesPrices.get(candleSeries);
+        const price = param.seriesData.get(candleSeries);
 
         if ( price.open < price.close)
         color = "seagreen"
