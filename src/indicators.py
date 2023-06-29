@@ -1145,7 +1145,7 @@ def monte_carlo_simulation(start_equity, profit_to_loss_ratio, num_simulations, 
             if compounding:
                 equity = equity + equity * profit
             else:
-                equity = equity + profit if equity + profit >= 0 else 0
+                equity = equity + profit #if equity + profit >= 0 else 0
 
             equity_curve.append(equity)
 
