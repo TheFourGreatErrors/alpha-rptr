@@ -1502,8 +1502,8 @@ class BinanceFutures:
 
     def security(self, bin_size, data=None):
         """
-        Recalculate and obtain data of a timeframe higher than the current chart timeframe
-        withou looking into the furute that would cause undesired effects.
+        Recalculate and obtain data of a timeframe higher than the current timeframe
+        without looking into the future that would cause undesired effects.
         :param bin_size: time frame of the OHLCV data
         :param data:
         """     

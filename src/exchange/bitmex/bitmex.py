@@ -944,8 +944,8 @@ class BitMex:
 
     def security(self, bin_size, data=None):
         """
-        Recalculate and obtain data of a timeframe higher than the current
-        timeframe without looking into the furute that would cause undesired effects.
+        Recalculate and obtain data of a timeframe higher than the current timeframe
+        without looking into the future that would cause undesired effects.
         """     
         if data == None:  # minute count of a timeframe for sorting when sorting is needed   
             timeframe_list = [allowed_range_minute_granularity[t][3] for t in self.bin_size]

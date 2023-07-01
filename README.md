@@ -47,7 +47,7 @@ Note: Although TradingView Strategy is not currently supported in this implement
 
 ## Requirements
 
-- Python: 3.8
+- Python: 3.9.9
 
 ## How to install
 
@@ -419,10 +419,10 @@ self.exchange.order("user_given_id", True, 1, 20 000)
 # Limit order with reduce only -  Id, side, limit(price level) are required
 self.exchange.order("user_given_id", True, 1, 20 000, reduce_only=True)
 
-# Stop market order(Conditional order) with reduce only -  Id, side, stop(price level where it gets triggered) are required
+# Stop market order(Conditional order) - Id, side, stop(price level where it gets triggered) are required
 self.exchange.order("user_given_id", True, 1, stop=20 000)
 
-# Stop limit order(Conditional order) with reduce only -  Id, side, 
+# Stop limit order(Conditional order) - Id, side, 
 # limit(price level of the future limit order) and stop(price level where it gets triggered) are required
 self.exchange.order("user_given_id", True, 1, 19500, stop=20 000)
 ```

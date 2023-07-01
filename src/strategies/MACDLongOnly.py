@@ -39,10 +39,6 @@ class MACDLongOnly(Bot):
         position = balance*self.leverage/self.exchange.get_market_price()
         return round(position, self.asset_rounding)
 
-    def entry_position_size(self, balance):
-        position = balance*self.leverage/self.exchange.get_market_price()
-        return round(position, self.asset_rounding)
-
     def pnl(self, close, avg_entry_price, position_size, commission):
 
         profit = 0
@@ -78,9 +74,11 @@ class MACDLongOnly(Bot):
         # -------------------------------------------------------------------------------------------------- #
         # -------------------------------------------------------------------------------------------------- #  
         # ------- Parameters ------------------------------------------------------------------------------ #
+
         fast_period = 12
         slow_period = 26
         signal_period = 9
+
         #//////////////////////////////   MACD      ////////////////////////////////////////////////////      
      
         macd_line, signal_line, histogram = macd(close, fastperiod=fast_period, slowperiod=slow_period, signalperiod=signal_period)
@@ -105,13 +103,14 @@ class MACDLongOnly(Bot):
         if short and trade_side != False:               
             self.exchange.close_all()
 
-        #/////////////////////////////     Exit for long only  /////////////////////////////////////////////////
+        #/////////////////////////////     Exit for Short only  /////////////////////////////////////////////////
         
 
         if long and trade_side != True:               
             self.exchange.close_all()
        
         #/////////////////////////////      Plot MACD (and other indicotors to showcase)    /////////////////////
+
         cci1 = cci(high, low, close, 20)
         sma1 = sma(close, 20)
         ewma1 = ewma(close, 0.5)
