@@ -296,6 +296,24 @@ class BitMex:
                                       .Instrument.Instrument_get(symbol=self.pair).result())[0]["lastPrice"]
             return self.market_price
         
+    def get_symbol_information(self, symbol=None):
+        """
+        get latest symbol(trading pair) information
+        :param symbol: if provided it will return information for the specific symbol otherwise,
+                        otherwise it returns values for the pair currently traded 
+        :return:
+        """
+        symbol = self.pair if symbol == None else symbol   
+        try:     
+            latest_symbol_information = retry(lambda: self.public_client.Instrument
+                                              .Instrument_get(symbol=symbol).result())[0]
+        except Exception  as e:        
+            logger.info(f"An error occured: {e}")
+            logger.info(f"Sorry couldnt retrieve information for symbol: {symbol}")
+            return None
+        
+        return latest_symbol_information
+        
     def get_trail_price(self):
         """
         get Trail Price。
