@@ -656,6 +656,37 @@ def donchian(high, low, lower_length=None, upper_length=None, offset=None, **kwa
     return dcdf
 
 
+def keltner_channel(high, low, close, period=20, atr_period=20,  multiplier=2):
+    """
+    Calculate the Keltner Channel.
+    Args:
+        high (array-like): High prices.
+        low (array-like): Low prices.
+        close (array-like): Close prices.
+        period (int, optional): Number of periods to use for calculations (default is 20).
+        atr_period (int, optional): Number of periods to use for calculations of ATR (default is 20).
+        multiplier (float, optional): Multiplier for the width of the channel (default is 2).
+    Returns:
+        tuple: A tuple containing:
+            upper_band (ndarray): Upper band values.
+            middle_band (ndarray): Middle band values.
+            lower_band (ndarray): Lower band values.
+    """
+    # Calculate the middle band (EMA of the closing prices)
+    middle_band = talib.EMA(close, timeperiod=period)
+    
+    # Calculate the average true range (ATR)
+    atr = talib.ATR(high, low, close, timeperiod=atr_period)
+    
+    # Calculate the upper band (middle band + multiplier * ATR)
+    upper_band = middle_band + (multiplier * atr)
+    
+    # Calculate the lower band (middle band - multiplier * ATR)
+    lower_band = middle_band - (multiplier * atr)
+    
+    return upper_band, middle_band, lower_band
+
+
 def linreg(close, period):
     """
     Calculate Linear Regression (LINEARREG) using TA-Lib.
