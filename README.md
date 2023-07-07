@@ -497,6 +497,7 @@ self.exchange.plot('CCI',
 self.exchange.plot('hurst', hurst, 'r', False)          
 self.exchange.plot('SMA', sma1[-1], 'r', overlay=True)         
 self.exchange.plot('EWMA', ewma1[-1], 'b', overlay=True)        
+```
 
 ## Logging Metrics to InfluxDB
 
