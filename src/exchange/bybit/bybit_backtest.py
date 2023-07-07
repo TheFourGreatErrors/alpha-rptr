@@ -468,15 +468,17 @@ class BybitBackTest(BybitStub):
         for k, v in self.plot_data.items():
             if v['overlay']:
                 color = v['color']
-                # Filter columns for 
+                # Filter columns
                 filtered_columns = [col for col in self.df_ohlcv if col.startswith(k)]               
 
                 if len(filtered_columns) == 1:
-                    plt.plot(self.df_ohlcv.index, self.df_ohlcv[k], color)
+                    plt.plot(self.df_ohlcv.index, self.df_ohlcv[k], color, label=k)
                 else:          
                     # Iterate over columns if multiple values are needed to plot per sublot          
                     for column in filtered_columns:
-                        plt.plot(self.df_ohlcv.index, self.df_ohlcv[column], f'#{random.randint(0, 0xFFFFFF):06x}')
+                        plt.plot(self.df_ohlcv.index, self.df_ohlcv[column], f'#{random.randint(0, 0xFFFFFF):06x}', label=column)
+
+                plt.legend(fontsize=5)
 
         plt.ylabel("Price(USD)")
         ymin = min(self.df_ohlcv["low"]) - 0.05
@@ -492,17 +494,18 @@ class BybitBackTest(BybitStub):
                 plt.subplot(plt_num,1,i)                                
                 color = v['color']
 
-                # Filter columns for 
+                # Filter columns
                 filtered_columns = [col for col in self.df_ohlcv if col.startswith(k)]               
 
                 if len(filtered_columns) == 1:
-                    plt.plot(self.df_ohlcv.index, self.df_ohlcv[k], color)
+                    plt.plot(self.df_ohlcv.index, self.df_ohlcv[k], color, label=k)
                 else:          
                     # Iterate over columns if multiple values are needed to plot per sublot          
                     for column in filtered_columns:
-                        plt.plot(self.df_ohlcv.index, self.df_ohlcv[column], f'#{random.randint(0, 0xFFFFFF):06x}')
+                        plt.plot(self.df_ohlcv.index, self.df_ohlcv[column], f'#{random.randint(0, 0xFFFFFF):06x}', label=column)
 
                 plt.ylabel(f"{k}")
+                plt.legend(fontsize=5)
                 i = i + 1
 
         plt.subplot(plt_num,1,i)

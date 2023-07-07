@@ -475,6 +475,29 @@ The workbench also helps you save to and retrieve backtests from the inbuilt lib
 
 You can use this HTML5 Workbench by executing `python3 -m http.server 8000 --cgi` in the `html` folder and browsing to http://127.0.0.1:8000/ to view backtest results and access the library.
 
+## Plotting in Matplotlib
+
+<img src="img/plt_MACDLongOnly.PNG" width="800">
+
+To help users visualize the performance of the strategy, as well as the indicators, a plotting module is available. This particular showcase utilizes plot function and `MACDLongOnly` strategy found in `src/strategies` on `ETHUSDT` pair.
+
+```python
+self.exchange.plot('MACD',
+                   {"signal_line": signal_line[-1],
+                    "macd_line": macd_line[-1],
+                    "histogram": histogram[-1]},
+                   'r',
+                   overlay=False)    
+self.exchange.plot('CCI',
+                   {"CCI": cci1[-1],
+                    "threshold_upper": 100,
+                    "threshold_lower": -100},
+                   'r',
+                   overlay=False)      
+self.exchange.plot('hurst', hurst, 'r', False)          
+self.exchange.plot('SMA', sma1[-1], 'r', overlay=True)         
+self.exchange.plot('EWMA', ewma1[-1], 'b', overlay=True)        
+
 ## Logging Metrics to InfluxDB
 
 Step 1: Intall Influx DB client
