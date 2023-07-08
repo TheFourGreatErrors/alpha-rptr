@@ -165,6 +165,39 @@ def hull(src, length):
     return wma(2 * wma(src, length / 2) - wma(src, length), round(np.sqrt(length)))
 
 
+def klinger_oscillator(high, low, close, volume, ema_short_length=34, ema_long_length=55, signal_length=13):
+    """
+    Calculates the Klinger Oscillator and Signal values based on high, low, close, and volume.
+    Args:
+        high (array-like): Array or list of high prices.
+        low (array-like): Array or list of low prices.
+        close (array-like): Array or list of closing prices.
+        volume (array-like): Array or list of volume values.
+        ema_short_length (int, optional): Length of the short EMA. Default is 34.
+        ema_long_length (int, optional): Length of the long EMA. Default is 55.
+        signal_length (int, optional): Length of the signal EMA. Default is 13.
+    Returns:
+        kvo (array): Array of Klinger Oscillator values.
+        sig (array): Array of Signal values.
+    """
+    high = np.array(high)
+    low = np.array(low)
+    close = np.array(close)
+    volume = np.array(volume)
+
+    cumVol = np.cumsum(volume)
+    if cumVol[-1] == 0:
+        raise ValueError("No volume is provided by the data vendor.")
+
+    hl_avg = (high + low + close) / 3
+    hl_avg_diff = np.diff(hl_avg)
+    sv = np.where(hl_avg_diff >= 0, volume[1:], -volume[1:])
+    kvo = ema(sv, ema_short_length) - ema(sv, ema_long_length)
+    sig = ema(kvo, signal_length)    
+    
+    return kvo, sig
+
+
 def bbands(source, timeperiod=5, nbdevup=2, nbdevdn=2, matype=0):
     return talib.BBANDS(source, timeperiod, nbdevup, nbdevdn, matype)
 
