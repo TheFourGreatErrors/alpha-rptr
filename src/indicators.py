@@ -1207,12 +1207,12 @@ def monte_carlo_simulation(start_equity, profit_to_loss_ratio, num_simulations, 
 
             # Update equity based on compounding or non-compounding logic
             if compounding:
-                equity = equity + equity * profit
+                equity =  equity + equity * profit / start_equity              
             else:
-                equity = equity + profit #if equity + profit >= 0 else 0
+                equity = equity + profit  # if equity + profit >= 0 else 0
 
             equity_curve.append(equity)
-
+            
         equity_curves.append(equity_curve)
 
     # Plotting the equity curves
@@ -1223,14 +1223,19 @@ def monte_carlo_simulation(start_equity, profit_to_loss_ratio, num_simulations, 
     # Calculate drawdowns
     max_drawdowns = [np.max(np.maximum.accumulate(curve) - curve) / start_equity * 100 for curve in equity_curves]
     average_drawdowns = [np.mean(np.maximum.accumulate(curve) - curve) / start_equity * 100 for curve in equity_curves]
+    average_equity = [np.mean(curve) / start_equity * 100 for curve in equity_curves]
+    max_equity = [np.max(curve) / start_equity * 100 for curve in equity_curves]
 
 
     # Display statistics in legend
     win_rate_text = f'Win Rate: {randomized_win_rate * 100:.2f}%'
     max_drawdown_text = f'Max Drawdown: {np.max(max_drawdowns):.2f}%'
     average_drawdown_text = f'Average Drawdown: {np.mean(average_drawdowns):.2f}%'
+    max_equity_text = f'Max Equity: {np.max(max_equity):.2f}%'
+    average_equity_text = f'Average Equity: {np.mean(average_equity):.2f}%'
+    
 
-    plt.legend([win_rate_text, max_drawdown_text, average_drawdown_text])
+    plt.legend([win_rate_text, max_drawdown_text, average_drawdown_text, average_equity_text, max_equity_text])
 
     plt.xlabel('Steps')
     plt.ylabel('Equity')
