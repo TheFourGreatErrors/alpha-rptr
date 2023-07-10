@@ -14,21 +14,50 @@ While developing strategies, users are expected to have a basic understanding of
 
 Please note that the author of this software is not liable for any losses, damages or other adverse consequences resulting from the use of this software. It is highly recommended that you exercise caution and thoroughly test your trading strategy using small sizes over an extended period of time to ensure that it performs as expected before deploying it with larger sums of money.
 
+## Table of Contents
+
+- [About](#about)
+- [Disclaimer](#disclaimer)
+- [Features](#features)
+- [Refrence Strategies](#reference-strategies)
+- [Installation](#how-to-install)
+  * [Install packages](#1-install-packages)    
+  * [Setting keys](#2-setting-keys)   
+  * [Exchange config](#3-exchange-config)  
+ - [How to Run](#how-to-run)
+    * [Mode](#mode)
+      + [Production Trade Mode](#1-production-trade-mode)
+      + [Demo Trade Mode](#2-demo-trade-mode)
+      + [Backtest Mode](#3-backtest-mode)
+      + [Hyperopt Mode](#4-hyperopt-mode)
+      + [Stub Trade Mode (paper trading)](#5-stub-trade-mode-paper-trading)    
+- [How To Add a Custom Strategy](#how-to-add-a-custom-strategy)
+- [Key Functions](#key-functions)
+  * [Orders](#orders)
+  * [Position](#position)
+  * [Account](#account)
+- [Strategy Session Persistence](#strategy-session-persistence)
+- [Advanced Session Usage](#advanced-session-usage)
+- [HTML5 Workbench](#html5-workbench)
+- [Plotting in Matplotlib](#plotting-in-matplotlib)
+- [Logging Metrics to InfluxDB](#logging-metrics-to-influxdb)
+- [Tip Jar](#tip-jar)
+
 ## Features
 
-- API and Websocket implementation for multiple cryptocurrency exchanges, including Bybit, BitMEX, Binance Futures, and FTX.
+- REST API and Websocket implementation for multiple cryptocurrency exchanges, including Bybit, BitMEX, Binance Futures, and FTX.
 - Pre-defined events for market data updates, order updates, and trade executions.
-- all types of orders supported including majority of parameters/combinations - if you miss any, you can request
+- All types of orders supported including majority of parameters/combinations - if you miss any, you can request
 - Supports sophisticated order types, such as limit orders, stop-loss orders,trailing stop orders, iceberg orders and limit chasing orders.
 - Custom strategy implementation, allowing traders to define their own trading algorithms and indicators.
 - Backtesting framework to test strategies against historical market data.
 - Testnet for Bybit, BitMEX and Binance Futures, allowing traders to test their strategies without risking real funds.
 - Paper trading or stub trading for simulating trades with fake funds.
-- TA-lib indicators.
+- TA-lib indicators and many others including custom indicators
 - Simple strategy implementation, allowing traders to migrate strategies from other platforms such as TradingView.
 -  Discord webhooks and Line notifications supported for receiving real-time updates and notifications.
 
-## Implemented reference strategies
+## Reference Strategies
 
 **Please note** that the implemented reference strategies are provided as examples for educational and reference purposes only. They are not intended to be used as a fully functional trading strategy for live trading without further modifications and proper testing. The strategies may not be suitable for all market conditions and may result in losses. We highly recommend that you thoroughly understand the strategy and test it extensively before using it for live trading. Always use caution and do your own research before making any trading decisions.
 
@@ -101,46 +130,15 @@ config = {
             "binanceaccount3": {"API_KEY": os.environ.get("BINANCE_API_KEY_3"), 
                                 "SECRET_KEY": os.environ.get("BINANCE_SECRET_KEY_3")}
     },
-    "binance_test_keys": {
-            "binancetest1": {"API_KEY": "", "SECRET_KEY": ""},
-            "binancetest2": {"API_KEY": "", "SECRET_KEY": ""}
-    },
-    "bybit_keys": {
-            "bybitaccount1": {"API_KEY": "", "SECRET_KEY": ""},
-            "bybitaccount2": {"API_KEY": "", "SECRET_KEY": ""}
-    },
-    "bybit_test_keys": {
-            "bybittest1": {"API_KEY": "", "SECRET_KEY": ""},
-            "bybittest2": {"API_KEY": "", "SECRET_KEY": ""}
-    },
-    "bitmex_keys": {
-            "bitmexaccount1": {"API_KEY": "", "SECRET_KEY": ""},
-            "bitmexaccount2": {"API_KEY": "", "SECRET_KEY": ""}
-    },
-    "bitmex_test_keys": {
-            "bitmextest1":{"API_KEY": "", "SECRET_KEY": ""},
-            "bitmextest2": {"API_KEY": "", "SECRET_KEY": ""}
-    },
-    "ftx_keys": {
-            "ftxaccount1": {"API_KEY": "", "SECRET_KEY": ""},
-            "ftxaccount2": {"API_KEY": "", "SECRET_KEY": ""},                    
-    },  
     "line_apikey": {"API_KEY": ""},
     "discord_webhooks": {
-            "binanceaccount1": "",
-            "binanceaccount2": "",
-            "bybitaccount1": "",
-            "bybitaccount2": ""
+            "binanceaccount1": ""        
     },
     "healthchecks.io": {
                     "binanceaccount1": {
                             "websocket_heartbeat": "",
                             "listenkey_heartbeat": ""
-                    },
-                    "bybitaccount1": {
-                            "websocket_heartbeat": "",
-                            "listenkey_heartbeat": ""
-                    }
+                    }     
     },
     # To use Args profiles, add them here and run by using the flag --profile <your profile string>
     "args_profile": {"binanceaccount1_Sample_ethusdt": {"--test": False,
@@ -186,7 +184,7 @@ If you want to send notifications to LINE or Discord, set LINE's API key and/or 
               "warmup_tf": None}
 ```
  
-## How to execute
+## How to Run
  
  To use the trading bot, you need to run the main.py script with the appropriate parameters. Here's a breakdown of the available options:
 - `--account`: Specifies the account to use for trading. This should match the name of a configuration file located in the config directory. For example, if you have a file called `binanceaccount1` in the config directory, you would use `--account binanceaccount1`.
@@ -223,7 +221,7 @@ $ python main.py --account binanceaccount1 --exchange binance --pair BTCUSDT --s
 $ python main.py --demo --account bitmexaccount1 --exchange bitmex --pair XBTUSD --strategy Sample
 ```
 
-### 3. Back test Mode
+### 3. Backtest Mode
 In this mode, the script will back test the specified strategy using historical data for the specified trading pair on the Binance exchange. To run the script in this mode, use the following command:
 ```bash
 $ python main.py --test --account binanceaccount1 --exchange binance --pair BTCUSDT --strategy Sample
@@ -241,7 +239,7 @@ In this mode, the script will simulate trades on the Binance exchange for the sp
 $ python main.py --stub --account binanceaccount1 --exchange binance --pair BTCUSDT --strategy Sample
 ```
 
-## How to add a custom strategy
+## How to Add a Custom Strategy
 
 To add a new strategy to the trading bot, follow these steps:
 
@@ -328,7 +326,7 @@ class Sample(Bot):
             self.isShortEntry.append(short_entry_condition)          
 ```
 
-## Key functions
+## Key Functions
 
 ### Orders
 
@@ -551,7 +549,7 @@ log_metrics to InfluxDB mapping:
 This server is dedicated for bug reporting, feature requests and support.
 https://discord.gg/ah3MGeN
 
-## Support the Project
+## Tip Jar
 
 if you find this software useful and want to support the development, please feel free to donate.
 
