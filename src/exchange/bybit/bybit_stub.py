@@ -50,7 +50,7 @@ class BybitStub(Stub, Bybit):
             strategy(action, open, close, high, low, volume)   
 
         # Bind the __override_strategy function to the instance
-        self.__override_strategy = Stub.override_strategy(__override_strategy).__get__(self, BinanceFuturesStub)
+        self.__override_strategy = Stub.override_strategy(__override_strategy).__get__(self, BybitStub)
 
         # Call the 'on_update' function of the 'Bybit' class, passing 'bin_size' and the overridden '__override_strategy'.
         Bybit.on_update(self, bin_size, self.__override_strategy)
