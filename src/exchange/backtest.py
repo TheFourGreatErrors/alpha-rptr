@@ -43,10 +43,10 @@ class BackTest(Stub):
 
     def __init__(self):
         """
-        constructor
-        :account:
-        :pair:
-        :param periods:
+        Get the current market price.
+
+        Returns:
+            float: The current market price.
         """
         Stub.__init__(self)
         # Market price
@@ -78,15 +78,19 @@ class BackTest(Stub):
 
     def get_market_price(self):
         """
-        get market price
-        :return:
+        Get the current market price.
+
+        Returns:
+            float: The current market price.
         """
         return self.market_price
 
     def now_time(self):
         """
-        current time
-        :return:
+        Get the current time.
+
+        Returns:
+            datetime: The current time.
         """
         return self.time    
     
@@ -118,13 +122,19 @@ class BackTest(Stub):
         reduce_only=False        
     ):
         """
-        Commit
-        :param id: order
-        :param long: long or short
-        :param qty: quantity
-        :param price: price
-        :param need_commission: use commision or not?
-        :param callback
+        Commit a trade order.
+
+        This function commits a trade order for the trading pair in the stub trading account.
+        It updates the position size, average entry price, profit and loss, and other relevant account metrics.
+
+        Args:
+            id (str): The order ID.
+            long (bool): True if it's a long order, False for a short order.
+            qty (float): The order quantity.
+            price (float): The price of the order.
+            need_commission (bool, optional): True if a commission fee arises. Defaults to False.
+            callback (function, optional): A callback function to be executed on order completion (not applicable in backtesting and paper trading).
+            reduce_only (bool, optional): True if the order should be reduce-only. Defaults to False.
         """
         Stub.commit(self, id, long, qty, price, 
                                   need_commission, callback, reduce_only)
@@ -136,7 +146,13 @@ class BackTest(Stub):
 
     def close_all(self, callback=None, chaser=False):
         """
-        Close all positions
+        Close all positions.
+
+        This function closes all open positions in the stub trading account.
+
+        Args:
+            callback (function, optional): A callback function to be executed on order completion.
+            chaser (bool, optional): If True, the orders will be submitted as trailing stop orders (not applicable in backtesting and paper trading).
         """
         if self.get_position_size() == 0:
             return 
@@ -145,9 +161,14 @@ class BackTest(Stub):
     
     def close_all_at_price(self, price, callback=None, chaser=False):
         """
-        close the current position at price,
-        for backtesting purposes its important to have a function that closes at given price
-        :param price: price
+        Close all positions at a given price.
+
+        This function closes all open positions in the stub trading account at a specified price.
+
+        Args:
+            price (float): The price at which the positions should be closed.
+            callback (function, optional): A callback function to be executed on order completion.
+            chaser (bool, optional): If True, the orders will be submitted as trailing stop orders (not applicable in backtesting and paper trading).
         """
         if self.get_position_size() == 0:
             return 
@@ -156,8 +177,11 @@ class BackTest(Stub):
 
     def crawler_run(self):
         """
-        Get the data and execute the strategy.
-        """        
+        Run the crawler to get data and execute the strategy.
+
+        This function iterates through the historical OHLC data and executes the trading strategy.
+        It simulates the trading process for backtesting purposes.
+        """      
         self.df_ohlcv = self.df_ohlcv.set_index(self.df_ohlcv.columns[0])       
         self.df_ohlcv.index = pd.to_datetime(self.df_ohlcv.index, errors='coerce')
         
@@ -253,8 +277,14 @@ class BackTest(Stub):
 
     def security(self, bin_size, data=None):
         """
-        Recalculate and obtain data of a timeframe higher than the current timeframe
-        without looking into the future that would cause undesired effects.
+        Recalculate and obtain data of a timeframe higher than the current timeframe without looking into the future.
+
+        Args:
+            bin_size (str): The bin size of the higher timeframe.
+            data (pd.DataFrame, optional): The historical OHLC data. Defaults to None.
+        
+        Returns:
+            pd.DataFrame: The recalculated data of the higher timeframe.
         """
         if data == None and bin_size not in self.bin_size:           
             timeframe_list = [allowed_range_minute_granularity[t][3] for t in self.bin_size] # minute count of a timeframe for sorting when sorting is needed 
@@ -267,7 +297,15 @@ class BackTest(Stub):
  
     def check_candles(self, df):
         """
-        Check for missing candles
+        Check for missing candles in the historical OHLC data.
+
+        This function checks for missing candles and duplicate candles in the provided data.
+
+        Args:
+            df (pd.DataFrame): The historical OHLC data.
+
+        Returns:
+            None
         """
         logger.info("-------")
         logger.info(f"Checking Candles:")
@@ -310,6 +348,18 @@ class BackTest(Stub):
         logger.info("-------")
     
     def save_csv(self, data, file):
+        """
+        Save data to a CSV file.
+
+        This function saves the provided data to a CSV file.
+
+        Args:
+            data (pd.DataFrame): The data to be saved.
+            file (str): The file path where the data should be saved.
+
+        Returns:
+            None
+        """
 
         if not os.path.exists(os.path.dirname(file)):
             os.makedirs(os.path.dirname(file))
@@ -318,9 +368,17 @@ class BackTest(Stub):
 
     def load_ohlcv(self, bin_size):
         """
-        Read the data.
-        :return:
+        Load the historical OHLCV data.
+
+        This function loads the historical OHLCV data from a CSV file or API based on the specified bin size.
+
+        Args:
+            bin_size (str or list): The bin size or list of bin sizes for the historical data.
+
+        Returns:
+            None
         """
+       
         start_time = datetime.now(timezone.utc) - 1 * timedelta(days=self.days)
         end_time = datetime.now(timezone.utc)
         file = self.OHLC_FILENAME #OHLC_FILENAME.format("binance_futures", self.pair, bin_size) 
@@ -369,7 +427,12 @@ class BackTest(Stub):
 			    
     def show_result(self):
         """
-        Display results
+        Display the backtesting results.
+
+        This function displays the backtesting results, including trade count, balance, profit rate, win rate,
+        profit factor, Sharpe ratio, and max drawdown.
+
+        It also plots the price chart and any additional plot data provided during backtesting.
         """
         DATA_FILENAME = self.OHLC_FILENAME #OHLC_FILENAME.format("binance_futures", self.pair, self.bin_size)
         symlink(DATA_FILENAME, 'html/data/data.csv', overwrite=True)
@@ -474,4 +537,3 @@ class BackTest(Stub):
         
         if name not in self.plot_data:
             self.plot_data[name] = {'color': color, 'overlay': overlay}
-

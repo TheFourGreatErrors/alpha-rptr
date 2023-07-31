@@ -51,44 +51,85 @@ class Stub():
 
     def get_lot(self, **kwargs):
         """
-         Calculate the Lot
-         :return:
-         """
+        Calculate the position size (lot) based on the current balance and leverage.
+
+        This function calculates the position size (lot) based on the current balance and leverage set in the trading account.
+        Since this is a stub class for backtesting and paper trading purposes, it uses the historical balance and leverage.
+
+        Returns:
+            float: The calculated position size (lot).
+        """
         return float(self.get_balance() * self.get_leverage() / self.get_market_price())
 
     def get_balance(self, **kwargs):
         """
-        Get the Current Balance
-        :return:
+        Get the current balance of the trading account.
+
+        This function retrieves the current balance from the stub trading account for pepr trading and backtesting purposes.
+
+        Returns:
+            float: The current balance in the base currency.
         """
         return self.balance
+    
+    def set_leverage(self, leverage, **kwargs):
+        """
+        Set the leverage for the trading account.
+
+        This function sets the leverage to be used for trading in the stub trading account.
+
+        Args:
+            leverage (float): The leverage value to be set.
+
+        Returns:
+            None
+        """
+        self.leverage = leverage
 
     def get_leverage(self, **kwargs):
         """
-        Get the leverage
-        :return:
+        Get the leverage used for the trading account.
+
+        This function retrieves the leverage value currently set in the stub trading account.
+
+        Returns:
+            float: The current leverage value.
         """
         return self.leverage
 
     def get_position_size(self, **kwargs):
         """
-         Get the position size
-         :return:
-         """
+        Get the current position size.
+
+        This function retrieves the current position size (quantity) for the trading pair in the stub trading account.        
+
+        Returns:
+            float: The current position size (quantity).
+        """
         return self.position_size
 
     def get_position_avg_price(self):
         """
-        Get the position avg price
-        :return:
+        Get the average price of the current position.
+
+        This function retrieves the average price of the current position for the trading pair in the stub trading account.       
+
+        Returns:
+            float: The average price of the current position.
         """
         return self.position_avg_price
 
     def get_pnl(self):
         """
-        get profit and loss calculation in %
-        :return:
+        Calculate the profit and loss (PnL) percentage for the current position.
+
+        This function calculates the profit and loss percentage for the current position based on the entry price
+        and the current market price in the stub trading account.
+
+        Returns:
+            float: The profit and loss percentage for the current position.
         """
+
         # PnL calculation in % 
         entry_price = self.get_position_avg_price()
         pnl = (self.market_price - entry_price) * 100 / entry_price
@@ -96,13 +137,28 @@ class Stub():
 
     def cancel_all(self):
         """
-        cancel the current orders
+        Cancel all the current orders.
+
+        This function cancels all the open orders associated with the stub trading account for backtesting purposes.
+
+        Returns:
+            None
         """
         self.open_orders = []
 
     def close_all(self, callback=None, chaser=False, **kwargs):
         """
-        close all current orders 
+        Close all the current positions.
+
+        This function closes all the current positions for the trading pair in the stub trading account.
+        It submits a closing order with the corresponding order quantity to flatten the position.
+
+        Args:
+            callback (function, optional): A callback function to be executed on order completion.
+            chaser (bool, optional): If True, the order will be submitted as a trailing stop order (not applicable in backtesting).
+
+        Returns:
+            None
         """
         pos_size = self.position_size
         if pos_size == 0:
@@ -113,9 +169,18 @@ class Stub():
     
     def close_all_at_price(self, price, callback=None, chaser=False):
         """
-        close the current position at price,
-        for backtesting purposes its important to have a function that closes at given price
-        :param price: price
+        Close the current position at the specified price.
+
+        This function submits a closing order to close the current position at the specified price in the stub trading account.
+        This is particularly useful for backtesting purposes to simulate closing positions at certain prices.
+
+        Args:
+            price (float): The price at which the position should be closed.
+            callback (function, optional): A callback function to be executed on order completion.
+            chaser (bool, optional): If True, the order will be submitted as a trailing stop order (not applicable in backtesting).
+
+        Returns:
+            None
         """
         pos_size = self.position_size
         if pos_size == 0:
@@ -126,9 +191,15 @@ class Stub():
 
     def cancel(self, id, **kwargs):
         """
-        cancel an order
-        :param long: Long or short?
-        :return success
+        Cancel a specific order.
+
+        This function cancels a specific open order with the given order ID from the stub trading account for backtesting purposes.
+
+        Args:
+            id (str): The order ID to be canceled.
+
+        Returns:
+            bool: True if the order was successfully canceled, False otherwise.
         """
         self.open_orders = [o for o in self.open_orders if o["id"] != id]
         return True
@@ -152,16 +223,29 @@ class Stub():
         **kwargs
     ):
         """
-        Places an order.         
-        : param id: number of order
-        : param long: long or short
-        : param qty: order quantity
-        : param limit: limit
-        : param stop: stop limit
-        : param post_only: post only
-        : param reduce_only: reduce only
-        : param when: Do you order?
-        : return:
+        Place an order.
+
+        This function places an order for the trading pair with the given parameters in the stub trading account.
+        For backtesting and paper trading purposes, the order is simulated without actually executing it on an exchange.
+
+        Args:
+            id (str): The order ID.
+            long (bool): True if it's a long order, False for a short order.
+            qty (float): The order quantity.
+            limit (float, optional): The limit price for a limit order. Defaults to 0.
+            stop (float, optional): The stop price for a stop-limit order. Defaults to 0.
+            post_only (bool, optional): True if the order should be post-only. Defaults to False.
+            reduce_only (bool, optional): True if the order should be reduce-only. Defaults to False.
+            when (bool, optional): Set to True to execute the order. Defaults to True.
+            callback (function, optional): A callback function to be executed on order completion.
+            workingType (str, optional): The working type for the order. Defaults to "CONTRACT_PRICE".
+            split (int, optional): The number of splits for iceberg orders. Defaults to 1.
+            interval (int, optional): The interval for time-weighted average price orders. Defaults to 0.
+            chaser (bool, optional): If True, the order will be submitted as a trailing stop order (not applicable in backtesting and paper trading).
+            retry_maker (int, optional): The number of retries for maker orders. Defaults to 100.
+
+        Returns:
+            None
         """
         if not when:
             return
@@ -207,9 +291,14 @@ class Stub():
         split=1, 
         interval=0,
         chaser=False,
-        retry_maker=100
+        retry_maker=100,
+        **kwargs
     ):
         """
+        Close a partial position.
+
+        This function closes a part of the current position for the trading pair in the stub trading account.
+        It submits a closing order with the specified order quantity to partially reduce the position.
         """
         pos_size = self.get_position_size()
 
@@ -252,17 +341,38 @@ class Stub():
         **kwargs
     ):
         """
-         I place an order. Equivalent function to pine's function.
-         https://jp.tradingview.com/study-script-reference/#fun_strategy{dot}entry
-        : param id: number of order
-        : param long: long or short
-        : param qty: order quantity
-        : param limit: limit
-        : param stop: stop limit
-        : param post_only: post only
-        : param when: Do you order?
-        : return:
-         """
+        Places an entry order with various options, working as an equivalent to TradingView Pine script implementation:
+        https://tradingview.com/study-script-reference/#fun_strategy{dot}entry
+
+        When an order is placed in a market, it will typically open a position on a particular side (buy or sell). 
+        However, if another entry order is sent while the position is still open, and it is on the opposite side, 
+        the position will be reversed. This means that the current position will be closed out (effectively covering the existing position), 
+        and a new position will be opened on the opposite side. In other words, 
+        the order will close out the existing position and enter a new position in the opposite direction.
+
+        It will not send the order if there is a position opened on the same side !!! 
+        - for multiple entrie use `entry_pyramiding()` or regular `order()`
+
+        Args:
+            id (str): The order ID.
+            long (bool): True if it's a long order, False for a short order.
+            qty (float): The order quantity.
+            limit (float, optional): The limit price for a limit order. Defaults to 0.
+            stop (float, optional): The stop price for a stop-limit order. Defaults to 0.
+            post_only (bool, optional): True if the order should be post-only. Defaults to False.
+            when (bool, optional): Set to True to execute the order. Defaults to True.
+            round_decimals (int, optional): The number of decimals to round the order quantity. Defaults to None.
+            callback (function, optional): A callback function to be executed on order completion (not applicable in backtesting and paper trading).
+            workingType (str, optional): The working type for the order. Defaults to "CONTRACT_PRICE".
+            split (int, optional): The number of splits for iceberg orders. Defaults to 1.
+            interval (int, optional): The interval for time-weighted average price orders. Defaults to 0.
+            chaser (bool, optional): If True, the order will be submitted as a trailing stop order (not applicable in backtesting and paper trading).
+            retry_maker (int, optional): The number of retries for maker orders. Defaults to 100.
+            **kwargs: Additional arguments (if needed).
+
+        Returns:
+            None
+        """
         if not when:
             return
 
@@ -315,19 +425,22 @@ class Stub():
         **kwargs
     ):
         """
-        Places an entry order, works as equivalent to tradingview pine script implementation with pyramiding        
-        :param id: Order id
-        :param long: Long or Short
-        :param qty: Quantity
-        :param limit: Limit price
-        :param stop: Stop limit
-        :param post_only: Post only
-        :param reduce_only: Reduce Only means that your existing position cannot be increased only reduced by this order
-        :param cancell_all: cancell all open order before sending the entry order?
-        :param pyramiding: number of entries you want in pyramiding
-        :param when: Do you want to execute the order or not - True for live trading
-        :return:
-        """       
+        Places an entry order with pyramiding, allowing adding to a position in smaller chunks.        
+               
+        The implementation is similar to TradingView Pine script:
+        https://tradingview.com/study-script-reference/#fun_strategy{dot}entry
+
+        Pyramiding in trading refers to adding to a position gradually,
+        with the goal of increasing potential gains while reducing risk.
+        In this function, the order quantity is adjusted based on the pyramiding value set by the user deviding it in smaller orders.
+        Outside of order pyramiding functionality it behaves as a regular `entry()`.
+        
+        Args:           
+            pyramiding (int, optional): The number of entries to be placed with pyramiding. Defaults to 2.
+            + other Args the same as `entry()`
+        Returns:
+            None
+        """
 
         # if self.get_margin()['excessMargin'] <= 0 or qty <= 0:
         #     return
@@ -388,6 +501,10 @@ class Stub():
     ):        
         """         
         Commits a trade order.
+
+        This function commits a trade order for the trading pair in the stub trading account.
+        It updates the position size, average entry price, profit and loss, and other relevant account metrics.
+
         Parameters:
             id (str): Order id.
             long (bool): Indicates whether the order is long (True) or short (False).
@@ -396,6 +513,7 @@ class Stub():
             need_commission (bool, optional): Indicates if a commission fee arises. Defaults to False.
             reduce_only (bool, optional): Indicates if the order is reduce-only. Defaults to False.
             callback (function, optional): Callback function to execute after the order is committed. Defaults to None.
+
         Returns:
             None
         """
@@ -511,7 +629,13 @@ class Stub():
 
     def eval_exit(self):
         """
-        Evaluation of stop loss and profit target - different mechanism than sltp() and eval_sltp() 
+        Evaluate exit conditions.
+
+        This function evaluates the exit conditions for the current position in the stub trading account.
+        It checks if the position should be closed based on trailing stop loss or take profit levels.
+
+        Returns:
+            None
         """
         if self.get_position_size() == 0:
             return
@@ -553,11 +677,14 @@ class Stub():
 
     def eval_sltp(self):
         """
-        Simple take profit and stop loss implementation
-        - sends a reduce only stop loss order upon entering a position.
-        - requires setting values with sltp() prior          
-        """
+        Evaluate stop loss and take profit.
 
+        This function evaluates the stop loss and take profit levels for the current position in the stub trading account.
+        It checks if the position should be closed based on the specified stop loss and take profit percentages.
+
+        Returns:
+            None
+        """
         pos_size = self.get_position_size()
         if pos_size == 0:
             return
@@ -585,7 +712,7 @@ class Stub():
                 if self.OHLC['high'][-1] >= sl_price_short:                 
                     self.close_all_at_price(sl_price_short, self.get_sltp_values()['stop_short_callback'])    
 
-    # eval_tp_next_candle
+        # eval_tp_next_candle
         if (self.isLongEntry[-1] == True and self.isLongEntry[-2] == False and self.get_sltp_values()['eval_tp_next_candle']) or \
             (self.isShortEntry[-1] == True and self.isShortEntry[-2] == False and self.get_sltp_values()['eval_tp_next_candle']):
             return
