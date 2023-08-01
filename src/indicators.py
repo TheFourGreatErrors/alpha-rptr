@@ -645,7 +645,7 @@ def klinger_oscillator(high, low, close, volume, ema_short_length=34, ema_long_l
     return kvo, sig
 
 
-#############            Moving Averages Indicators            #############################################################
+#############            Moving Averages            ########################################################################
 ############################################################################################################################
 
 
@@ -696,8 +696,6 @@ def ssma(src, length):
 
 def hull(src, length):
     return wma(2 * wma(src, length / 2) - wma(src, length), round(np.sqrt(length)))
-def first(l=[]):
-    return l[0]
 
 
 #############            Bands and Channels Indicators            ##########################################################
@@ -1445,6 +1443,10 @@ def pareto_scaling(data):
 
 #############            Miscellaneous and Custom             ##############################################################
 ############################################################################################################################
+
+
+def first(l=[]):
+    return l[0]
 
 
 def last(l=[]):

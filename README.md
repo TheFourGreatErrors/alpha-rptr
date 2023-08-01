@@ -36,11 +36,24 @@ Please note that the author of this software is not liable for any losses, damag
   * [Orders](#orders)
   * [Position](#position)
   * [Account](#account)
+  * [Indicators and Functions](#indicators-and-functions)
+      + [Trend Indicators](#trend-indicators)
+      + [Volatility Indicators](volatility-indicators)
+      + [Momentum Indicators](#momentum-indicators)
+      + [Moving Averages](#moving-averages)
+      + [Bands and Channels](#bands-and-channels)    
+      + [Pattern Recognition](#pattern-recognition)    
+      + [Math Operators](#math-operators)   
+      + [Probability Distributions and Simulations](#probability-distribution-and-simulations)   
+      + [Regression](#regression)   
+      + [Normalization Techniques](#normalization-techniques)   
+      + [Miscellaneous and Custom](#miscellaneous-and-custom)   
 - [Strategy Session Persistence](#strategy-session-persistence)
 - [Advanced Session Usage](#advanced-session-usage)
-- [HTML5 Workbench](#html5-workbench)
+- [HTML5 Workbench for Backtests](#html5-workbench-for-backtests)
 - [Plotting in Matplotlib](#plotting-in-matplotlib)
 - [Logging Metrics to InfluxDB](#logging-metrics-to-influxdb)
+- [Discord Server](#discord-server)
 - [Tip Jar](#tip-jar)
 
 ## Features
@@ -106,7 +119,7 @@ $ pip install -r requirements.txt
 ```
 **Note:** We are using a Python wrapper for the `TA-Lib` library, which provides a wide range of technical analysis functions for financial markets. It is important to note that the underlying TA-Lib library is written in C language. Therefore, in order to install and use this library, it needs to be properly compiled on your system. The Python wrapper allows these functions to be used from within Python code, but the installation process may require some technical knowledge. It is important to ensure that the C library is properly compiled prior to installation in order to avoid errors and ensure that the library functions correctly.
 
-### 2. Setting keys 
+### 2. Setting Keys 
 
 The `src/config.py` file is where you can set your API keys and other configuration settings for the trading bot. Here's how to do it:
 1. Open the config.py file in a text editor or IDE.
@@ -156,7 +169,7 @@ config = {
 
 If you want to send notifications to LINE or Discord, set LINE's API key and/or Discord webhooks - discord will be sending notifications based on the account you choose to trade with. #todo telegram
  
-### 3. Exchange config
+### 3. Exchange Config
  This is the configuration dictionary (found in `src/exchange_config.py`) for various exchanges including Binance, Bybit, Bitmex, and FTX. It contains the following parameters:
  ```py
  
@@ -445,6 +458,143 @@ self.exchange.order("user_given_id", True, 1, 19500, stop=20 000)
 | `set_leverage()` |  - | All | - |
 | `get_leverage()` |  - | All | - |
 
+
+### Indicators and Functions
+
+#### Trend Indicators
+| Function | Description | 
+| -------- | ----------- | 
+| `sar()` |  Parabolic Stop and Reverse (SAR) |
+| `sarext()` | Extended Parabolic Stop and Reverse (SAR) |
+| `supertrend()` | Supertrend | 
+| `tv_supertrend()` | Supertrend TradingView | 
+| `Supertrend()` |  Supertrend Class Implementation | 
+| `hurst_exponent()` |  Hurst Exponent | 
+| `lyapunov_exponent()` |  Lyapunov Exponent | 
+
+#### Volatility Indicators 
+
+| Function | Description | 
+| -------- | ----------- | 
+| `stdev()` |  Standard Deviation (STDEV) |
+| `stddev()` |  Standard Deviation (STDEV) - TA-Lib |
+| `tr()` | True Range (TR) |
+| `atr()` | Average True Range (ATR) | 
+| `natr()` | Normalized Average True Range (NATR) | 
+| `vix()` | Volatility Index (VIX) | 
+| `hurst_exponent()` |  Hurst Exponent | 
+| `ulcer_index()` |  Ulcer Index (UI) | 
+
+#### Momentum Indicators
+
+| Function | Description | 
+| -------- | ----------- | 
+| `adx()` |  ADX |
+| `di_plus()` | Plus Directional Indicator (PLUS_DI) |
+| `di_minus()` | Minus Directional Indicator (MINUS_DI) |
+| `macd()` | Moving Average Convergence Divergence | 
+| `obv()` | On Balance Volume (OBV)  | 
+| `mfi()` | Money Flow Index (MFI) | 
+| `stochastic()` | Stochastic indicator | 
+| `cci()` |  Commodity Channel Index | 
+| `rsi()` |  Relative Strength Index (RSI) | 
+| `rsx()` |  Relative Strength Xtra (inspired by Jurik RSX) | 
+| `rci()` |  Rolling Coefficient of Inefficiency (RCI) | 
+| `klinger_oscillator()` | Klinger Volume Oscillator (KVO) | 
+
+#### Moving Averages
+
+| Function | Description | 
+| -------- | ----------- | 
+| `sma()` |  Simple Moving Average (SMA) |
+| `ema()` | Exponential Moving Average (EMA) |
+| `triple_ema()` | Triple Exponential Moving Average (TEMA) |
+| `wma()` | Weighted Moving Average (WMA) | 
+| `ewma()` | Exponentially Weighted Moving Average (EWMA) | 
+| `vwap()` | Volume Weighted Average Price (VWAP) | 
+| `ssma()` | Smoothed Simple Moving Average (SSMA) | 
+| `hull()` |  Hull Moving Average | 
+
+####  Bands and Channels
+
+| Function | Description | 
+| -------- | ----------- | 
+| `bbands()` |  Bollinger Bands (BB) |
+| `donchian()` | Donchian Channel (DC) |
+| `keltner_channel()` | Keltner Channel (KC) |
+
+#### Pattern Recognition
+
+| Function | Description | 
+| -------- | ----------- | 
+| `highestbars()` |  Highest value offset for a given number of bars back. Returns offset to the highest bar. |
+| `lowestbars()` | Lowest value offset for a given number of bars back. Returns offset to the lowest bar.|
+| `crossover()` | - |
+| `crossunder()` | - | 
+| `ord()` | Calculate the ordinal rank of a given element in a sorted sequence. | 
+| `is_under()` | - | 
+| `is_over()` | - | 
+
+#### Math Operators
+
+| Function | Description | 
+| -------- | ----------- | 
+| `highest()` |  Computes the maximum value within each rolling window of size period for a given list-like source and returns a NumPy array. |
+| `lowest()` | Computes the maximum value within each rolling window of size period for a given list-like source and returns a NumPy array.|
+| `MAX()` | - |
+| `med_price()` | Also found in tradingview as hl2 source | 
+| `typ_price()` |  Also found in tradingview as ohlc4 source | 
+| `avg_price()` | also found in tradingview as ohlc4 source | 
+
+#### Probability Distributions and Simulation
+
+| Function | Description | 
+| -------- | ----------- | 
+| `detrended_fluctuation_analysis()` | Perform Detrended Fluctuation Analysis (DFA) on the given data. |
+| `psd()` | Compute the Power Spectral Density (PSD) of a given signal. |
+| `shannon_entropy()` | Calculates the Shannon entropy of a probability distribution. |
+| `brownian_motion()` | Simulates a Brownian motion path |
+| `brownian_bridge()` |  Simulates a Brownian bridge path. |
+| `bessel_process()` | Simulates a Bessel process path. |
+| `bessel_process_euler_maruyama()` | Simulates paths of the Bessel process using the Euler-Maruyama method. |
+| `ornstein_uhlenbeck_process()` |Simulates an Ornstein-Uhlenbeck process. | 
+| `cir_process()` | Simulates a Cox-Ingersoll-Ross (CIR) process. | 
+| `heston_model()` |Simulates a stock price path using the Heston model. | 
+| `jump_diffusion_model()` | Simulates a stock price path using the Jump Diffusion model. | 
+| `monte_carlo_simulation()` | Perform Monte Carlo simulation for equity growth. | 
+
+#### Regression
+
+| Function | Description | 
+| -------- | ----------- | 
+| `linreg()` |  Linear Regression (LINEARREG) using TA-Lib. |
+| `linreg_slope()` |  Linear Regression Slope (LINEARREG_SLOPE) using TA-Lib.|
+
+#### Normalization Techniques
+
+| Function | Description | 
+| -------- | ----------- | 
+| `min_max_normalization()` |   Min-max normalization scales the values to a specific range, typically between 0 and 1.  |
+| `z_score_normalization()` | Z-score normalization (also known as standardization) transforms the values to have a mean of 0 and a standard deviation of 1.  |
+| `decimal_scaling_normalization()` | Decimal scaling normalizes the values by dividing them by a suitable power of 10, based on the maximum absolute value in the dataset, often between -1 and 1. |
+| `log_normalization()` | This method applies the natural logarithm function to the data, which can help reduce the impact of outliers and skewness. | 
+| `robust_normalization()` | This method is robust to outliers and uses the median and interquartile range (IQR) to scale the data.  | 
+| `unit_vector_normalization()` |   Unit vector normalization (also known as vector normalization or L2 normalization) scales the values such that the Euclidean norm (L2 norm) of the vector is 1.  | 
+| `power_normalization()` | Power Normalization | 
+| `softmax_normalization()` |  This method is commonly used in machine learning for normalizing a set of values into a probability distribution where the sum of all values is equal to 1. | 
+| `median_normalization()` |  This method scales the data by subtracting the median and dividing by the median absolute deviation (MAD). | 
+| `pareto_scaling()` |  This method scales the data by dividing each value by the square root of the standard deviation. | 
+
+####  Miscellaneous and Custom Functions
+
+| Function | Description | 
+| -------- | ----------- | 
+| `first()` | - |
+| `last()` | - |
+| `d()` | calculating a metric related to the "disorder" or "inefficiency" of the data. It takes two arguments, src (the input data series) and itv (the length of the calculation). The function sorts the input data in descending order and then iterates over the sorted data to calculate a sum of squared differences between the position of each element in the sorted data and its ordinal rank in the original data. |
+| `sharpe_ratio()` | - |
+| `compute_log_returns()` | - | 
+
 ## Strategy Session Persistence
 
 Sometime we might need to restart strategies with complex internal state and we might want to preserve this state between restarts.
@@ -545,8 +695,9 @@ log_metrics to InfluxDB mapping:
 1. collection -> measurement
 2. metrics -> fields
 3. tags -> tags
-## Dedicated discord server
-This server is dedicated for bug reporting, feature requests and support.
+
+## Discord Server
+This server is dedicated for bug reporting, feature requests, support and trading/strategy discussion.
 https://discord.gg/ah3MGeN
 
 ## Tip Jar
