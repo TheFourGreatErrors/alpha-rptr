@@ -63,42 +63,63 @@ class Bot:
 
     def __init__(self, bin_size):
         """
-        constructor
-        :param bin_size: time_frame
-        :param periods: period
+        Constructor for the Bot class.
+
+        Args:
+            bin_size (str): The time frame for trading data.
         """
         self.bin_size = bin_size
 
     def __del__(self):
+        """
+        Destructor for the Bot class.
+        """
         self.stop()
 
     def get_session(self):
+        """
+        Get the session object for session persistence.
+
+        Returns:
+            Session: The session object.
+        """
         return self.session
 
     def set_session(self, session):
+        """
+        Set the session object for session persistence.
+
+        Args:
+            session (Session): The session object to be set.
+        """
         self.session.load(session)
 
     def options(self):
         """
-        Function to get values for parameter optimization
+        Function to get values for parameter optimization.        
         """
         pass
 
     def ohlcv_len(self):
         """
-        The length of the OHLC to the strategy
+        Get the length of the OHLC data used by the strategy.
+
+        Returns:
+            int: The length of the OHLC data.
         """
         return 100
 
     def input(self, title, type, defval):
         """
-        Returns input for a given parameter title or the default value if not provided.
+        Get user input for a given parameter title or return the default value if not provided.
 
-        :param title: the title of the parameter to be retrieved
-        :param type: the type of the parameter (e.g., int, float, str)
-        :param defval: the default value to be returned if no user input is provided
+        Args:
+            title (str): The title of the parameter to be retrieved.
+            type (type): The type of the parameter (e.g., int, float, str).
+            defval (Any): The default value to be returned if no user input is provided.
 
-        :return: the user input value for the parameter or the default value    
+        Returns:
+            Any: The user input value for the parameter or the default value.
         """
         # If there are already parameters defined, set the parameter dictionary to that, otherwise create an empty dictionary
         p = {} if self.params is None else self.params
@@ -112,19 +133,27 @@ class Bot:
 
     def strategy(self, action,  open, close, high, low, volume):
         """
-        Strategy function, when creating a bot please inherit and implement this fn. 
-        :param action: action
-        :param open: open price
-        :param close: close price
-        :param high: high price
-        :param low: low price
-        :param volume: volume
+        Strategy function, when creating a bot please inherit and implement this function.
+
+        Args:
+            action (str): Action.
+            open (float, list, numpy array or pd series etc.): Open price.
+            close (float, list, numpy array or pd series etc.): Close price.
+            high (float, list, numpy array or pd series etc.): High price.
+            low (float, list, numpy array or pd series etc.): Low price.
+            volume (float, list, numpy array or pd series etc.): Volume.
+
+        Returns:
+            None
         """
         pass
 
     def params_search(self):
         """
- ˜      function to search params
+        Function to search for parameters.
+
+        Returns:
+            None
         """
         def objective(args):
             logger.info(f"Params : {args}")
@@ -183,7 +212,10 @@ class Bot:
 
     def run(self):
         """
-˜       Function to run the bot
+        Function to search for parameters.
+
+        Returns:
+            None
         """
         if self.hyperopt:
             logger.info(f"Bot Mode : Hyperopt")
@@ -244,7 +276,10 @@ class Bot:
 
     def stop(self):
         """
-˜       Function that stops the bot and cancel all trades.
+        Function that stops the bot and by default it cancels all trades(optional).
+
+        Returns:
+            None
         """
         if self.exchange is None:
             return

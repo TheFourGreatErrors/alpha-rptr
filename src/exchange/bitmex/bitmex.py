@@ -45,11 +45,13 @@ class BitMex:
 
     def __init__(self, account, pair, demo=False, threading=True):
         """
-        constructor
-        :account:
-        :pair:
-        :param demo:
-        :param run:
+        Constructor for BinanceFutures class.
+        Args:
+            account (str): The account identifier for Binance futures.
+            pair (str): The trading pair for Binance futures.
+            demo (bool, optional): Flag to use the testnet. Default is False.
+            threading (bool, optional): Condition for setting the 'is_running' flag.
+                Default is True to indicate the bot is running.
         """
         # Account
         self.account = account

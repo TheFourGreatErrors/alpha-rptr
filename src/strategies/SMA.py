@@ -37,7 +37,7 @@ class SMA(Bot):
     def strategy(self, action, open, close, high, low, volume):
         lot = self.exchange.get_lot()
         fast_len = self.input('fast_len', int, 9)
-        slow_len = self.input('slow_len', int, 16)
+        slow_len = self.input('slow_len', int, 27)
         fast_sma = sma(close, fast_len)
         slow_sma = sma(close, slow_len)
         golden_cross = crossover(fast_sma, slow_sma)
@@ -48,8 +48,6 @@ class SMA(Bot):
             logger.info(f"{'Long' if long else 'Short'} Entry Order Successful")
 
         if golden_cross:
-            self.exchange.entry("Long", True, lot, \
-                round_decimals=3, callback=entry_callback)
+            self.exchange.entry("Long", True, lot, round_decimals=3, callback=entry_callback)
         if dead_cross:
-            self.exchange.entry("Short", False, lot, \
-                round_decimals=3, callback=entry_callback)
+            self.exchange.entry("Short", False, lot, round_decimals=3, callback=entry_callback)
