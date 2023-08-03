@@ -360,14 +360,14 @@ def lyapunov_exponent(data, dt):
 
 def tr(high, low, close):
     """
-    true range
+    True Range
     """
     return talib.TRANGE(high, low, close)
 
 
 def atr(high, low, close, period):
     """
-    average true range
+    Average True Range
     """
     return talib.ATR(high, low, close, period)
 
@@ -387,30 +387,73 @@ def natr(high, low, close, period):
 
 
 def stdev(source, period):
+    """
+    Calculate the rolling standard deviation of a time series data.
+    Args:
+        source (list or pandas.Series): The time series data for which to calculate the standard deviation.
+        period (int): The number of periods to consider for the rolling standard deviation.
+
+    Returns:
+        numpy.ndarray: An array containing the rolling standard deviation values.
+    """
     return pd.Series(source).rolling(period).std().values
 
 
 def stddev(source, period, nbdev=1):
     """
-    talib stdev
+    Calculate the standard deviation of a time series data using TA-Lib.
+    Args:
+        source (list or numpy.ndarray): The time series data for which to calculate the standard deviation.
+        period (int): The number of periods to consider for calculating the standard deviation.
+        nbdev (int, optional): The number of standard deviations to use. Default is 1.
+    Returns:
+        numpy.ndarray: An array containing the standard deviation values.
     """
     return talib.STDDEV(source, timeperiod=period, nbdev=nbdev)
 
 
 def vix(close, low, pd=23, bbl=23, mult=1.9, lb=88, ph=0.85, pl=1.01):
+    """
+    Calculate the VIX Histogram.
+    Args:
+        close (list): List of closing prices.
+        low (list): List of low prices.
+        pd (int, optional): Period for calculating the highest value. Default is 23.
+        bbl (int, optional): Period for calculating the standard deviation. Default is 23.
+        mult (float, optional): Multiplier for the standard deviation. Default is 1.9.
+        lb (int, optional): Lookback period for calculating range high and range low. Default is 88.
+        ph (float, optional): Threshold for calculating the range high. Default is 0.85.
+        pl (float, optional): Threshold for calculating the range low. Default is 1.01.
+    Returns:
+        tuple: A tuple containing two lists: 
+            - green_hist: A list of boolean values indicating if each element represents a green histogram bar.
+            - red_hist: A list of boolean values indicating if each element represents a red histogram bar.
+    """
+    # Calculate the historical highest close price for the given period.
     hst = highest(close, pd)
+
+    # Calculate the Williams VIX Fix (WVF) as a percentage.
     wvf = (hst - low) / hst * 100
+
+    # Calculate the standard deviation and midline for the WVF.
     s_dev = mult * stdev(wvf, bbl)
     mid_line = sma(wvf, bbl)
+
+    # Calculate the upper and lower bands for the VIX Histogram.
     lower_band = mid_line - s_dev
     upper_band = mid_line + s_dev
 
+    # Calculate the range high and range low for the VIX Histogram.
     range_high = (highest(wvf, lb)) * ph
     range_low = (lowest(wvf, lb)) * pl
 
+    # Determine if each element in the last 8 elements is above the upper band or range high (green histogram).
     green_hist = [wvf[-i] >= upper_band[-i] or wvf[-i] >= range_high[-i] for i in range(8)][::-1]
+
+    # Determine if each element in the last 8 elements is below the lower band or range low (red histogram).
     red_hist = [wvf[-i] <= lower_band[-i] or wvf[-i] <= range_low[-i] for i in range(8)][::-1]
 
+    # Return the green and red histogram lists.
     return green_hist, red_hist
 
 
@@ -442,18 +485,40 @@ def ulcer_index(data):
 
 
 def adx(high, low, close, period=14):
+    """
+    This function calculates the Average Directional Index (ADX) using TA-Lib.
+    """
     return talib.ADX(high, low, close, period)
 
 
 def di_plus(high, low, close, period=14):
+    """
+    This function calculates the Plus Directional Indicator (+DI) using TA-Lib.
+    """
     return talib.PLUS_DI(high, low, close, period)
 
 
 def di_minus(high, low, close, period=14):
+    """
+    This function calculates the Minus Directional Indicator (-DI) using TA-Lib.
+    """
     return talib.MINUS_DI(high, low, close, period)
 
 
 def macd(close, fastperiod=12, slowperiod=26, signalperiod=9):
+    """
+    Calculate the Moving Average Convergence Divergence (MACD) using TA-Lib.
+    Args:
+        close (list or array-like): The close price time series data.
+        fastperiod (int, optional): The number of periods for the fast moving average. Default is 12.
+        slowperiod (int, optional): The number of periods for the slow moving average. Default is 26.
+        signalperiod (int, optional): The number of periods for the signal line. Default is 9.
+    Returns:
+        tuple: A tuple containing three arrays: (macd, macdsignal, macdhist).
+            - macd: The MACD line.
+            - macdsignal: The signal line.
+            - macdhist: The MACD histogram (the difference between MACD and signal).
+    """
     return talib.MACD(close, fastperiod, slowperiod, signalperiod)
 
 
@@ -680,7 +745,8 @@ def ewma(data, alpha):
     Returns:
         list: List containing the calculated EWMA values.
     """
-    ewma_series = pd.Series(data).ewm(alpha=alpha).mean()
+    data_arr = np.asarray(data, dtype=float)
+    ewma_series = pd.Series(data_arr).ewm(alpha=alpha).mean()
     ewma_list = ewma_series.tolist()
     return ewma_list
 
