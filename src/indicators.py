@@ -817,6 +817,16 @@ def crossunder(a, b):
 
 
 def ord(seq, sort_seq, idx, itv):
+    """
+    Calculate the ordinal rank of a given element in a sorted sequence.
+    Args:
+        seq (list or numpy array): The input unsorted data sequence.
+        sort_seq (list or numpy array): The sorted version of the input data sequence.
+        idx (int): The index of the element in the input sequence for which the rank is to be determined.
+        itv (int): The number of elements in the sorted sequence.
+    Returns:
+        int: The ordinal rank of the element at the specified index in the sorted sequence.
+    """
     p = seq[idx]
     for i in range(0, itv):
         if p >= sort_seq[i]:
@@ -861,6 +871,7 @@ def avg_price(open, high, low, close):
     also found in tradingview as ohlc4 source
     """
     return talib.AVGPRICE(open, high, low, close)
+
 
 def typ_price(high,low,close):
     """
@@ -1454,6 +1465,14 @@ def last(l=[]):
 
 
 def d(src, itv):
+    """
+    Calculate a custom metric to quantify the "disorder" or "inefficiency" of the data.
+    Args:
+        src (list or numpy array): The input data series for which the metric will be calculated.
+        itv (int): The length of the metric calculation (number of periods).
+    Returns:
+        float: The calculated metric representing the "disorder" or "inefficiency" of the data.
+    """
     sort_src = np.sort(src)[::-1]
     sum = 0.0
     for i in range(0, itv):

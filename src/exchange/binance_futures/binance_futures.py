@@ -1263,7 +1263,7 @@ class BinanceFutures:
             retry_maker=100
     ):
         """
-        Define profit-taking, stop loss, and trailing settings for an exit strategy.
+        Define profit-taking, stop loss, and trailing settings for an exit strategy.(Independent of sltp())
         Args:
             profit (float): Profit percentage at which to trigger an exit.
             loss (float): Stop loss percentage at which to trigger an exit.
@@ -1311,7 +1311,9 @@ class BinanceFutures:
             retry_maker=100
             ):
         """
-        Implement a simple take profit and stop loss strategy.
+        Implement a simple take profit and stop loss strategy. (Independent of exit())
+        Sends a reduce-only stop-loss order upon entering a position.
+
         Args:
             profit_long (float): Profit target value in percentage for long positions.
             profit_short (float): Profit target value in percentage for short positions.
@@ -1630,7 +1632,6 @@ class BinanceFutures:
                         This could be a minute granularity (e.g., '1m', '5m', '15m') or a custom range.
             new_data (pd.DataFrame): New OHLCV data to be added. It should be a pandas DataFrame with
                                     a DatetimeIndex and columns for 'open', 'high', 'low', 'close', and 'volume'.
-
         Returns:
             None
         """

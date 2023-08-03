@@ -50,11 +50,13 @@ class Bybit:
 
     def __init__(self, account, pair, demo=False, spot=False, threading=True):
         """
-        constructor
-        :account:
-        :pair:
-        :param demo:
-        :param run:
+        Constructor for BinanceFutures class.
+        Args:
+            account (str): The account identifier for Bybit.
+            pair (str): The trading pair for Binance futures.
+            demo (bool, optional): Flag to use the testnet. Default is False.
+            threading (bool, optional): Condition for setting the 'is_running' flag.
+                Default is True to indicate the bot is running.
         """
         # Account
         self.account = account
@@ -157,7 +159,7 @@ class Bybit:
 
     def __init_client(self):
         """
-        initialization of client
+        Initialization of the client for live trading on Bybit exchange.
         """
         if self.private_client is not None and self.public_client is not None:
             return
@@ -228,6 +230,9 @@ class Bybit:
         logger.info(f"Position Size: {self.position_size:.3f} Entry Price: {self.entry_price:.2f}")
 
     def sync(self):
+        """
+        Synchronize Bybit instance with the current position, position size, entry price and market price.
+        """
         # Position
         if not self.spot:
             self.position = self.get_position()
@@ -242,23 +247,27 @@ class Bybit:
         
     def now_time(self):
         """
-        current time
+        Get the current time in UTC timezone.
         """
         return datetime.now().astimezone(UTC)
         
     def get_retain_rate(self):
         """
-        maintenance margin
-        :return:
+        Get the maintenance margin rate.
+        Returns:
+            float: The maintenance margin rate (e.g., 0.004 represents 0.4%).
         """
         return 0.005
 
     def get_lot(self, lot_leverage=1, only_available_balance=True, round_decimals=None):
-        """        
-        lot calculation
-        :param round_decimals: round decimals
-        :param lot_leverage: use None to automatically use your preset leverage
-        :return:
+        """
+        Calculate the lot size for the trade.
+        Args:
+            lot_leverage (int): The leverage to be used for the lot calculation. Use None to automatically use your preset leverage.
+            only_available_balance (bool): If True, returns only the available balance (not used as collateral for margin).
+            round_decimals (int): The number of decimals to round the calculated lot size.
+        Returns:
+            float: The calculated lot size.
         """
         if lot_leverage is None:
             lot_leverage = self.get_leverage()        
@@ -275,13 +284,12 @@ class Bybit:
 
     def get_balance(self, asset=None, return_available=False):
         """
-        get balance
-        after the first api call it will update by api call only upon fills via execution ws stream,
-        to ensure updating by api call each time pass `asset` as argument
-        the default balance asset is `self.quote_asset` 
-        :param asset: asset
-        :param return_available: returns only available balance, since some might be used as a collateral for margin etc.        
-        :return:
+        Get the balance for the specified asset.
+        Args:
+            asset (str): The asset to get the balance for. If not provided, the default balance asset is `self.quote_asset`.
+            return_available (bool): If True, returns only the available balance (not used as collateral for margin).
+        Returns:
+            float: The balance for the specified asset.
         """
         self.__init_client()
         if asset is None and self.margin is not None:   
@@ -323,9 +331,12 @@ class Bybit:
         
     def get_available_balance(self, asset=None):
         """
-        get available balance, since some might be already used as a collateral for margin etc.
-        :param asset: asset
-        :return:
+        Get the available balance for the specified asset,
+        considering that some might already be used as collateral for margin.
+        Args:
+            asset (str): The asset to get the available balance for. If not provided, the default balance asset is `self.quote_asset`.
+        Returns:
+            float: The available balance for the specified asset.        
         """
         self.__init_client()
        
@@ -334,31 +345,23 @@ class Bybit:
 
     def get_all_balances(self):
         """
-        get all balances
-        :return:
+        Get all balances.
+        Returns:
+            dict: A dictionary containing all balances.
         """
         self.__init_client()
        
         balances = retry(lambda: self.private_client.get_wallet_balance())       
         return balances
-
-    # def get_margin(self):
-    #     """
-    #     get margin
-    #     :return:
-    #     """
-    #     self.__init_client()
-    #     if self.margin is not None:
-    #         return self.margin
-    #     else:  # when the WebSocket cant get it
-    #         self.margin = retry(lambda: self.private_client
-    #                             .User.User_getMargin(currency="XBt").result())
-    #         return self.margin        
     
     def set_leverage(self, leverage, symbol=None):
         """
-        set leverage
-        :return:
+        Set the leverage for the specified symbol.
+        Args:
+            leverage (int): The leverage value to be set.
+            symbol (str): The symbol for which leverage should be set. If not provided, the default symbol is `self.pair`.
+        Returns:
+            None
         """
         self.__init_client()
 
@@ -367,12 +370,15 @@ class Bybit:
                                                                   leverage=leverage,
                                                                   buy_leverage=leverage,
                                                                   sell_leverage=leverage)) 
-        return #self.get_leverage(symbol)
+        #return #self.get_leverage(symbol)
 
     def get_leverage(self, symbol=None):
         """
-        get leverage
-        :return:
+        Get the leverage for the specified symbol.
+        Args:
+            symbol (str): The symbol for which leverage should be retrieved. If not provided, the default symbol is `self.pair`.
+        Returns:
+            float: The leverage value for the specified symbol.
         """
         self.__init_client()
 
@@ -381,9 +387,11 @@ class Bybit:
 
     def get_position(self, symbol=None, force_api_call=False):
         """
-        get the current position
-        :param force_api_call: force api call
-        :return:
+        Get the leverage for the specified symbol.
+        Args:
+            symbol (str): The symbol for which leverage should be retrieved. If not provided, the default symbol is `self.pair`.
+        Returns:
+            float: The leverage value for the specified symbol.
         """
         symbol = self.pair if symbol == None else symbol
 
@@ -422,9 +430,11 @@ class Bybit:
 
     def get_position_size(self, force_api_call=False):
         """
-        get position size
-        :param force_api_call: force api call
-        :return:
+        Get the position size.
+        Args:
+            force_api_call (bool): If True, force an API call to get the position.
+        Returns:
+            float: The position size.
         """
         self.__init_client()
         if self.spot: # Spot treats positions only as changes in balance from quote asset to base asset           
@@ -443,8 +453,9 @@ class Bybit:
 
     def get_position_avg_price(self):
         """
-        get average price of the current position
-        :return:
+        Get the average price of the current position.
+        Returns:
+            float: The average price of the current position.
         """
         self.__init_client()
         
@@ -459,8 +470,9 @@ class Bybit:
 
     def get_market_price(self):
         """
-        get current price
-        :return:
+        Get the current market price.
+        Returns:
+            float: The current market price.
         """
         self.__init_client()
         if self.market_price != 0:
@@ -478,15 +490,25 @@ class Bybit:
     
     def get_pnl(self):
         """
-        get profit and loss calculation in %
-        :return:
+        Get the profit and loss calculation in percentage.
+        Returns:
+            float: The profit and loss calculation in percentage.
         """
         # PnL calculation in %            
         pnl = self.get_profit()* 100/self.get_balance()
         return pnl   
 
     def get_profit(self, close=None, avg_entry_price=None, position_size=None, commission=None):
-
+        """
+        Get the profit for the current position.
+        Args:
+            close (float): The closing price.
+            avg_entry_price (float): The average entry price. If not provided, it will be fetched from the current position.
+            position_size (float): The position size. If not provided, it will be fetched from the current position.
+            commission (float): The commission value.
+        Returns:
+            float: The profit for the current position.
+        """
         if close is None:
             close = self.get_market_price() 
         if avg_entry_price is None:
@@ -511,10 +533,11 @@ class Bybit:
     
     def get_latest_symbol_information(self, symbol=None):
         """
-        get latest symbol(trading pair) information
-        :param symbol: if provided it will return information for the specific symbol otherwise,
-            otherwise it returns values for the pair currently traded 
-        :return:
+        Get the latest symbol (trading pair) information.
+        Args:
+            symbol (str): If provided, it will return information for the specific symbol. Otherwise, it returns values for the pair currently traded.
+        Returns:
+            dict: A dictionary containing the latest symbol information.
         """
         symbol = self.pair if symbol == None else symbol   
         try:     
@@ -528,7 +551,7 @@ class Bybit:
     
     def get_orderbook(self):
         """
-        get orderbook L2, therefore best bid and best ask prices
+        Get the orderbook L2, including the best bid and best ask prices.
         """
         self.__init_client()
         ob =  retry(lambda: self.public_client
@@ -538,28 +561,36 @@ class Bybit:
         
     def get_trail_price(self):
         """
-        get Trail Price。
-        :return:
+        Get the trail price.
+        Returns:
+            float: The trail price.
         """
         return self.trail_price
 
     def set_trail_price(self, value):
         """
-        set Trail Price
-        :return:
+        Set the trail price.
+        Args:
+            value (float): The trail price value.
+        Returns:
+            None
         """
         self.trail_price = value
 
     def get_commission(self):
         """
-        get commission
-        :return:
+        Get the commission.
+        Returns:
+            float: The commission value.
         """
-        return 0.075 / 100    #
+        return 0.075 / 100    
     
     def cancel_all(self, only_active=False, only_conditional=False):
         """
-        cancel all orders for this pair
+        Cancel all orders for this pair.
+        Args:
+            only_active (bool): If True, cancel only active orders.
+            only_conditional (bool): If True, cancel only conditional orders.
         """
         self.__init_client()  
         
@@ -589,15 +620,17 @@ class Bybit:
                   split=1, interval=0, 
                   limit_chase_init_delay=0.0001, chase_update_rate=0.05, limit_chase_interval=0):
         """
-        market close open position for this pair
-        :params spot_safety_catch: this is here to prevent you to accidentally dump all your base asset,
-        -because spot treats positions as changes in balance of base asset and quote asset, there is no open position status
-        :param callback:
-        :param split:
-        :param interval:
-        :param limit_chase_init_delay:
-        :param chase_update_rate:
-        :paran limit_chase_interval: greater than 0 starts limit chase order
+        Close open positions for this pair.
+        Args:
+            spot_safety_catch (bool): This is here to prevent you from accidentally dumping all your base assets 
+                                      because spot treats positions as changes in balance of base asset and quote asset, 
+                                      there is no open position status.
+            callback: The callback function.
+            split (int): The number of splits for large order quantities.
+            interval (int): Time interval between split order executions (in milliseconds).
+            limit_chase_init_delay (float): The initial delay for limit chase orders (in seconds).
+            chase_update_rate (float): The rate of adjustment for the chase order price (0.05 means 5% adjustment on each update).
+            limit_chase_interval (int): Greater than 0 starts limit chase order.
         """
         self.__init_client()
         position_size = self.get_position_size()
@@ -622,44 +655,55 @@ class Bybit:
 
     def cancel(self, id):
         """
-        Cancel a specific active order by id
-        - its not going to query orders and filter them prior
-        :param id: id of the order (user id)
-        :return: result
+        Cancel a specific active order by order ID.
+        This function cancels an active order by its order ID (user ID).
+        It does not query orders and filter them prior to the cancellation.
+        Args:
+            id (str): The order ID (user ID) of the order to be cancelled.
+        Returns:
+            bool: True if the order was successfully cancelled; False otherwise.
         """
         self.__init_client()
     
-        orders = self.get_open_orders(id, separate=True)
-        #logger.info(f"orders: {orders}")
-
-        if self.pair.endswith('PERP') or self.spot: # 'orderId','orderLinkId'             
-            order_link_id = 'orderLinkId'
-        else: # Inverse and Linear perps           
-            order_link_id = 'order_link_id'
+        orders = self.get_open_orders(id, separate=True)            
 
         if orders is None:
             logger.info(f"Couldn't find an order of which id string starts with: {id}")
             return False       
         
+        if self.pair.endswith('PERP') or self.spot: # 'orderId','orderLinkId'             
+            order_link_id = 'orderLinkId'
+        else: # Inverse and Linear perps           
+            order_link_id = 'order_link_id'
+        
         if len(orders['active_orders']) > 0:
+            # Found an active order with the given user ID
             order = orders['active_orders'][0]
             res = self.cancel_active_order(user_id=order[order_link_id])
         else:
+            # Found a conditional order with the given user ID
             order = orders['conditional_orders'][0]
             res = self.cancel_conditional_order(user_id=order[order_link_id])
+        # Return the result of the cancellation (True/False)
         if res:
             return res
 
     def cancel_conditional_order(self, user_id=None, order_id=None, cancel_all=False):
         """
-        Cancel a specific conditional order by id - in this function you have to provide full id,
-        because its not going to query orders and filter them prior
-        - for conveniece reasons its recommended to use `cancer()` for a single 
-          and `cancel_all()` for cancelling all orders conditional and active
-        :param order_id: an id of ab order given interally to the order by the exchange
-        :param user_id: your user id that you give to an order(given upon sending it)
-        :param cancel_all: cancel all conditional orders for this pair
-        :return: result - boolean
+        Cancel a specific conditional order by order ID.
+
+        This function cancels a specific conditional order by its order ID.
+        To use this function, you need to provide the full order ID since
+        it does not query orders and filter them prior to the cancellation.
+        For convenience, you can also use `cancel()` for single order cancellation
+        and `cancel_all()` for cancelling all conditional and active orders.
+
+        Args:
+            order_id (str): The internal ID of the order given by the exchange.
+            user_id (str): Your user ID that you provided when sending the order.
+            cancel_all (bool): Set to True to cancel all conditional orders for this pair.
+        Returns:
+            bool: True if the order was successfully cancelled; False otherwise.
         """
         if order_id == None and user_id == None and not cancel_all:
             logger.info(f"No id was provided, unable to cancel an order!")
@@ -702,13 +746,20 @@ class Bybit:
     
     def cancel_active_order(self, order_id=None, user_id=None, cancel_all=False):
         """
-        Cancel a specific active order by id - in this function you have to provide full id,
-        because its not going to query orders and filter them prior
-        -for conveniece reasons its recommended to use `cancer()` and `cancel_all()`
-        :param order_id: an id of ab order given interally to the order by the exchange
-        :param user_id: your user id that you give to an order(given upon sending it)
-        :param cancel_all: cancel all active orders for this pair 
-        :return: result - boolean
+        Cancel a specific active order by order ID.
+
+        This function cancels a specific active order by its order ID.
+        To use this function, you need to provide the full order ID since
+        it does not query orders and filter them prior to the cancellation.
+        For convenience, you can also use `cancel()` and `cancel_all()`
+        to handle single and all active order cancellations respectively.
+
+        Args:
+            order_id (str): The internal ID of the order given by the exchange.
+            user_id (str): Your user ID that you provided when sending the order.
+            cancel_all (bool): Set to True to cancel all active orders for this pair.
+        Returns:
+            bool: True if the order was successfully cancelled; False otherwise.
         """
         if order_id == None and user_id == None and not cancel_all:
             logger.info(f"No id was provided, unable to cancel an order!")
@@ -756,8 +807,33 @@ class Bybit:
         trigger_by='LastPrice'
     ):
         """
-        create an order
-        """          
+        Create an order.
+
+        This function is used to create a new order with the given parameters.
+        Depending on the provided parameters, different types of orders can be created:
+        - Limit order
+        - Stop-limit order
+        - Market order
+        - Limit chaser (for chasing the market price for limit orders)
+        - Condition (conditional) order (only for non-spot markets)
+
+        Args:
+            ord_id (str): Order ID (user-defined identifier for the order).
+            side (str): 'Buy' or 'Sell' to indicate the order side.
+            ord_qty (float): Order quantity to be placed.
+            limit (float, optional): Price for a limit order. Default is 0.
+            stop (float, optional): Stop price for a stop-limit order. Default is 0.
+            post_only (bool, optional): Set to True to create a post-only order. Default is False.
+            reduce_only (bool, optional): Set to True to make this order reduce-only.
+                This means it can only reduce an existing position and not increase it. Default is False.
+            trailing_stop (float, optional): Trailing stop price for a trailing stop-limit order. Default is 0.
+            activationPrice (float, optional): Activation price for a stop-limit order with activation. Default is 0.
+            trigger_by (str, optional): Determines the price to use for triggers (e.g., 'LastPrice', 'IndexPrice', etc.).
+                Default is 'LastPrice'.
+
+        Returns:
+            None
+        """         
         if self.spot and stop > 0:
             logger.info(f"Conditional Orders Not Yet supported For Spot According To Official Bybit API.")
 
@@ -936,7 +1012,19 @@ class Bybit:
 
     def amend_order(self, ord_id, ord_qty=0, limit=0, stop=0):
         """
-        Amend order with querying the order prior verifying its existence and whether its active or conditional etc.
+        Amend an order with querying the order prior to verifying its existence and whether it's active or conditional.
+
+        This function allows amending an existing order with the provided order ID.
+        It first queries the order to check if it exists and then amends the order if found.
+        If no order is found or the order is not active, it logs a message and returns.
+
+        Args:
+            ord_id (str): The order ID to be amended.
+            ord_qty (float, optional): New order quantity (amend quantity). Default is 0 (no amendment).
+            limit (float, optional): New limit price for a limit order. Default is 0 (no amendment).
+            stop (float, optional): New stop price for a stop-limit order. Default is 0 (no amendment).
+        Returns:
+            None
         """
         if self.spot:
             logger.info(f"Amending Orders Is Not Supported For Spot Yet.")
@@ -965,10 +1053,25 @@ class Bybit:
            
     def __amend_order(self, ord_id, is_conditional, **kwargs):
         """
-        amend order provided full user id and whether its condition or not
-        - keep in mind its designed to take only one keyed argument,
-            since bybit only allows us one paramater(price, qty, stop...) to amend each time
-        """         
+        Amend an existing order.
+
+        This function is designed to amend an existing order based on the provided order ID.
+        The order is verified for existence and whether it is an active order or a conditional order before amendment.
+
+        Note:
+            - The function allows amending one parameter (price, quantity, stop, etc.) at a time, as Bybit API restricts
+            multiple parameters in one amendment request.
+            - The keyword argument must be one of the following: 'limit' (to change the limit price), 'ord_qty'
+            (to change the order quantity), or 'stop' (to change the stop price).
+
+        Args:
+            ord_id (str): The ID of the order to be amended.
+            is_conditional (bool): Set to True if the order is conditional, False if it's active.
+            **kwargs: Keyword arguments to be used for amending the order. Only one key-value pair should be provided,
+                    representing the attribute to be amended and its new value.       
+        Returns:
+            dict or None: The response from the Bybit API if the order was successfully amended, or None otherwise.
+        """    
         if len(kwargs) == 0:
             logger.info(f"No kwargs were provided.")
             return    
@@ -1024,25 +1127,34 @@ class Bybit:
         limit_chase_interval=0
     ):
         """
-        places an entry order, works as equivalent to tradingview pine script implementation
+        Places an entry order with pyramiding, allowing adding to a position in smaller chunks.
+        The implementation is similar to TradingView Pine script:
         https://tradingview.com/study-script-reference/#fun_strategy{dot}entry
-        :param id: Order id
-        :param long: Long or Short
-        :param qty: Quantity
-        :param limit: Limit price
-        :param stop: Stop limit
-        :param post_only: Post only
-        :param reduce_only: your existing position cannot be increased only reduced by this order
-        :param when: Do you want to execute the order or not - True for live trading
-        :param round_decimals: round_decimals - if not provided its rounded automatically
-        :param callback:
-        :param trigger_by: what price to use for triggers
-        :param split: for iceberg order
-        :param inerval: for iceberg order
-        :param limit_chase_init_delay: for limit order chasing
-        :param chase_update_rate: limit order chasing sleep interval between price updates etc
-        :param limit_chase_interval: has to be above 0 to start limit chasing along with `post_only`
-        :return:
+
+        Pyramiding in trading refers to adding to a position gradually,
+        with the goal of increasing potential gains while reducing risk.
+        In this function, the order quantity is adjusted based on the pyramiding value set by the user deviding it in smaller orders.
+        Outside of order pyramiding functionality it behaves as a regular `entry()`.
+
+        Args:
+            id (str): Order id (identifier for the order).
+            long (bool): Long or Short. Set to True for a long position, False for a short position.
+            qty (float): Quantity. Quantity of the asset to buy/sell in the order.
+            limit (float, optional): Limit price. Limit price for the order (if applicable, set to 0 for market orders).
+            stop (float, optional): Stop limit. Stop price for the order (if applicable, set to 0 for non-stop orders).
+            post_only (bool, optional): Post Only. Set to True to place the order as a post-only order (default is False).
+            reduce_only (bool, optional): Reduce Only. Set to True if the order is intended to reduce the existing position, not increase it (default is False).
+            when (bool, optional): When. Set to True to execute the order, False to skip execution (useful for testing).
+            round_decimals (int, optional): Round Decimals. Number of decimals to round the order quantity (if not provided, it's rounded automatically).
+            callback (callable, optional): Callback. A function to be called after the order is executed (optional).
+            trigger_by (str, optional): Trigger By. Price to use for triggers (e.g., 'LastPrice', 'IndexPrice', etc.).
+            split (int, optional): Split. For iceberg orders, set the number of order splits (default is 1, for non-iceberg orders).
+            interval (int, optional): Interval. For iceberg orders, set the time interval between order splits (default is 0, for non-iceberg orders).
+            limit_chase_init_delay (float, optional): Limit Chase Init Delay. Initial delay for limit order chasing (used when post_only is True and limit_chase_interval > 0).
+            chase_update_rate (float, optional): Chase Update Rate. Sleep interval between price updates during limit order chasing.
+            limit_chase_interval (int, optional): Limit Chase Interval. Minimum interval between each limit order update during chasing.
+        Returns:
+            None
         """
         self.__init_client()
 
@@ -1091,28 +1203,38 @@ class Bybit:
         limit_chase_interval=0
     ):
         """
-        places an entry order, works as equivalent to tradingview pine script implementation with pyramiding
+        Places an entry order with pyramiding, allowing adding to a position in smaller chunks.
+        The implementation is similar to TradingView Pine script:
         https://tradingview.com/study-script-reference/#fun_strategy{dot}entry
-        :param id: Order id
-        :param long: Long or Short
-        :param qty: Quantity
-        :param limit: Limit price
-        :param stop: Stop limit
-        :param post_only: Post only
-        :param reduce_only: Reduce Only means that your existing position cannot be increased only reduced by this order
-        :param cancell_all: cancell all open order before sending the entry order?
-        :param pyramiding: number of entries you want in pyramiding
-        :param when: Do you want to execute the order or not - True for live trading
-        :param round_decimals: round_decimals - if not provided its rounded automatically
-        :param callback:
-        :param trigger_by: what price to use for triggers
-        :param split: for iceberg order
-        :param inerval: for iceberg order
-        :param limit_chase_init_delay: for limit order chasing
-        :param chase_update_rate: limit order chasing sleep interval between price updates etc
-        :param limit_chase_interval: has to be above 0 to start limit chasing along with `post_only`
-        :return:
-        """ 
+
+        Pyramiding in trading refers to adding to a position gradually,
+        with the goal of increasing potential gains while reducing risk.
+        In this function, the order quantity is adjusted based on the pyramiding value set by the user deviding it in smaller orders.
+        Outside of order pyramiding functionality it behaves as a regular `entry()`.
+
+       Args:
+            id (str): Order id (identifier for the order).
+            long (bool): Long or Short. Set to True for a long position, False for a short position.
+            qty (float): Quantity. Quantity of the asset to buy/sell in the order.
+            limit (float, optional): Limit price. Limit price for the order (if applicable, set to 0 for market orders).
+            stop (float, optional): Stop limit. Stop price for the order (if applicable, set to 0 for non-stop orders).
+            trailValue (float, optional): Trail Value. Trail value for trailing stop orders (default is 0).
+            post_only (bool, optional): Post Only. Set to True to place the order as a post-only order (default is False).
+            reduce_only (bool, optional): Reduce Only. Set to True if the order is intended to reduce the existing position, not increase it (default is False).
+            cancel_all (bool, optional): Cancel All. Set to True to cancel all open orders before sending the entry order (default is False).
+            pyramiding (int, optional): Pyramiding. Number of entries you want in pyramiding (default is 2).
+            when (bool, optional): When. Set to True to execute the order, False to skip execution (useful for testing).
+            round_decimals (int, optional): Round Decimals. Number of decimals to round the order quantity (if not provided, it's rounded automatically).
+            callback (callable, optional): Callback. A function to be called after the order is executed (optional).
+            trigger_by (str, optional): Trigger By. Price to use for triggers (e.g., 'LastPrice', 'IndexPrice', etc.).
+            split (int, optional): Split. For iceberg orders, set the number of order splits (default is 1, for non-iceberg orders).
+            interval (int, optional): Interval. For iceberg orders, set the time interval between order splits (default is 0, for non-iceberg orders).
+            limit_chase_init_delay (float, optional): Limit Chase Init Delay. Initial delay for limit order chasing (used when post_only is True and limit_chase_interval > 0).
+            chase_update_rate (float, optional): Chase Update Rate. Sleep interval between price updates during limit order chasing.
+            limit_chase_interval (int, optional): Limit Chase Interval. Minimum interval between each limit order update during chasing.
+        Returns:
+            None
+        """
         # if self.get_margin()['excessMargin'] <= 0 or qty <= 0:
         #     return
         if qty <= 0:
@@ -1171,45 +1293,51 @@ class Bybit:
         limit_chase_interval=0
     ):
         """
-        places an order, works as equivalent to tradingview pine script implementation
-        https://www.tradingview.com/pine-script-reference/#fun_strategy{dot}order
-        :param id: Order id
-        :param long: Long or Short
-        :param qty: Quantity
-        :param limit: Limit price
-        :param stop: Stop limit
-        :param post_only: Post only 
-        :param reduce_only: your existing position cannot be increased only reduced by this order       
-        :param when: Do you want to execute the order or not - True for live trading
-        :param callback:
-        :param trigger_by: what price to use for triggers
-        :param split: for iceberg order
-        :param inerval: for iceberg order
-        :param limit_chase_init_delay: for limit order chasing
-        :param chase_update_rate: limit order chasing sleep interval between price updates etc
-        :param limit_chase_interval: has to be above 0 to start limit chasing along with `post_only`
-        :return:
+        Places an order.
+
+        Args:
+            id (str): Order id (identifier for the order).
+            long (bool): Long or Short. Set to True for a long position, False for a short position.
+            qty (float): Quantity. Quantity of the asset to buy/sell in the order.
+            limit (float, optional): Limit price. Limit price for the order (if applicable, set to 0 for market orders).
+            stop (float, optional): Stop limit. Stop price for the order (if applicable, set to 0 for non-stop orders).
+            post_only (bool, optional): Post Only. Set to True to place the order as a post-only order (default is False).
+            reduce_only (bool, optional): Reduce Only. Set to True if the order is intended to reduce the existing position, not increase it (default is False).
+            when (bool, optional): When. Set to True to execute the order, False to skip execution (useful for testing).
+            round_decimals (int, optional): Round Decimals. Number of decimals to round the order quantity (if not provided, it's rounded automatically).
+            callback (callable, optional): Callback. A function to be called after the order is executed (optional).
+            trigger_by (str, optional): Trigger By. Price to use for triggers (e.g., 'LastPrice', 'IndexPrice', etc.).
+            split (int, optional): Split. For iceberg orders, set the number of order splits (default is 1, for non-iceberg orders).
+            interval (int, optional): Interval. For iceberg orders, set the time interval between order splits (default is 0, for non-iceberg orders).
+            limit_chase_init_delay (float, optional): Limit Chase Init Delay. Initial delay for limit order chasing (used when post_only is True and limit_chase_interval > 0).
+            chase_update_rate (float, optional): Chase Update Rate. Sleep interval between price updates during limit order chasing.
+            limit_chase_interval (int, optional): Limit Chase Interval. Minimum interval between each limit order update during chasing.
+        Returns:
+            None
         """
         self.__init_client()
 
         # if self.get_margin()['excessMargin'] <= 0 or qty <= 0:
         #     return
 
+        # Check if the order execution is enabled.
         if not when:
             return
 
         side = "Buy" if long else "Sell" 
         ord_qty = abs(round(qty, round_decimals if round_decimals != None else self.asset_rounding))
         order = self.get_open_order(id)
+
+        # Construct the order ID for the main order or the suborders in case of iceberg orders.
         ord_id = id + ord_suffix() #if order is None else order["clientOrderId"]
 
         if split > 1:
-
+            # Logic for splitting orders into suborders for iceberg orders.
             exchange = self
             sub_ord_qty = round(ord_qty/split, self.asset_rounding)
             
             class split_order:
-
+                # Internal class to manage iceberg order suborders.    
                 def __init__(self,count):
                     self.count = count
 
@@ -1243,7 +1371,8 @@ class Bybit:
                         reduce_only, trigger_by=trigger_by, callback=split_order(1))
             return
         
-        if limit_chase_interval>0:           
+        if limit_chase_interval>0:         
+            # Logic for limit order chasing (if enabled).  
             self.limit_chaser_ord[side] = {'ID': ord_id,
                                            'Status': '',
                                            'Qty': ord_qty,
@@ -1255,6 +1384,7 @@ class Bybit:
                                            'is_amend_active': False,                                           
                                            'callback': callback}
             
+            # Place the first order.
             first_ord_res = self.__new_order(ord_id=ord_id, 
                                              side=side, 
                                              ord_qty=ord_qty, 
@@ -1278,8 +1408,9 @@ class Bybit:
                     if 'Status' in self.limit_chaser_ord[side] \
                         and self.limit_chaser_ord[side]['Status'] == 'Cancelled' \
                         and self.limit_chaser_ord[side]['chase_counter'] > 0:
+                         # Calculate the remaining quantity when amending fails
                         ord_qty = abs(self.limit_chaser_ord[side]['Qty']) #- self.limit_chaser_ord[side]['Filled']
-                   
+                         # Send a replacement order when amending fails
                         self.__new_order(ord_id=ord_id.split('_')[0] + ord_suffix(),  # Sending a replacement order 
                                          side=side, ord_qty=ord_qty,                  # When amending fails
                                          post_only=post_only, 
@@ -1292,8 +1423,9 @@ class Bybit:
                         continue                        
                     
                     if limit == self.limit_chaser_ord[side]['Limit'] \
-                        or self.limit_chaser_ord[side]['chase_counter'] != i:  # Checking if the price has changed
-                        #logger.info(f"best bid: {self.best_bid_price}     best ask: {self.best_ask_price}")                      
+                        or self.limit_chaser_ord[side]['chase_counter'] != i:  
+                        # Checking if the price has changed
+                        #logger.info(f"best bid: {self.best_bid_price}     best ask: {self.best_ask_price}")                                    
                         time.sleep(chase_update_rate)
                         continue                   
 
@@ -1301,6 +1433,7 @@ class Bybit:
                         time.sleep(chase_update_rate)
                         continue
 
+                    # Checking if the price has changed
                     limit = str(limit) if self.pair.endswith('PERP') else limit  
                     res = self.__amend_order(ord_id, is_conditional=False, limit=limit) # Amend the order
                     time.sleep(limit_chase_interval)
@@ -1318,13 +1451,15 @@ class Bybit:
             return        
 
     def get_open_order_qty(self, id, only_active=False, only_conditional=False):
-        """        
-        Returns the order quantity of the first open order that starts the given order ID.
-        :param id: The ID of the order to search for
-        :param only_active: return qty of active orders only   
-        :param only_conditional: return qty of conditonal orders only  
-        :return: The quantity of the first open order or None if no matching order is found
-        """        
+        """
+        Returns the order quantity of the first open order that starts with the given order ID.
+        Args:
+            id (str): The ID of the order to search for.
+            only_active (bool, optional): Return the quantity of active orders only (default is False).
+            only_conditional (bool, optional): Return the quantity of conditional orders only (default is False).
+        Returns:
+            float: The quantity of the first open order or None if no matching order is found.
+        """
         quantity_str = ["origQty", "qty"]#"leaves_qty", "leavesQty"]
         order = self.get_open_order(id=id,only_active=only_active, only_conditional=only_conditional)        
         
@@ -1334,23 +1469,29 @@ class Bybit:
     def get_open_order(self, id, only_active=False, only_conditional=False):
         """
         Returns the order of the first open order that starts with the given order ID.
-        :param id: order id  - returns only first order from the list of orders that will match the id,
-                     since it looks if the id starts with the string you pass as `id`
-        :param only_active: return active orders only      
-        :param only_conditional: return conditonal orders only  
-        :return: The first open order that matches the given order ID, or None if no matching order is found
-        """        
+        Args:
+            id (str): Order id. Returns only the first order from the list of orders that matches the provided ID,
+                    as it checks if the ID starts with the string passed as `id`.
+            only_active (bool, optional): Return active orders only (default is False).
+            only_conditional (bool, optional): Return conditional orders only (default is False).
+        Returns:
+            dict or None: The first open order that matches the given order ID,
+                    or None if no matching order is found.
+        """     
         orders = self.get_open_orders(id=id,only_active=only_active, only_conditional=only_conditional)
         return orders[0] if orders else None
     
     def get_open_orders(self, id=None, only_active= False, only_conditional=False, separate=False):
         """
-        Get all orders or only all conditional orders        
-        :param id: if provided it will return only those that start with the provided string
-        :param: only_active: return only active
-        :param: only_conditional: return only conditional
-        :param: separate: returns a dictionary containing separate keys for active and conditional orders                
-        :return: list of open orders or None
+        Get all orders or only all conditional orders or only all active orders.
+        Args:
+            id (str, optional): If provided, returns only orders that start with the provided string (default is None).
+            only_active (bool, optional): Return only active orders (default is False).
+            only_conditional (bool, optional): Return only conditional orders (default is False).
+            separate (bool, optional): If True, returns a dictionary containing separate keys for active and conditional orders (default is False).
+        Returns:
+            list or dict or None: List of open orders if not separated, a dictionary containing separate keys for active and conditional orders if `separate=True`,
+                                or None if no orders are found.
         """
         self.__init_client()
             # Spot
@@ -1412,11 +1553,16 @@ class Bybit:
         interval=0
     ):
         """
-        profit taking and stop loss and trailing, 
-        if both stop loss and trailing offset are set trailing_offset takes precedence
-        :param profit: Profit 
-        :param loss: Stop loss 
-        :param trail_offset: Trailing stop price
+        Profit taking, stop loss, and trailing functionality.(Independent of sltp())
+        Args:
+            profit (float, optional): Profit target. Set the profit target value (default is 0).
+            loss (float, optional): Stop loss. Set the stop loss value (default is 0).
+            trail_offset (float, optional): Trailing stop price. Set the trailing stop offset (default is 0).
+            profit_callback (callable, optional): Profit callback. A function to be called when the profit target is reached (default is None).
+            loss_callback (callable, optional): Loss callback. A function to be called when the stop loss is triggered (default is None).
+            trail_callback (callable, optional): Trailing callback. A function to be called when the trailing stop is triggered (default is None).
+            split (int, optional): Split. For iceberg orders, set the number of order splits (default is 1, for non-iceberg orders).
+            interval (int, optional): Interval. For iceberg orders, set the time interval between order splits (default is 0, for non-iceberg orders).
         """
         self.exit_order = {
             'profit': profit, 
@@ -1449,13 +1595,22 @@ class Bybit:
         interval = 0
     ):
         """
-        Simple take profit and stop loss implementation,
-        - sends a reduce only stop loss order upon entering a position.
-        :param profit_long: profit target value in % for longs
-        :param profit_short: profit target value in % for shorts
-        :param stop_long: stop loss value for long position in %
-        :param stop_short: stop loss value for short position in %
-        :param round_decimals: round decimals 
+        Implement a simple take profit and stop loss strategy.(Independent of exit())
+        Sends a reduce-only stop-loss order upon entering a position.
+        Args:
+            profit_long (float, optional): Profit target value in % for long positions (default is 0).
+            profit_short (float, optional): Profit target value in % for short positions (default is 0).
+            stop_long (float, optional): Stop-loss value for long positions in % (default is 0).
+            stop_short (float, optional): Stop-loss value for short positions in % (default is 0).
+            eval_tp_next_candle (bool, optional): Whether to evaluate the profit target at the next candle (default is False).
+            round_decimals (int, optional): Round Decimals. Number of decimals to round the order quantity (if not provided, it's rounded automatically).
+            profit_long_callback (callable, optional): Profit Long Callback. A function to be called when the long position's profit target is reached (default is None).
+            profit_short_callback (callable, optional): Profit Short Callback. A function to be called when the short position's profit target is reached (default is None).
+            stop_long_callback (callable, optional): Stop Long Callback. A function to be called when the stop-loss order for long position is triggered (default is None).
+            stop_short_callback (callable, optional): Stop Short Callback. A function to be called when the stop-loss order for short position is triggered (default is None).
+            trigger_by (str, optional): Trigger By. Price to use for triggers (e.g., 'LastPrice', 'IndexPrice', etc.).
+            split (int, optional): Split. For iceberg orders, set the number of order splits (default is 1, for non-iceberg orders).
+            interval (int, optional): Interval. For iceberg orders, set the time interval between order splits (default is 0, for non-iceberg orders).
         """
         self.sltp_values = {
             'profit_long': profit_long/100,
@@ -1481,19 +1636,23 @@ class Bybit:
 
     def get_exit_order(self):
         """
-        get profit take and stop loss and trailing settings
+        Get the profit take, stop loss, and trailing settings for the exit strategy.
+        Returns:
+            dict: Exit strategy settings.
         """
         return self.exit_order
 
     def get_sltp_values(self):
         """
-        get values for the simple profit target/stop loss in %
+        Get the values for the simple profit target and stop loss in percentage.
+        Returns:
+            dict: Simple profit target and stop loss values.
         """
         return self.sltp_values    
 
     def eval_exit(self):
         """
-        evalution of profit target and stop loss and trailing
+        Evaluate the profit target, stop loss, and trailing conditions for triggering an exit.
         """
         if self.get_position_size() == 0:
             return
@@ -1529,9 +1688,9 @@ class Bybit:
 
     def eval_sltp(self):
         """
-        Simple take profit and stop loss implementation
-        - sends a reduce only stop loss order upon entering a position.
-        - requires setting values with sltp() prior      
+        Evaluate and execute the simple take profit and stop loss implementation.
+        - Sends a reduce-only stop loss order upon entering a position.
+        - Requires setting values with sltp() prior.
         """
         pos_size = float(self.get_position_size())
         if pos_size == 0:
@@ -1647,12 +1806,16 @@ class Bybit:
 
     def fetch_ohlcv(self, bin_size, start_time, end_time):
         """
-        fetch OHLCV data
-        :param bin_size: timeframe string
-        :param start_time: start time
-        :param end_time: end time
-        :return:
-        """        
+        Fetch OHLCV data within the specified time range.
+
+        Args:
+            bin_size (str): Time frame to fetch (e.g., "1m", "1h", "1d").
+            start_time (datetime): Start time of the data range.
+            end_time (datetime): End time of the data range.
+
+        Returns:
+            pd.DataFrame: OHLCV data in the specified time frame.
+        """    
         self.__init_client()
 
         fetch_bin_size = allowed_range[bin_size][0]
@@ -1707,7 +1870,12 @@ class Bybit:
     def security(self, bin_size, data=None):
         """
         Recalculate and obtain data of a timeframe higher than the current timeframe
-        without looking into the future that would cause undesired effects.
+        without looking into the future to avoid undesired effects.
+        Args:
+            bin_size (str): Time frame of the OHLCV data.
+            data (pd.DataFrame): OHLCV data to be used for calculation. If None, use the current timeframe data.
+        Returns:
+            pd.DataFrame: OHLCV data resampled to the specified bin_size.
         """     
         if data == None: # minute count of a timeframe for sorting when sorting is needed   
             timeframe_list = [allowed_range_minute_granularity[t][3] for t in self.bin_size] 
@@ -1719,8 +1887,21 @@ class Bybit:
     
     def __update_ohlcv(self, action, new_data):
         """
-        get and update OHLCV data and execute the strategy
-        """         
+        Update OHLCV (Open-High-Low-Close-Volume) data and execute the strategy.
+
+        This function takes in new OHLCV data and updates the internal buffer for each specified timeframe.
+        The function ensures that the data is correctly aligned with the timeframe and handles cases where
+        the last candle is incomplete or contains data from the future.
+
+        Args:
+            action (str): The allowed range for updating the OHLCV data.
+                        This could be a minute granularity (e.g., '1m', '5m', '15m') or a custom range.
+            new_data (pd.DataFrame): New OHLCV data to be added. It should be a pandas DataFrame with
+                                    a DatetimeIndex and columns for 'open', 'high', 'low', 'close', and 'volume'.
+        Returns:
+            None
+        """  
+        # If OHLCV data is not initialized, create and fetch data
         if self.timeframe_data is None:
             self.timeframe_data = {}            
             for t in self.bin_size:                              
@@ -1820,14 +2001,20 @@ class Bybit:
 
     def __on_update_wallet(self, action, wallet):
         """
-        update wallet
+        Update wallet.
+        Args:
+            action (str): Action description (e.g., "update", "create", "delete", etc.).
+            wallet (dict): Wallet information dictionary containing balance details.
         """
         self.wallet = {**self.wallet, **wallet}       
         
     def __on_update_instrument(self, action, instrument):
         """
-        Update instrument
-        """    
+        Update instrument.
+        Args:
+            action (str): Action description (e.g., "update", "create", "delete", etc.).
+            instrument (dict): Instrument information dictionary containing instrument details.
+        """  
         if action not in self.instrument or len(self.instrument) == 0:
             self.instrument[action] = instrument
         
@@ -1852,7 +2039,10 @@ class Bybit:
 
     def __on_update_fills(self, action, fills):
         """
-        Update fills of orders
+        Update fills of orders.
+        Args:
+            action (str): Action description (e.g., "update", "create", "delete", etc.).
+            fills (dict): Fill information dictionary containing details of the filled orders.
         """
         self.last_fill = fills
         #self.eval_sltp()    
@@ -1869,7 +2059,10 @@ class Bybit:
     
     def __on_update_order(self, action, orders):
         """
-        Update order status        
+        Update order status.
+        Args:
+            action (str): Action description (e.g., "update", "create", "delete", etc.).
+            orders (list): List of order information dictionaries containing details of updated orders.
         """
         self.order_update.append(orders)      
         orders = [o for o in orders if o['s' if self.spot else 'symbol'] == self.pair]
@@ -1903,10 +2096,11 @@ class Bybit:
                           f"                                 APrice : {APprice}")
 
             if status.upper() in ["CANCELLED", "EXPIRED"] and self.order_update_log:
+                # Order cancelled or expired
                 logger.info(f"========= Order Update ===============")              
                 logger.info(f"Status : {status}\n{shared_msg}")                  
                 logger.info(f"======================================")             
-                #If stop price is set for a GTC Order and filled quanitity is 0 then EXPIRED means TRIGGERED
+                # If stop price is set for a GTC Order and filled quanitity is 0 then EXPIRED means TRIGGERED
                 if(float(0 if self.spot else o['triggerPrice']) > 0 \
                    and (o['f' if self.spot else 'timeInForce'] == "GTC" or "GoodTillCancel") \
                    and float(o['z' if self.spot else 'cumExecQty']) == 0 \
@@ -1918,8 +2112,9 @@ class Bybit:
 
                 self.callbacks.pop(o['c' if self.spot else 'orderLinkId'], None) # Removes the respective order callback
 
-            #only after order if completely filled
+            # Only after order if completely filled
             elif self.order_update_log and qty == filled_qty and status.upper() != "CANCELLED": 
+                # Order fully filled
                 logger.info(f"========= Order Fully Filled =========")      
                 logger.info(f"Status : {status}\n{shared_msg}")                
                 logger.info(f"======================================")      
@@ -1935,6 +2130,7 @@ class Bybit:
                 if callable(callback):
                     callback()
             else:
+                # Order status update not fully filled 
                 logger.info(f"========= Order Update ===============")           
                 logger.info(f"Status : {status}\n{shared_msg}")                  
                 logger.info(f"======================================")             
@@ -2009,8 +2205,11 @@ class Bybit:
 
     def __on_update_bookticker(self, action, bookticker):
         """
-        update best bid and best ask price and quantity
-        """ 
+        Update best bid and best ask price and quantity.
+        Args:
+            action (str): Action description (e.g., "update", "create", "delete", etc.).
+            bookticker (dict): Dictionary containing the updated book ticker data.
+        """
         if not self.spot:
             self.bookticker = {k:v for k,v in bookticker.items() if (k=='a' or k=='b') and len(v) > 0}       
         else:
@@ -2026,10 +2225,18 @@ class Bybit:
 
     def on_update(self, bin_size, strategy):
         """
-        Register the strategy function
-        bind functions with webosocket data streams        
-        :param strategy: strategy
-        """       
+        Register the strategy function and bind functions with WebSocket data streams.
+
+        This function is used to set up the WebSocket connections for the specified bin sizes (timeframes)
+        and register the provided strategy function to be executed on data updates. It also binds the
+        necessary update functions to handle instrument, wallet, position, order, margin, and bookticker updates.
+
+        Args:
+            bin_size (list): List of bin sizes (timeframes) for which OHLCV data will be fetched and updated.
+            strategy (function): The strategy function to be executed when OHLCV data is updated.
+        Returns:
+            None
+        """   
         self.bin_size = bin_size
         self.strategy = strategy
         logger.info(f"pair: {self.pair}")  
@@ -2065,7 +2272,12 @@ class Bybit:
 
     def stop(self):
         """
-        Stop the crawler
+        Stop the WebSocket data streams.
+
+        This function stops the WebSocket data streams and closes the connection with the exchange.
+
+        Returns:
+            None
         """
         self.is_running = False
         self.ws.close()

@@ -38,7 +38,7 @@ Please note that the author of this software is not liable for any losses, damag
   * [Account](#account)
   * [Indicators and Functions](#indicators-and-functions)
       + [Trend Indicators](#trend-indicators)
-      + [Volatility Indicators](volatility-indicators)
+      + [Volatility Indicators](#volatility-indicators)
       + [Momentum Indicators](#momentum-indicators)
       + [Moving Averages](#moving-averages)
       + [Bands and Channels](#bands-and-channels)    
@@ -543,7 +543,7 @@ self.exchange.order("user_given_id", True, 1, 19500, stop=20 000)
 | `lowest()` | Computes the maximum value within each rolling window of size period for a given list-like source and returns a NumPy array.|
 | `MAX()` | - |
 | `med_price()` | Also found in tradingview as hl2 source | 
-| `typ_price()` |  Also found in tradingview as ohlc4 source | 
+| `typ_price()` |  Also found in tradingview as hlc3 source | 
 | `avg_price()` | also found in tradingview as ohlc4 source | 
 
 #### Probability Distributions and Simulation
