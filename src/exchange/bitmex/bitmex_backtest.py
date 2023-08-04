@@ -19,9 +19,6 @@ from src.exchange_config import exchange_config
 from src.exchange.backtest import BackTest
 from src.exchange.bitmex.bitmex_stub import BitMexStub
 
-OHLC_DIRNAME = os.path.join(os.path.dirname(__file__), "../ohlc/{}/{}/{}")
-OHLC_FILENAME = os.path.join(os.path.dirname(__file__), "../ohlc/{}/{}/{}/data.csv")
-
 
 class BitMexBackTest(BackTest, BitMexStub):      
     # Update Data before Backtest

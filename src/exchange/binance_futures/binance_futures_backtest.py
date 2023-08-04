@@ -20,10 +20,6 @@ from src.exchange.backtest import BackTest
 from src.exchange.binance_futures.binance_futures_stub import BinanceFuturesStub
 
 
-OHLC_DIRNAME = os.path.join(os.path.dirname(__file__), "../ohlc/{}/{}/{}")
-OHLC_FILENAME = os.path.join(os.path.dirname(__file__), "../ohlc/{}/{}/{}/data.csv")
-
-
 class BinanceFuturesBackTest(BackTest, BinanceFuturesStub):   
     # Update Data before Backtest
     update_data = True

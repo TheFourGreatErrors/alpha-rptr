@@ -19,8 +19,9 @@ from src.exchange.stub import Stub
 from src.exchange_config import exchange_config
 from src.exchange.binance_futures.binance_futures_stub import BinanceFuturesStub
 
-OHLC_DIRNAME = os.path.join(os.path.dirname(__file__), "../ohlc/{}/{}/{}")
-OHLC_FILENAME = os.path.join(os.path.dirname(__file__), "../ohlc/{}/{}/{}/data.csv")
+
+OHLC_DIRNAME = os.path.join(os.path.dirname(__file__), "./ohlc/{}/{}/{}")
+OHLC_FILENAME = os.path.join(os.path.dirname(__file__), "./ohlc/{}/{}/{}/data.csv")
 
 
 class BackTest(Stub):   

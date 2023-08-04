@@ -21,10 +21,6 @@ from src.exchange.backtest import BackTest
 from src.exchange.bybit.bybit_stub import BybitStub
 
 
-OHLC_DIRNAME = os.path.join(os.path.dirname(__file__), "../ohlc/{}/{}/{}")
-OHLC_FILENAME = os.path.join(os.path.dirname(__file__), "../ohlc/{}/{}/{}/data.csv")
-
-
 class BybitBackTest(BackTest, BybitStub):   
     # Update Data before Backtest
     update_data = True
