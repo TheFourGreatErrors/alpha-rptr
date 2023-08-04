@@ -64,10 +64,12 @@ allowed_range_minute_granularity = {
 def bin_size_converter(bin_size):
     """
     Converts a bin size string to a dictionary with "bin_size" and "seconds" keys.
-
-    :param bin_size: A string representing the bin size, e.g. "1m", "2h", "1d".
-    :return: A dictionary with "bin_size" and "seconds" keys.
-    :raises ValueError: If the bin size is not recognized.
+    Args:
+        bin_size (str): A string representing the bin size, e.g. "1m", "2h", "1d".
+    Returns:
+        dict: A dictionary with "bin_size" and "seconds" keys.
+    Raises:
+        ValueError: If the bin size is not recognized.
     """
     bin_sizes = {
         "1m": {"bin_size": "1", "seconds": 60},
@@ -92,6 +94,15 @@ def bin_size_converter(bin_size):
 
 class RepeatedTimer(object):
   def __init__(self, interval, function, next_call=time.time(), *args, **kwargs):    
+    """
+    Creates a repeated timer that calls the specified function with the given interval.
+    Args:
+        interval (float): Time interval in seconds between consecutive function calls.
+        function (callable): The function to be executed at each interval.
+        next_call (float, optional): The time of the next function call (default is the current time).
+        *args: Positional arguments to be passed to the function.
+        **kwargs: Keyword arguments to be passed to the function.
+    """
     self._timer = None
     self.interval = interval
     self.function = function
@@ -102,6 +113,9 @@ class RepeatedTimer(object):
     self.start()
 
   def _run(self):
+    """
+    Internal function to run the scheduled task and restart the timer.
+    """
     self.is_running = False
     self.start()
     self.function(*self.args, **self.kwargs)
@@ -154,10 +168,15 @@ def query_yes_no(question, default="yes"):
 def symlink(target, link_name, overwrite=False):    
     """
     Create a symbolic link named link_name pointing to target.
-    If link_name exists then FileExistsError is raised, unless overwrite=True.
-    When trying to overwrite a directory, IsADirectoryError is raised.
+    
+    Args:
+        target (str): The target file or directory to which the link should point.
+        link_name (str): The name of the symbolic link to be created.
+        overwrite (bool, optional): If True, overwrite an existing link_name (default is False).    
+    Raises:
+        FileExistsError: If link_name already exists and overwrite is set to False.
+        IsADirectoryError: If link_name already exists as a directory and overwrite is set to True.
     """
-
     if not overwrite:
         os.symlink(target, link_name)
         return
@@ -210,7 +229,12 @@ def sync_obj_with_config(config, obj, instance=None):
 
 def find_timeframe_string(timeframe_in_minutes):
     """
-    finds and returns tf string based on minute count
+    Finds and returns the timeframe string based on the minute count.
+
+    Args:
+        timeframe_in_minutes (int): The number of minutes in the timeframe.
+    Returns:
+        str: The timeframe string, e.g., "1h", "3m", etc.
     """
     for tf, value in allowed_range_minute_granularity.items(): 
         if value[3] == timeframe_in_minutes:
@@ -218,13 +242,24 @@ def find_timeframe_string(timeframe_in_minutes):
             
 
 def ord_suffix():
+    """
+    Generates a unique order suffix using a random UUID.
+
+    Returns:
+        str: A unique order suffix string.
+    """
     return "_" + uuid.uuid4().hex[:15]
 
 
 def load_data(file):
     """
     Read data from a file.
-    """    
+
+    Args:
+        file (str): The path to the file containing the data.
+    Returns:
+        pandas.DataFrame: A DataFrame containing the data read from the file.
+    """
     source = pd.read_csv(file)
     # data_frame = pd.DataFrame({
     #     'timestamp': pd.to_datetime(source['timestamp']),
@@ -240,6 +275,15 @@ def load_data(file):
 
 
 def delta(bin_size='1h', minute_granularity= False):
+    """
+    Calculate the timedelta based on the bin size.
+
+    Args:
+        bin_size (str, optional): The bin size (default is '1h').
+        minute_granularity (bool, optional): If True, the bin size is in minutes (default is False).
+    Returns:
+        datetime.timedelta: The calculated time delta based on the bin size.
+    """
     if minute_granularity:
         return timedelta(minutes= allowed_range_minute_granularity[bin_size][3])
     elif bin_size.endswith('d'):
@@ -251,6 +295,17 @@ def delta(bin_size='1h', minute_granularity= False):
 
 
 def validate_continuous(data, bin_size):    
+    """
+    Validates whether the data is continuous based on the bin size.
+
+    Args:
+        data (pandas.DataFrame): The data to be validated.
+        bin_size (str): The bin size used to check for continuity.
+    Returns:
+        tuple: A tuple indicating whether the data is continuous and the index of the first non-continuous data point.
+            The first element is a boolean (True if continuous, False otherwise), and the second element is the index
+            of the first non-continuous data point (None if the data is continuous).
+    """
     last_date = None
     for i in range(len(data)):
         index = data.iloc[-1 * (i + 1)].name
@@ -265,7 +320,15 @@ def validate_continuous(data, bin_size):
 
 def verify_series(series: Series, min_length: int = None) -> Series:
     """
-    If a Pandas Series and it meets the min_length of the indicator return it.
+    Validates whether the data is continuous based on the bin size.
+
+    Args:
+        data (pandas.DataFrame): The data to be validated.
+        bin_size (str): The bin size used to check for continuity.
+    Returns:
+        tuple: A tuple indicating whether the data is continuous and the index of the first non-continuous data point.
+            The first element is a boolean (True if continuous, False otherwise), and the second element is the index
+            of the first non-continuous data point (None if the data is continuous).
     """
     has_length = min_length is not None and isinstance(min_length, int)
     if series is not None and isinstance(series, Series):
@@ -273,6 +336,14 @@ def verify_series(series: Series, min_length: int = None) -> Series:
 
 
 def to_data_frame(data):    
+    """
+    Convert a dictionary of data(OHLCV) to a Pandas DataFrame.
+
+    Args:
+        data (dict): The dictionary containing the data.
+    Returns:
+        pandas.DataFrame: The DataFrame created from the input data dictionary.
+    """
     data_frame = pd.DataFrame(data, columns=["timestamp", "high", "low", "open", "close", "volume"])    
     data_frame = data_frame.set_index("timestamp")
     data_frame = data_frame.tz_localize(None).tz_localize('UTC', level=0)    
@@ -280,6 +351,18 @@ def to_data_frame(data):
 
 
 def resample(data_frame, bin_size, minute_granularity=False, label="right", closed="right"):      
+    """
+    Resamples a DataFrame to a new bin size(timeframe).
+
+    Args:
+        data_frame (pandas.DataFrame): The DataFrame to be resampled.
+        bin_size (str): The target bin size for resampling.
+        minute_granularity (bool, optional): If True, the bin size is in minutes (default is False).
+        label (str, optional): The side to use for labeling the bins (default is "right").
+        closed (str, optional): The side to use for marking the closed bin edges (default is "right").
+    Returns:
+        pandas.DataFrame: The resampled DataFrame.
+    """
     resample_time = allowed_range_minute_granularity[bin_size][1] \
                     if minute_granularity else allowed_range[bin_size][1]
     return data_frame.resample(resample_time, label=label, closed=closed).agg({
@@ -445,7 +528,15 @@ class Side:
 
 
 def notify(message: object, fileName: object = None) -> object:
+    """
+    Sends a notification to Discord and LINE Notify with the provided message.
 
+    Args:
+        message (object): The message to be sent.
+        fileName (object, optional): The name of the file to be attached (default is None).
+    Returns:
+        object: The response object from the LINE Notify API.
+    """
     try:
         webhook_url = conf["discord_webhooks"][conf["args"].account]
 
@@ -480,6 +571,15 @@ def notify(message: object, fileName: object = None) -> object:
             pass
 
 class InfluxDB():
+    """
+    Singleton class to interact with InfluxDB and log data.
+
+    It allows logging metrics to InfluxDB with appropriate timestamps, measurements, fields, and tags.
+
+    Attributes:
+        client (InfluxDBClient): The InfluxDB client instance.
+        writer (WriteApi): The InfluxDB write API instance.
+    """
 
     client = None #will be False if not configured
     writer = None #will be False if not configured
@@ -503,6 +603,15 @@ class InfluxDB():
             pass
 
     def log(self, timestamp, measurement, fields, tags):
+        """
+        Singleton class to interact with InfluxDB and log data.
+
+        It allows logging metrics to InfluxDB with appropriate timestamps, measurements, fields, and tags.
+
+        Attributes:
+            client (InfluxDBClient): The InfluxDB client instance.
+            writer (WriteApi): The InfluxDB write API instance.
+        """
 
         if self.writer is not False:
             try:
@@ -543,6 +652,15 @@ class InfluxDB():
 ###############################################
 
 def log_metrics(timestamp, collection, metrics={}, tags = {}):
+    """
+    Logs metrics to InfluxDB with the given timestamp, collection, metrics, and tags.
+
+    Args:
+        timestamp (str): The timestamp for the data entry.
+        collection (str): The collection name (equivalent to InfluxDB measurement).
+        metrics (dict, optional): Key-value pairs of metrics for the data entry (default is an empty dictionary).
+        tags (dict, optional): Key-value pairs of tags for the data entry (default is an empty dictionary).
+    """
     influx_db = InfluxDB()
     influx_db.log(timestamp, collection, metrics, tags)
     return

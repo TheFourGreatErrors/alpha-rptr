@@ -45,11 +45,13 @@ class BitMex:
 
     def __init__(self, account, pair, demo=False, threading=True):
         """
-        constructor
-        :account:
-        :pair:
-        :param demo:
-        :param run:
+        Constructor for BitMex class.
+        Args:
+            account (str): The account identifier for BitMEX.
+            pair (str): The trading pair for Binance futures.
+            demo (bool, optional): Flag to use the testnet. Default is False.
+            threading (bool, optional): Condition for setting the 'is_running' flag.
+                Default is True to indicate the bot is running.
         """
         # Account
         self.account = account
@@ -131,7 +133,7 @@ class BitMex:
 
     def __init_client(self):
         """
-        initialization of client
+        Initialization of the client for live trading on BitMEX exchange.
         """
         if self.private_client is not None and self.public_client is not None:
             return
@@ -162,6 +164,10 @@ class BitMex:
         logger.info(f"Position Size: {self.position_size:.3f} Entry Price: {self.entry_price:.2f}")
         
     def sync(self):
+        """
+        Synchronize BitMEX instance with the current position, position size,
+          entry price, market price, margin best bid and best ask.
+        """
         # Position
         self.position = self.get_position()
         # Position size
@@ -179,14 +185,15 @@ class BitMex:
 
     def now_time(self):
         """
-        current time
+        Get the current time in UTC timezone.
         """
         return datetime.now().astimezone(UTC)
         
     def get_retain_rate(self):
         """
-        maintenance margin
-        :return:
+        Get the maintenance margin rate.
+        Returns:
+            float: The maintenance margin rate (e.g., 0.004 represents 0.4%).
         """
         return 0.8
 
@@ -285,8 +292,9 @@ class BitMex:
 
     def get_market_price(self):
         """
-        get current price
-        :return:
+        Get the current market price of the trading pair.
+        Returns:
+            float: The current market price.
         """
         self.__init_client()
         if self.market_price != 0:
@@ -316,28 +324,33 @@ class BitMex:
         
     def get_trail_price(self):
         """
-        get Trail Price。
-        :return:
+        Get Trail Price.
+        Returns:
+            float: Current trail price value.
         """
         return self.trail_price
 
     def set_trail_price(self, value):
         """
-        set Trail Price
-        :return:
+        Set the trail price to the specified value.
+        Args:
+            value (float): The value to set as the trail price.
+        Returns:
+            None
         """
         self.trail_price = value
 
     def get_commission(self):
         """
-        get commission
-        :return:
+        Get the commission rate.
+        Returns:
+            float: The commission rate.
         """
-        return 0.075 / 100
+        return 0.15 / 100
 
     def cancel_all(self):
         """
-        market close opened position for this pair
+        Cancel all open orders for the trading pair.
         """
         self.__init_client()
         orders = retry(lambda: self.private_client.Order.Order_cancelAll(symbol=self.pair).result())
@@ -350,7 +363,11 @@ class BitMex:
 
     def close_all(self, callback=None):
         """
-        Close all positions for this pair
+        Close all positions for this trading pair.
+        Args:
+            callback (callable or None): Optional callback function to be called after positions are closed.
+        Returns:
+            None
         """
         self.__init_client()
         order = retry(lambda: self.private_client.Order.Order_closePosition(symbol=self.pair).result())
@@ -362,9 +379,11 @@ class BitMex:
 
     def cancel(self, id):
         """
-        Cancel a specific order by id
-        :param id: id of the order
-        :return: result
+        Cancel a specific order by id.
+        Args:
+            id (str): ID of the order to cancel.
+        Returns:
+            bool: True if the order was successfully cancelled, False otherwise.
         """
         self.__init_client()
         order = self.get_open_order(id)
@@ -392,9 +411,18 @@ class BitMex:
             reduce_only=False
     ):
         """
-        create an order
-        """
-        logger.info(f"{ord_id} {side} {ord_qty} {stop}")
+        Create an order.
+        Args:
+            ord_id (str): Order ID.
+            side (str): Order side (Buy or Sell).
+            ord_qty (float): Order quantity.
+            limit (float): Limit price.
+            stop (float): Stop price.
+            post_only (bool): Whether the order is post-only.
+            reduce_only (bool): Whether the order is reduce-only.
+        Returns:
+            None
+        """   
         if limit > 0 and post_only:
             ord_type = "Limit"
             retry(lambda: self.private_client.Order.Order_new(symbol=self.pair, ordType=ord_type, clOrdID=ord_id,
@@ -473,8 +501,17 @@ class BitMex:
             post_only=False
     ):
         """
-        Amend order with querying the order prior verifying its existence.
-        """        
+        Amend an order with querying the order prior to verifying its existence and whether it's active or conditional.
+        This function allows amending an existing order with the provided order ID.        
+        Args:
+            ord_id (str): Order ID to amend.
+            ord_qty (float, optional): Order quantity. Default is 0.
+            limit (float, optional): Limit price. Default is 0.
+            stop (float, optional): Stop price. Default is 0.
+            post_only (bool, optional): Whether the order is post-only. Default is False.
+        Returns:
+            None
+        """
         order = self.get_open_order(id=ord_id)
 
         if order is None or len(order) == 0:
@@ -496,7 +533,16 @@ class BitMex:
             post_only=False
     ):
         """
-        Amend order
+        Amend an existing order.
+        Args:
+            ord_id (str): Order ID to amend.
+            side (str): Order side (Buy or Sell).
+            ord_qty (float): Order quantity.
+            limit (float): Limit price.
+            stop (float): Stop price.
+            post_only (bool): Whether the order is post-only.
+        Returns:
+            None
         """
         if limit > 0 and stop > 0:
             ord_type = "StopLimit"
@@ -548,18 +594,34 @@ class BitMex:
             callback=None
     ):
         """
-        places an entry order, works as equivalent to tradingview pine script implementation
+        Places an entry order with various options, working as an equivalent to TradingView Pine script implementation:
         https://tradingview.com/study-script-reference/#fun_strategy{dot}entry
-        :param id: Order id
-        :param long: Long or Short
-        :param qty: Quantity
-        :param limit: Limit price
-        :param stop: Stop limit
-        :param post_only: Post only
-        :param reduce_only: Reduce Only means that your existing position cannot be increased only reduced by this order
-        :param when: Do you want to execute the order or not - True for live trading
-        :return:
-        """        
+
+        When an order is placed in a market, it will typically open a position on a particular side (buy or sell). 
+        However, if another entry order is sent while the position is still open, and it is on the opposite side, 
+        the position will be reversed. This means that the current position will be closed out (effectively covering the existing position), 
+        and a new position will be opened on the opposite side. In other words, 
+        the order will close out the existing position and enter a new position in the opposite direction.
+       
+        It will not send the order if there is a position opened on the same side !!! 
+        - for multiple entrie use `entry_pyramiding()` or regular `order()`
+
+        Args:
+            id (str): Order ID.
+            long (bool): Long or Short position.
+            qty (float): Quantity.
+            limit (float, optional): Limit price. Default is 0.
+            stop (float, optional): Stop price. Default is 0.
+            post_only (bool, optional): Whether the order is post-only. Default is False.
+            reduce_only (bool, optional): Reduce Only means that your existing position cannot be increased 
+                                        only reduced by this order. Default is False.
+            allow_amend (bool, optional): Allow amending existing orders. Default is False.
+            when (bool, optional): Whether to execute the order or not - True for live trading. Default is True.
+            round_decimals (int, optional): Number of decimals to round quantity. Default is None.
+            callback (callable, optional): Optional callback function to be called after the order is placed. Default is None.
+        Returns:
+            None
+        """     
         self.__init_client()
 
         if self.get_margin()['excessMargin'] <= 0 or qty <= 0:
@@ -573,8 +635,7 @@ class BitMex:
         if long and pos_size > 0:
             return
             
-        if not long and pos_size < 0:
-            
+        if not long and pos_size < 0:            
             return
         
         ord_qty = qty + abs(pos_size)
@@ -599,20 +660,33 @@ class BitMex:
             callback=None
     ):
         """
-        places an entry order, works as equivalent to tradingview pine script implementation with pyramiding
+        Places an entry order with pyramiding, allowing adding to a position in smaller chunks.
+        The implementation is similar to TradingView Pine script:
         https://tradingview.com/study-script-reference/#fun_strategy{dot}entry
-        :param id: Order id
-        :param long: Long or Short
-        :param qty: Quantity
-        :param limit: Limit price
-        :param stop: Stop limit
-        :param post_only: Post only
-        :param reduce_only: Reduce Only means that your existing position cannot be increased only reduced by this order
-        :param cancell_all: cancell all open order before sending the entry order?
-        :param pyramiding: number of entries you want in pyramiding
-        :param when: Do you want to execute the order or not - True for live trading
-        :return:
-        """       
+
+        Pyramiding in trading refers to adding to a position gradually,
+        with the goal of increasing potential gains while reducing risk.
+        In this function, the order quantity is adjusted based on the pyramiding value set by the user deviding it in smaller orders.
+        Outside of order pyramiding functionality it behaves as a regular `entry()`.
+
+        Args:
+            id (str): Order ID.
+            long (bool): Long or Short position.
+            qty (float): Quantity.
+            limit (float, optional): Limit price. Default is 0.
+            stop (float, optional): Stop price. Default is 0.
+            post_only (bool, optional): Whether the order is post-only. Default is False.
+            reduce_only (bool, optional): Reduce Only means that your existing position cannot be increased 
+                                        only reduced by this order. Default is False.
+            cancel_all (bool, optional): Whether to cancel all open orders before sending the entry order. Default is False.
+            pyramiding (int, optional): Number of entries you want in pyramiding. Default is 2.
+            allow_amend (bool, optional): Allow amending existing orders. Default is False.
+            when (bool, optional): Whether to execute the order or not - True for live trading. Default is True.
+            round_decimals (int, optional): Number of decimals to round quantity. Default is None.
+            callback (callable, optional): Optional callback function to be called after the order is placed. Default is None.
+        Returns:
+            None
+        """     
 
         # if self.get_margin()['excessMargin'] <= 0 or qty <= 0:
         #     return
@@ -641,7 +715,7 @@ class BitMex:
         if (long and pos_size + qty > pyramiding*qty) or (not long and pos_size - qty < -pyramiding*qty):
             ord_qty = pyramiding*qty - abs(pos_size)
      
-        # make sure it doesnt spam small entries,
+        # Make sure it doesnt spam small entries,
         # which in most cases would trigger risk management orders evaluation, you can make this less than 2% if needed  
         if ord_qty < ((pyramiding*qty) / 100) * 2:
             return          
@@ -665,18 +739,23 @@ class BitMex:
             callback=None
     ):
         """
-        places an order, works as equivalent to tradingview pine script implementation
-        https://www.tradingview.com/pine-script-reference/#fun_strategy{dot}order
-        :param id: Order id
-        :param long: Long or Short
-        :param qty: Quantity
-        :param limit: Limit price
-        :param stop: Stop limit
-        :param post_only: Post only
-        :param reduce only: Reduce Only means that your existing position cannot be increased only reduced by this order by this order
-        :param allow_amend: Allow amening existing orders
-        :param when: Do you want to execute the order or not - True for live trading
-        :return:
+        Places an order with various options.
+
+        Args:
+            id (str): Order ID.
+            long (bool): Long or Short position.
+            qty (float): Quantity.
+            limit (float, optional): Limit price. Default is 0.
+            stop (float, optional): Stop limit. Default is 0.
+            post_only (bool, optional): Whether the order is post-only. Default is False.
+            reduce_only (bool, optional): Reduce Only means that your existing position cannot be increased 
+                                        only reduced by this order by this order. Default is False.
+            allow_amend (bool, optional): Allow amending existing orders. Default is False.
+            when (bool, optional): Whether to execute the order or not - True for live trading. Default is True.
+            round_decimals (int, optional): Number of decimals to round quantity. Default is None.
+            callback (callable, optional): Optional callback function to be called after the order is placed. Default is None.
+        Returns:
+            None
         """
         self.__init_client()        
         
@@ -705,18 +784,22 @@ class BitMex:
     
     def get_open_order_qty(self, id):
         """
-        Returns the order quantity of the first open order that starts the given order ID.
-        :param id: The ID of the order to search for 
-        :return: The quantity of the first open order or None if no matching order is found
-        """         
+        Returns the order quantity of the first open order that starts the given order ID.        
+        Args:
+            id (str): The ID of the order to search for.
+        Returns:
+            float: The quantity of the first open order or None if no matching order is found.
+        """      
         order = self.get_open_order(id=id) 
         return None if order is None else order['leavesQty']
 
     def get_open_order(self, id):
         """
-        Get open order by id         
-        :param id: Order id for this pair
-        :return: if multiple found starting with given id return only the first one
+        Get open order by ID.        
+        Args:
+            id (str): Order ID for this pair.
+        Returns:
+            dict: Information about the first open order matching the provided ID or None if not found.
         """
         self.__init_client()
         open_orders = retry(lambda: self.private_client
@@ -731,9 +814,11 @@ class BitMex:
     
     def get_open_orders(self, id=None):
         """
-        Get open orders
-        :param id: if provided it will return only those that start with the provided string
-        :return: list of open orders or None
+        Get open orders.        
+        Args:
+            id (str, optional): If provided, it will return only those that start with the provided string.
+        Returns:
+            list: List of open orders or None if no matching orders are found.
         """
         self.__init_client()
         open_orders = retry(lambda: self.private_client
@@ -744,15 +829,19 @@ class BitMex:
 
     def exit(self, profit=0, loss=0, trail_offset=0):
         """
-        profit taking and stop loss and trailing,
-        if both stop loss and trailing offset are set trailing_offset takes precedence
-        :param profit: Profit 
-        :param loss: Stop loss
-        :param trail_offset: Trailing stop price
+        Profit-taking, stop loss, and trailing.
+        If both stop loss and trailing offset are set, trailing_offset takes precedence.
+        Args:
+            profit (float, optional): Profit target value in %. Default is 0.S
+            loss (float, optional): Stop loss value in %. Default is 0.
+            trail_offset (float, optional): Trailing stop price. Default is 0.
+        Returns:
+            None
         """
         self.exit_order = {'profit': profit, 
                            'loss': loss, 
                            'trail_offset': trail_offset}
+        
         self.is_exit_order_active = self.exit_order['profit'] > 0 \
                                     or self.exit_order['loss'] > 0 \
                                     or self.exit_order['trail_offset'] >  0     
@@ -771,13 +860,20 @@ class BitMex:
             stop_short_callback=None
     ):
         """
-        Simple take profit and stop loss implementation,
-         which sends a reduce only stop loss order upon entering a position.
-        :param profit_long: profit target value in % for longs
-        :param profit_short: profit target value in % for shorts
-        :param stop_long: stop loss value for long position in %
-        :param stop_short: stop loss value for short position in %
-        :param round_decimals: round decimals 
+        Implement a simple take profit and stop loss strategy. (Independent of exit())
+        Sends a reduce-only stop-loss order upon entering a position.
+        
+        Args:
+            profit_long (float, optional): Profit target value in % for longs. Default is 0.
+            profit_short (float, optional): Profit target value in % for shorts. Default is 0.
+            stop_long (float, optional): Stop loss value for long positions in %. Default is 0.
+            stop_short (float, optional): Stop loss value for short positions in %. Default is 0.
+            eval_tp_next_candle (bool, optional): Whether to evaluate the take profit on the next candle. Default is False.
+            round_decimals (int, optional): Rounding decimals. Default is None.
+            profit_long_callback (callable, optional): Callback function for long profit. Default is None.
+            profit_short_callback (callable, optional): Callback function for short profit. Default is None.
+            stop_long_callback (callable, optional): Callback function for long stop loss. Default is None.
+            stop_short_callback (callable, optional): Callback function for short stop loss. Default is None.
         """
         self.sltp_values = {
             'profit_long': profit_long/100,
@@ -800,19 +896,23 @@ class BitMex:
 
     def get_exit_order(self):
         """
-        get profit take and stop loss and trailing settings
+        Get the profit take, stop loss, and trailing settings for the exit strategy.
+        Returns:
+            dict: Exit strategy settings.
         """
         return self.exit_order
 
     def get_sltp_values(self):
         """
-        get values for the simple profit target/stop loss in %
+        Get the values for the simple profit target and stop loss in percentage.
+        Returns:
+            dict: Simple profit target and stop loss values.
         """
-        return self.sltp_values 
+        return self.sltp_values    
 
     def eval_exit(self):
         """
-        evalution of profit target and stop loss and trailing
+        Evaluate the profit target, stop loss, and trailing conditions for triggering an exit.
         """
         if self.get_position_size() == 0:
             return
@@ -844,9 +944,9 @@ class BitMex:
      
     def eval_sltp(self):
         """
-        Simple take profit and stop loss implementation
-        - sends a reduce only stop loss order upon entering a position.
-        - requires setting values with sltp() prior      
+        Evaluate and execute the simple take profit and stop loss implementation.
+        - Sends a reduce-only stop loss order upon entering a position.
+        - Requires setting values with sltp() prior.
         """
         pos_size = self.get_position_size()
         # sl_order = self.get_open_order('SL')
@@ -931,11 +1031,16 @@ class BitMex:
 
     def fetch_ohlcv(self, bin_size, start_time, end_time):
         """
-        fetch OHLCV data
-        :param start_time: start time
-        :param end_time: end time
-        :return:
-        """        
+        Fetch OHLCV data within the specified time range.
+
+        Args:
+            bin_size (str): Time frame to fetch (e.g., "1m", "1h", "1d").
+            start_time (datetime): Start time of the data range.
+            end_time (datetime): End time of the data range.
+
+        Returns:
+            pd.DataFrame: OHLCV data in the specified time frame.
+        """              
         self.__init_client()
 
         fetch_bin_size = allowed_range[bin_size][0]
@@ -963,8 +1068,13 @@ class BitMex:
     def security(self, bin_size, data=None):
         """
         Recalculate and obtain data of a timeframe higher than the current timeframe
-        without looking into the future that would cause undesired effects.
-        """     
+        without looking into the future to avoid undesired effects.
+        Args:
+            bin_size (str): Time frame of the OHLCV data.
+            data (pd.DataFrame): OHLCV data to be used for calculation. If None, use the current timeframe data.
+        Returns:
+            pd.DataFrame: OHLCV data resampled to the specified bin_size.
+        """  
         if data == None:  # minute count of a timeframe for sorting when sorting is needed   
             timeframe_list = [allowed_range_minute_granularity[t][3] for t in self.bin_size]
             timeframe_list.sort(reverse=True)
@@ -975,8 +1085,20 @@ class BitMex:
     
     def __update_ohlcv(self, action, new_data):
         """
-        get and update OHLCV data and execute the strategy
-        """           
+        Update OHLCV (Open-High-Low-Close-Volume) data and execute the strategy.
+
+        This function takes in new OHLCV data and updates the internal buffer for each specified timeframe.
+        The function ensures that the data is correctly aligned with the timeframe and handles cases where
+        the last candle is incomplete or contains data from the future.
+
+        Args:
+            action (str): The allowed range for updating the OHLCV data.
+                        This could be a minute granularity (e.g., '1m', '5m', '15m') or a custom range.
+            new_data (pd.DataFrame): New OHLCV data to be added. It should be a pandas DataFrame with
+                                    a DatetimeIndex and columns for 'open', 'high', 'low', 'close', and 'volume'.
+        Returns:
+            None
+        """         
         if self.timeframe_data is None:
             self.timeframe_data = {}
             for t in self.bin_size:                
@@ -1086,7 +1208,17 @@ class BitMex:
         
     def __on_update_instrument(self, action, instrument):
         """
-        Update instrument
+        Update the price of the instrument.
+
+        This function is called when the instrument's price is updated. It keeps track of the current
+        market price and checks if any trailing stop orders need to be updated based on the new price.
+
+        Args:
+            action (str): The action associated with the update (e.g., 'update', 'insert', 'delete').
+            instrument (dict): The updated instrument data, typically containing the current market price.
+
+        Returns:
+            None
         """
         if 'lastPrice' in instrument:
             self.market_price = instrument['lastPrice']
@@ -1101,13 +1233,28 @@ class BitMex:
 
     def __on_update_wallet(self, action, wallet):
         """
-        update wallet
+        Update wallet.
+
+        Args:
+            action (str): The action related to the update.
+            wallet (dict): The updated wallet data.
+
+        Returns:
+            None
         """
+        # Updates the wallet data by merging the current wallet data with the new data received
         self.wallet = {**self.wallet, **wallet} if self.wallet is not None else self.wallet
 
     def __on_update_order(self, action, order):
         """
-        Update order status        
+        Update order status.
+
+        Args:
+            action (str): The action related to the update.
+            order (dict): The updated order data containing the order status.
+
+        Returns:
+            None
         """
         self.order_update = order
         #logger.info(f"order: {order}")
@@ -1142,7 +1289,19 @@ class BitMex:
         
     def __on_update_position(self, action, position):
         """
-        Update position
+        Update position.
+
+        This function is called when there is an update to the position. It filters the position data
+        for the current trading pair and then checks if the position size has changed. If the position
+        size has changed, it updates the trail price to the current market price. It also updates the
+        internal position data and evaluates the profit and loss.
+
+        Args:
+            action (str): The action related to the update.
+            position (dict): The updated position data containing position size, average entry price, etc.
+
+        Returns:
+            None
         """
         # Was the position size changed?
         is_update_pos_size = 'currentQty' in position \
@@ -1167,20 +1326,40 @@ class BitMex:
         self.position = {**self.position, **position} if self.position is not None else self.position
 
         # Evaluation of profit and loss
-        #self.eval_exit()
-        #self.eval_sltp()
+        if self.is_exit_order_active:
+            self.eval_exit()
+        if self.is_sltp_active:
+            self.eval_sltp()
 
     def __on_update_margin(self, action, margin):
         """
         Update margin
+
+        The function updates the 'margin' attribute with the new margin data. 
+        It does this by merging the current margin data with the new data received to keep the margin information up-to-date.
+        
+        Args:
+            action (str): The action related to the update. It indicates the type of update being received, such as "partial" or "update".
+            margin (dict): The updated margin data, which contains information about the margin requirements and available margin balance.
+        Returns:
+            None
         """
         self.margin = {**self.margin, **margin} if self.margin is not None else self.margin
 
     def on_update(self, bin_size, strategy):
         """
-        Register the strategy function
-        bind functions with webosocket data streams        
-        :param strategy: strategy
+        Register the strategy function and bind functions with WebSocket data streams.
+
+        This function is used to set up the WebSocket connections for the specified bin sizes (timeframes)
+        and register the provided strategy function to be executed on data updates. It also binds the
+        necessary update functions to handle instrument, wallet, position, order, margin, and bookticker updates.
+
+        Args:
+            bin_size (list): List of bin sizes (timeframes) for which OHLCV data will be fetched and updated.
+            strategy (function): The strategy function to be executed when OHLCV data is updated.
+
+        Returns:
+            None
         """       
         logger.info(f"pair: {self.pair}")  
         logger.info(f"timeframes: {bin_size}")  

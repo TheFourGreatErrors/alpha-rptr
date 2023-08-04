@@ -46,11 +46,13 @@ class BinanceFutures:
 
     def __init__(self, account, pair, demo=False, threading=True):
         """
-        constructor
-        :account:
-        :pair:
-        :param demo:
-        :param run:
+        Constructor for BinanceFutures class.
+        Args:
+            account (str): The account identifier for Binance futures.
+            pair (str): The trading pair for Binance futures.
+            demo (bool, optional): Flag to use the testnet. Default is False.
+            threading (bool, optional): Condition for setting the 'is_running' flag.
+                Default is True to indicate the bot is running.
         """
         # Account
         self.account = account
@@ -148,7 +150,7 @@ class BinanceFutures:
 
     def __init_client(self):
         """
-        initialization of client
+        Initialization of the Binance futures client.
         """
         if self.client is not None:
             return        
@@ -159,6 +161,7 @@ class BinanceFutures:
         
         self.client = Client(api_key=api_key, api_secret=api_secret, testnet=self.demo)
 
+        # If base_asset, asset_rounding, quote_asset, or quote_rounding are not set, fetch them from the exchange info
         if self.base_asset == None or self.asset_rounding == None or \
             self.quote_asset == None or self.quote_rounding == None:
 
@@ -180,6 +183,9 @@ class BinanceFutures:
         logger.info(f"Position Size: {self.position_size:.3f} Entry Price: {self.entry_price:.2f}")
         
     def sync(self):
+        """
+        Synchronize BinanceFutures instance with the current position, position size, entry price, market price, and margin.
+        """
         # Position
         self.position = self.get_position()
         # Position size
@@ -193,23 +199,32 @@ class BinanceFutures:
     
     def now_time(self):
         """
-        current time
+        Get the current time in UTC timezone.
+        Returns:
+            datetime: The current time in UTC timezone.
         """
         return datetime.now().astimezone(UTC)
         
     def get_retain_rate(self):
         """
-        maintenance margin
-        :return:
+        Get the maintenance margin rate.
+        Returns:
+            float: The maintenance margin rate (e.g., 0.004 represents 0.4%).
         """
         return 0.004
 
     def get_lot(self, lot_leverage=1, only_available_balance=True, round_decimals=None):
         """        
-        lot calculation
-        :param round_decimals: round decimals
-        :param lot_leverage: use None to automatically use your preset leverage
-        :return:
+        Calculate the lot size based on the provided lot_leverage.
+        Args:
+            lot_leverage (float, optional): The leverage to use for lot calculation.
+                Set to None to automatically use your preset leverage.
+            only_available_balance (bool, optional): Flag to use only the available balance
+                for lot calculation. Default is True.
+            round_decimals (int, optional): The number of decimals to round the calculated lot size.
+                Set to None to use the asset_rounding as the default rounding.
+        Returns:
+            float: The calculated lot size.
         """
         if lot_leverage is None:
             lot_leverage = self.get_leverage()        
@@ -226,9 +241,12 @@ class BinanceFutures:
 
     def get_balance(self, asset=None):
         """
-        get balance
-        :param asset: asset - default quote asset
-        :return:
+        Get the balance for the specified asset.
+        Args:
+            asset (str, optional): The asset for which to get the balance.
+                If not provided, the quote asset will be used as the default.
+        Returns:
+            float: The balance for the specified asset.
         """
         self.__init_client()
         res = self.get_margin()
@@ -245,9 +263,13 @@ class BinanceFutures:
 
     def get_available_balance(self, asset=None):
         """
-        get available balance, since some might be already used as a collateral for margin etc.
-        :param asset: asset - default quote asset
-        :return:
+        Get the available balance for the specified asset,
+        considering that some might already be used as collateral for margin.
+        Args:
+            asset (str, optional): The asset for which to get the available balance.
+                If not provided, the quote asset will be used as the default.
+        Returns:
+            float: The available balance for the specified asset.
         """
         self.__init_client()
         res = self.get_margin()
@@ -264,8 +286,9 @@ class BinanceFutures:
 
     def get_margin(self):
         """
-        get margin        
-        :return:
+        Get the margin information.
+        Returns:
+            list: A list of dictionaries containing margin information for various assets.
         """
         self.__init_client()
         if self.margin is not None:
@@ -277,8 +300,9 @@ class BinanceFutures:
 
     def get_leverage(self):
         """
-        get leverage
-        :return:
+        Get the current leverage.
+        Returns:
+            float: The current leverage.
         """
         self.__init_client()
         return float(self.get_position()["leverage"])
@@ -286,8 +310,13 @@ class BinanceFutures:
 
     def set_leverage(self, leverage, symbol=None):
         """
-        set leverage
-        :return:
+        Set the leverage for the specified symbol.
+        Args:
+            leverage (float): The leverage to set.
+            symbol (str, optional): The symbol for which to set the leverage.
+                If not provided, the default symbol (pair) of the instance will be used.
+        Returns:
+            None
         """
         self.__init_client()
 
@@ -298,8 +327,10 @@ class BinanceFutures:
 
     def get_account_information(self):
         """
-        get account information about all types of margin balances, assets and positions
-        https://binance-docs.github.io/apidocs/futures/en/#account-information-v2-user_data
+        Get account information about all types of margin balances, assets, and positions.
+        https://binance-docs.github.io/apidocs/futures/en/#account-information-v2-user_data        
+        Returns:
+            dict: Account information as a dictionary.        
         """
         self.account_information = retry(lambda: self.client
                                 .futures_account_v2())
@@ -307,8 +338,9 @@ class BinanceFutures:
 
     def get_position(self):
         """
-        get current position
-        :return:
+        Get the current position information for the instance's trading pair.
+        Returns:
+            dict: Current position information as a dictionary.
         """
         self.__init_client()
 
@@ -330,8 +362,9 @@ class BinanceFutures:
 
     def get_position_size(self):
         """
-        get current position size。
-        :return:
+        Get the current position size of the trading pair.
+        Returns:
+            float: The current position size.        
         """
         self.__init_client()
         if self.position_size is not None: #and self.position_size == 0:
@@ -345,16 +378,18 @@ class BinanceFutures:
 
     def get_position_avg_price(self):
         """
-        get average price of the current position
-        :return:
+        Get the current market price of the trading pair.
+        Returns:
+            float: The current market price.        
         """
         self.__init_client()
         return float(self.get_position()['entryPrice'])
 
     def get_market_price(self):
         """
-        get current price
-        :return:
+        Get the current market price of the trading pair.
+        Returns:
+            float: The current market price.
         """
         self.__init_client()
         if self.market_price != 0:
@@ -366,8 +401,9 @@ class BinanceFutures:
 
     def get_pnl(self):
         """
-        get profit and loss calculation in %
-        :return:
+        Calculate the profit and loss percentage for the current position.
+        Returns:
+            float: The profit and loss percentage.
         """
         # PnL calculation in %            
         pnl = self.get_profit()* 100/self.get_balance()
@@ -375,12 +411,17 @@ class BinanceFutures:
 
     def get_profit(self, close=None, avg_entry_price=None, position_size=None, commission=None):
         """
-        get profit 
-        :param close: current price
-        :param avg_entry_price: average entry price of position
-        :param position_size: current position size
-        :param commission: applicable commission for this pair
-        :return:
+        Calculate the profit of the current position.
+        Args:
+            close (float, optional): The current price. If not provided, the instance's market price is used.
+            avg_entry_price (float, optional): The average entry price of the position.
+                If not provided, the instance's entry price or the current position's entry price is used.
+            position_size (float, optional): The current position size.
+                If not provided, the instance's position size or the current position size is used.
+            commission (float, optional): The applicable commission rate for this trading pair.
+                If not provided, the instance's commission rate is used.
+        Returns:
+            float: The profit of the current position.
         """
         if close is None:
             close = self.market_price 
@@ -406,28 +447,33 @@ class BinanceFutures:
         
     def get_trail_price(self):
         """
-        Trail Price
-        :return:
+        Get the current trail price.
+        Returns:
+            float: The current trail price.
         """
         return self.trail_price
 
     def set_trail_price(self, value):
         """
-        set Trail Price
-        :return:
+        Set the trail price to the specified value.
+        Args:
+            value (float): The value to set as the trail price.
+        Returns:
+            None
         """
         self.trail_price = value
 
     def get_commission(self):
         """
-        get commission
-        :return:
+        Get the commission rate.
+        Returns:
+            float: The commission rate.
         """
         return 0.08 / 100 # 2*0.04 fee
 
     def cancel_all(self):
         """
-        cancel all orders
+        Cancel all open orders for the trading pair.
         """
         self.__init_client()
         res = retry(lambda: self.client.futures_cancel_all_open_orders(symbol=self.pair))
@@ -437,12 +483,13 @@ class BinanceFutures:
 
     def close_all(self, callback=None, split=1, interval=0, chaser=False, retry_maker=100):
         """
-        market close open position for this pair
-        :param callback: function to call once the underlying order is executed
-        :param split: should the position be closed using multiple orders?
-        :param interval: time interval between split orders
-        :param chaser: refer to order() function
-        :param retry_maker: refer to order() function
+        Close the open position for this trading pair using a market order.
+        Args:
+            callback (function, optional): A function to call once the underlying order is executed.
+            split (int, optional): Number of orders to use for closing the position. Default is 1.
+            interval (int, optional): Time interval between split orders. Default is 0.
+            chaser (bool, optional): Refer to the order() function. Default is False.
+            retry_maker (int, optional): Refer to the order() function. Default is 100.
         """
         self.__init_client()
         position_size = self.get_position_size()
@@ -458,9 +505,11 @@ class BinanceFutures:
 
     def cancel(self, id):
         """
-        cancel a specific order by id
-        :param id: id of the order
-        :return: result
+        Cancel a specific order by ID.
+        Args:
+            id (int): The ID of the order to be canceled.
+        Returns:
+            bool: True if the order was successfully canceled, False otherwise.
         """
         self.__init_client()
         order = self.get_open_order(id)
@@ -493,7 +542,19 @@ class BinanceFutures:
         workingType="CONTRACT_PRICE"
     ):
         """
-        create an order (do not use directly)
+        Create a new order (do not use directly).
+
+        Args:
+            ord_id (str): The order ID (user ID).
+            side (str): 'Buy' for long position, 'Sell' for short position.
+            ord_qty (float): The quantity to be traded.
+            limit (float, optional): Limit price for the order. Defaults to 0.
+            stop (float, optional): Stop price trigger for the order. Defaults to 0.
+            post_only (bool, optional): If True, the order will be posted as a maker order. Defaults to False.
+            reduce_only (bool, optional): If True, the order will only reduce the existing position, not increase it. Defaults to False.
+            trailing_stop (float, optional): Binance futures built-in implementation of trailing stop in percentage. Defaults to 0.
+            activationPrice (float, optional): Price that triggers Binance futures built-in trailing stop. Defaults to 0.
+            workingType (str, optional): Price type to use, "CONTRACT_PRICE" by default. Defaults to "CONTRACT_PRICE".
         """
         #removes "+" from order suffix, because of the new regular expression rule for newClientOrderId updated as ^[\.A-Z\:/a-z0-9_-]{1,36}$ (2021-01-26)
         ord_id = ord_id.replace("+", "k") 
@@ -561,22 +622,20 @@ class BinanceFutures:
             notify(f"New Order\nType: {ord_type}\nSide: {side}\nQty: {ord_qty}\nLimit: {limit}\nStop: {stop}\nRed. Only: {reduce_only}")
 
     # def __amend_order(self, ord_id, side, ord_qty, limit=0, stop=0, post_only=False):
-    #     """
-    #    amend order
-    #     """
-    # todo, unfortunately binance ecosystem doesnt provide us with amend order functionality so we have to implement our own mechanism 
+        """
+        Amend an order. (Currently not implemented due to Binance ecosystem limitations.)
 
-    #     if self.enable_trade_log:
-    #         logger.info(f"========= Amend Order ==============")
-    #         logger.info(f"ID     : {ord_id}")
-    #         logger.info(f"Type   : {ord_type}")
-    #         logger.info(f"Side   : {side}")
-    #         logger.info(f"Qty    : {ord_qty}")
-    #         logger.info(f"Limit  : {limit}")
-    #         logger.info(f"Stop   : {stop}")
-    #         logger.info(f"======================================")
-
-    #         notify(f"Amend Order\nType: {ord_type}\nSide: {side}\nQty: {ord_qty}\nLimit: {limit}\nStop: {stop}")
+        Args:
+            ord_id (str): The order ID (user ID) to amend.
+            side (str): The side of the order ('Buy' or 'Sell').
+            ord_qty (float): The updated quantity for the order.
+            limit (float, optional): The updated limit price for the order. Defaults to 0.
+            stop (float, optional): The updated stop price trigger for the order. Defaults to 0.
+            post_only (bool, optional): If True, the order will be posted as a maker order. Defaults to False.
+        """
+    # The function is currently not implemented due to limitations in the Binance ecosystem.
+    # Code to amend the order would be implemented here if it were available.
+    # TODO
 
     def entry(
         self,
@@ -599,26 +658,37 @@ class BinanceFutures:
         retry_maker=100
     ):
         """
-        places an entry order, works as equivalent to tradingview pine script implementation
+        Places an entry order with various options, working as an equivalent to TradingView Pine script implementation:
         https://tradingview.com/study-script-reference/#fun_strategy{dot}entry
-        :param id: Order ID (user ID)
-        :param long: True for a long position, False for a short position
-        :param qty: Quantity to be traded
-        :param limit: Limit price
-        :param stop: Stop price trigger
-        :param trailing_stop: Binance futures built in implementation of trailing stop in %
-        :param activationPrice: price that triggers Binance futures built in trailing stop      
-        :param post_only: If True, the order will be posted as a maker order.
-        :param reduce_only: If True, the order will only reduce the existing position, not increase it.
-        :param when: If True, the order is executed.
-        :param round_decimals: Decimal places to round the order quantity. (automatic if left equal to None)
-        :param callback: A callback function to execute after the order is filled.
-        :param workingType: Price type to use, "CONTRACT_PRICE" by default.
-        :param split: Number of orders to split the quantity into. (iceberg order)
-        :param interval: Interval between orders. (iceberg order)
-        :param chaser: If True, a chaser order is placed to follow the Best Bid/Ask (BBA) Price. As soon as BBA changes, the existing order is cancelled and a new one is placed at the new BBA for the remaining quantity.
-        :param retry_maker: Number of times to retry placing a maker order if it fails.
-        :return:
+
+        When an order is placed in a market, it will typically open a position on a particular side (buy or sell). 
+        However, if another entry order is sent while the position is still open, and it is on the opposite side, 
+        the position will be reversed. This means that the current position will be closed out (effectively covering the existing position), 
+        and a new position will be opened on the opposite side. In other words, 
+        the order will close out the existing position and enter a new position in the opposite direction.
+       
+        It will not send the order if there is a position opened on the same side !!! 
+        - for multiple entrie use `entry_pyramiding()` or regular `order()`
+
+        Args:
+            id (str): Order ID (user ID).
+            long (bool): True for a long position, False for a short position.
+            qty (float): Quantity to be traded.
+            limit (float, optional): Limit price for the order. Defaults to 0.
+            stop (float, optional): Stop price trigger for the order. Defaults to 0.
+            trailing_stop (float, optional): Binance futures built-in implementation of trailing stop in percentage. Defaults to 0.
+            activationPrice (float, optional): Price that triggers Binance futures built-in trailing stop. Defaults to 0.
+            post_only (bool, optional): If True, the order will be posted as a maker order. Defaults to False.
+            reduce_only (bool, optional): If True, the order will only reduce the existing position, not increase it. Defaults to False.
+            when (bool, optional): If True, the order is executed. Defaults to True.
+            round_decimals (int, optional): Decimal places to round the order quantity. Automatic if left equal to None. Defaults to None.
+            callback (function, optional): A callback function to execute after the order is filled. Defaults to None.
+            workingType (str, optional): Price type to use, "CONTRACT_PRICE" by default. Defaults to "CONTRACT_PRICE".
+            split (int, optional): Number of orders to split the quantity into (iceberg order). Defaults to 1.
+            interval (int, optional): Interval between orders (iceberg order). Defaults to 0.
+            chaser (bool, optional): If True, a chaser order is placed to follow the Best Bid/Ask (BBA) Price.
+                As soon as BBA changes, the existing order is canceled, and a new one is placed at the new BBA for the remaining quantity. Defaults to False.
+            retry_maker (int, optional): Number of times to retry placing a maker order if it fails. Defaults to 100.
         """
         self.__init_client()
 
@@ -667,29 +737,37 @@ class BinanceFutures:
         retry_maker=100
     ):
         """
-        Places an entry order with pyramiding, which allows to add to a position in smaller chunks.
-        The implementation is similar to TradingView Pine script: https://tradingview.com/study-script-reference/#fun_strategy{dot}entry
+        Places an entry order with pyramiding, allowing adding to a position in smaller chunks.
+        The implementation is similar to TradingView Pine script:
+        https://tradingview.com/study-script-reference/#fun_strategy{dot}entry
 
-        :param id: Order ID (user ID)
-        :param long: True for a long position, False for a short position
-        :param qty: Quantity to be traded
-        :param limit: Limit price
-        :param stop: Stop price trigger
-        :param trailing_stop: Binance futures built in implementation of trailing stop in %
-        :param activationPrice: price that triggers Binance futures built in trailing stop      
-        :param post_only: If True, the order will be posted as a maker order.
-        :param reduce_only: If True, the order will only reduce the existing position, not increase it.
-        :param cancel_all: If True, cancels all open orders before placing the entry order.
-        :param pyramiding: Number of entries in the pyramiding strategy.
-        :param when: If True, the order is executed.
-        :param round_decimals: Decimal places to round the order quantity. (automatic if left equal to None)
-        :param callback: A callback function to execute after the order is filled.
-        :param workingType: Price type to use, "CONTRACT_PRICE" by default.
-        :param split: Number of orders to split the quantity into. (iceberg order)
-        :param interval: Interval between orders. (iceberg order)
-        :param chaser: If True, a chaser order is placed to follow the Best Bid/Ask Price. As soon as BBA changes, the existing order is cancelled and a new one is placed at the new BBA for the remaining quantity.
-        :param retry_maker: Number of times to retry placing a maker order if it fails.
-        """       
+        Pyramiding in trading refers to adding to a position gradually,
+        with the goal of increasing potential gains while reducing risk.
+        In this function, the order quantity is adjusted based on the pyramiding value set by the user deviding it in smaller orders.
+        Outside of order pyramiding functionality it behaves as a regular `entry()`.
+
+        Args:
+            id (str): Order ID (user ID).
+            long (bool): True for a long position, False for a short position.
+            qty (float): Quantity to be traded.
+            limit (float, optional): Limit price for the order. Defaults to 0.
+            stop (float, optional): Stop price trigger for the order. Defaults to 0.
+            trailing_stop (float, optional): Binance futures built-in implementation of trailing stop in percentage. Defaults to 0.
+            activationPrice (float, optional): Price that triggers Binance futures built-in trailing stop. Defaults to 0.
+            post_only (bool, optional): If True, the order will be posted as a maker order. Defaults to False.
+            reduce_only (bool, optional): If True, the order will only reduce the existing position, not increase it. Defaults to False.
+            cancel_all (bool, optional): If True, cancels all open orders before placing the entry order. Defaults to False.
+            pyramiding (int, optional): Number of entries in the pyramiding strategy. Defaults to 2.
+            when (bool, optional): If True, the order is executed. Defaults to True.
+            round_decimals (int, optional): Decimal places to round the order quantity. Automatic if left equal to None. Defaults to None.
+            callback (function, optional): A callback function to execute after the order is filled. Defaults to None.
+            workingType (str, optional): Price type to use, "CONTRACT_PRICE" by default. Defaults to "CONTRACT_PRICE".
+            split (int, optional): Number of orders to split the quantity into (iceberg order). Defaults to 1.
+            interval (int, optional): Interval between orders (iceberg order). Defaults to 0.
+            chaser (bool, optional): If True, a chaser order is placed to follow the Best Bid/Ask (BBA) Price.
+                As soon as BBA changes, the existing order is canceled, and a new one is placed at the new BBA for the remaining quantity. Defaults to False.
+            retry_maker (int, optional): Number of times to retry placing a maker order if it fails. Defaults to 100.
+        """   
 
         # if self.get_margin()['excessMargin'] <= 0 or qty <= 0:
         #     return
@@ -750,25 +828,27 @@ class BinanceFutures:
         retry_maker=100
     ):
         """
-        places an order, works as equivalent to tradingview pine script implementation
-        https://www.tradingview.com/pine-script-reference/#fun_strategy{dot}order
-        :param id: Order ID (user ID)
-        :param long: True for a long position, False for a short position
-        :param qty: Quantity to be traded
-        :param limit: Limit price
-        :param stop: Stop price trigger
-        :param post_only: If True, the order will be posted as a maker order.
-        :param reduce_only: If True, the order will only reduce the existing position, not increase it.
-        :param trailing_stop: Binance futures built in implementation of trailing stop in %
-        :param activationPrice: price that triggers Binance futures built in trailing stop      
-        :param when: If True, the order is executed.        
-        :param callback: A callback function to execute after the order is filled.
-        :param workingType: Price type to use, "CONTRACT_PRICE" by default.
-        :param split: Number of orders to split the quantity into. (iceberg order)
-        :param interval: Interval between orders. (iceberg order)
-        :param chaser: If True, a chaser order is placed to follow the Best Bid/Ask Price. As soon as BBA changes, the existing order is cancelled and a new one is placed at the new BBA for the remaining quantity.
-        :param retry_maker: Number of times to retry placing a maker order if it fails.
-        :return:
+        Places an entry order with various options.
+
+        Args:
+            id (str): Order ID (user ID).
+            long (bool): True for a long position, False for a short position.
+            qty (float): Quantity to be traded.
+            limit (float, optional): Limit price for the order. Defaults to 0.
+            stop (float, optional): Stop price trigger for the order. Defaults to 0.
+            trailing_stop (float, optional): Binance futures built-in implementation of trailing stop in percentage. Defaults to 0.
+            activationPrice (float, optional): Price that triggers Binance futures built-in trailing stop. Defaults to 0.
+            post_only (bool, optional): If True, the order will be posted as a maker order. Defaults to False.
+            reduce_only (bool, optional): If True, the order will only reduce the existing position, not increase it. Defaults to False.
+            when (bool, optional): If True, the order is executed. Defaults to True.
+            round_decimals (int, optional): Decimal places to round the order quantity. Automatic if left equal to None. Defaults to None.
+            callback (function, optional): A callback function to execute after the order is filled. Defaults to None.
+            workingType (str, optional): Price type to use, "CONTRACT_PRICE" by default. Defaults to "CONTRACT_PRICE".
+            split (int, optional): Number of orders to split the quantity into (iceberg order). Defaults to 1.
+            interval (int, optional): Interval between orders (iceberg order). Defaults to 0.
+            chaser (bool, optional): If True, a chaser order is placed to follow the Best Bid/Ask (BBA) Price.
+                As soon as BBA changes, the existing order is canceled, and a new one is placed at the new BBA for the remaining quantity. Defaults to False.
+            retry_maker (int, optional): Number of times to retry placing a maker order if it fails. Defaults to 100.
         """
         self.__init_client()
 
@@ -1113,11 +1193,12 @@ class BinanceFutures:
 
     def get_open_order_qty(self, id):
         """
-        Get order quantity or all orders by id
-        :param id: order id  - returns only first order from the list of orders that will match the id,
-                    since it looks if the id starts with the string you pass as `id`
-        :return:
-        """         
+        Get the remaining quantity of an open order by its ID.
+        Args:
+            id (str): Order ID - Returns the quantity of the first order from the list of orders that matches the ID.
+        Returns:
+            float or None: Remaining order quantity if the order is found, None otherwise.
+        """     
         order = self.get_open_order(id=id)        
 
         if order is None:
@@ -1128,9 +1209,11 @@ class BinanceFutures:
 
     def get_open_order(self, id):
         """
-        Get open order by id         
-        :param id: Order id for this pair
-        :return: if multiple found starting with given id return only the first one
+        Get an open order by its ID.
+        Args:
+            id (str): Order ID for this pair.
+        Returns:
+            dict or None: If multiple orders are found starting with the given ID, return only the first one. None if no matching order is found.
         """
         self.__init_client()
         open_orders = retry(lambda: self.client
@@ -1144,9 +1227,11 @@ class BinanceFutures:
     
     def get_open_orders(self, id=None):
         """
-        Get open orders
-        :param id: if provided it will return only those that start with the provided string
-        :return: list of open orders or None
+        Get a list of open orders.
+        Args:
+            id (str, optional): If provided, return only orders whose ID starts with the provided string.
+        Returns:
+            list or None: List of open orders that match the ID criteria, or None if no open orders are found.
         """
         self.__init_client()
         open_orders = retry(lambda: self.client
@@ -1155,6 +1240,11 @@ class BinanceFutures:
         return filtered_orders if filtered_orders else None
 
     def get_orderbook_ticker(self):
+        """
+        Get the ticker data for the order book.
+        Returns:
+            data: Ticker data for the order book.
+        """
         orderbook_ticker = retry(lambda: self.client.futures_orderbook_ticker(symbol=self.pair))
         return orderbook_ticker
 
@@ -1172,18 +1262,18 @@ class BinanceFutures:
             retry_maker=100
     ):
         """
-        profit taking and stop loss and trailing,
-         if both stop loss and trailing offset are set trailing_offset takes precedence
-        :param profit: Profit 
-        :param loss: Stop loss
-        :param trail_offset: Trailing stop price 
-        :param profit_callback: callback to call if exit happens with a profit
-        :param loss_callback: callback to call if exit happens wjth a loss
-        :param trail_callback: callback to call if trail exit happens
-        :param split: Number of orders to split the quantity into. (iceberg order)
-        :param interval: Interval between orders. (iceberg order)
-        :param chaser: If True, a chaser order is placed to follow the Best Bid/Ask Price. As soon as BBA changes, the existing order is cancelled and a new one is placed at the new BBA for the remaining quantity.
-        :param retry_maker: Number of times to retry placing a maker order if it fails.
+        Define profit-taking, stop loss, and trailing settings for an exit strategy.(Independent of sltp())
+        Args:
+            profit (float): Profit percentage at which to trigger an exit.
+            loss (float): Stop loss percentage at which to trigger an exit.
+            trail_offset (float): Trailing stop price offset.
+            profit_callback (function, optional): Callback function to call if the exit happens with a profit.
+            loss_callback (function, optional): Callback function to call if the exit happens with a loss.
+            trail_callback (function, optional): Callback function to call if a trailing exit happens.
+            split (int): Number of orders to split the quantity into (iceberg order).
+            interval (int): Interval between orders (iceberg order).
+            chaser (bool): If True, use a chaser order to follow the Best Bid/Ask Price, updating the order whenever BBA changes.
+            retry_maker (int): Number of times to retry placing a maker order if it fails.
         """
         self.exit_order = {
             'profit': profit, 
@@ -1220,22 +1310,25 @@ class BinanceFutures:
             retry_maker=100
             ):
         """
-        Simple take profit and stop loss implementation,
-        - sends a reduce only stop loss order upon entering a position.
-        :param profit_long: profit target value in % for longs
-        :param profit_short: profit target value in % for shorts
-        :param stop_long: stop loss value for long position in %
-        :param stop_short: stop loss value for short position in %
-        :param round_decimals: round decimals 
-        :param profit_long_callback: callback to call if Take Profit is triggered on a Long
-        :param profit_short_callback: callback to call if Take Profit is triggered on a Short
-        :param stop_long_callback: callback to call if Stop Loss is triggered on a Long
-        :param stop_short_callback: callback to call if Stop Loss is triggered on a Short
-        :workingType: CPNTRACT_PRICE OR MARK_PRICE to use with underlying stop order
-        :param split: Number of orders to split the quantity into. (iceberg order)
-        :param interval: Interval between orders. (iceberg order)
-        :param chaser: If True, a chaser order is placed to follow the Best Bid/Ask Price. As soon as BBA changes, the existing order is cancelled and a new one is placed at the new BBA for the remaining quantity.
-        :param retry_maker: Number of times to retry placing a maker order if it fails.
+        Implement a simple take profit and stop loss strategy. (Independent of exit())
+        Sends a reduce-only stop-loss order upon entering a position.
+
+        Args:
+            profit_long (float): Profit target value in percentage for long positions.
+            profit_short (float): Profit target value in percentage for short positions.
+            stop_long (float): Stop loss value in percentage for long positions.
+            stop_short (float): Stop loss value in percentage for short positions.
+            eval_tp_next_candle (bool): If True, evaluate the take profit condition at the next candle.
+            round_decimals (int, optional): Round decimals.
+            profit_long_callback (function, optional): Callback function to call if the take profit is triggered on a Long position.
+            profit_short_callback (function, optional): Callback function to call if the take profit is triggered on a Short position.
+            stop_long_callback (function, optional): Callback function to call if the stop loss is triggered on a Long position.
+            stop_short_callback (function, optional): Callback function to call if the stop loss is triggered on a Short position.
+            workingType (str): CONTRACT_PRICE or MARK_PRICE to use with the underlying stop order.
+            split (int): Number of orders to split the quantity into (iceberg order).
+            interval (int): Interval between orders (iceberg order).
+            chaser (bool): If True, use a chaser order to follow the Best Bid/Ask Price, updating the order whenever BBA changes.
+            retry_maker (int): Number of times to retry placing a maker order if it fails.
         """
         self.sltp_values = {
             'profit_long': profit_long/100,
@@ -1263,19 +1356,23 @@ class BinanceFutures:
 
     def get_exit_order(self):
         """
-        get profit take and stop loss and trailing settings
+        Get the profit take, stop loss, and trailing settings for the exit strategy.
+        Returns:
+            dict: Exit strategy settings.
         """
         return self.exit_order
 
     def get_sltp_values(self):
         """
-        get values for the simple profit target/stop loss in %
+        Get the values for the simple profit target and stop loss in percentage.
+        Returns:
+            dict: Simple profit target and stop loss values.
         """
         return self.sltp_values    
 
     def eval_exit(self):
         """
-        evalution of profit target and stop loss and trailing
+        Evaluate the profit target, stop loss, and trailing conditions for triggering an exit.
         """
         if self.get_position_size() == 0:
             return
@@ -1317,11 +1414,10 @@ class BinanceFutures:
 
     def eval_sltp(self):
         """
-        Simple take profit and stop loss implementation
-        - sends a reduce only stop loss order upon entering a position.
-        - requires setting values with sltp() prior      
+        Evaluate and execute the simple take profit and stop loss implementation.
+        - Sends a reduce-only stop loss order upon entering a position.
+        - Requires setting values with sltp() prior.
         """
-
         pos_size = float(self.get_position()['positionAmt'])
         if pos_size == 0:
             return
@@ -1446,12 +1542,16 @@ class BinanceFutures:
         
     def fetch_ohlcv(self, bin_size, start_time, end_time):
         """
-        fetch OHLCV data
-        :param bin_size: time frame to fetch
-        :param start_time: start time
-        :param end_time: end time
-        :return:
-        """        
+        Fetch OHLCV data within the specified time range.
+
+        Args:
+            bin_size (str): Time frame to fetch (e.g., "1m", "1h", "1d").
+            start_time (datetime): Start time of the data range.
+            end_time (datetime): End time of the data range.
+
+        Returns:
+            pd.DataFrame: OHLCV data in the specified time frame.
+        """          
         self.__init_client()        
         fetch_bin_size = allowed_range[bin_size][0]
         left_time = start_time
@@ -1503,10 +1603,13 @@ class BinanceFutures:
     def security(self, bin_size, data=None):
         """
         Recalculate and obtain data of a timeframe higher than the current timeframe
-        without looking into the future that would cause undesired effects.
-        :param bin_size: time frame of the OHLCV data
-        :param data:
-        """     
+        without looking into the future to avoid undesired effects.
+        Args:
+            bin_size (str): Time frame of the OHLCV data.
+            data (pd.DataFrame): OHLCV data to be used for calculation. If None, use the current timeframe data.
+        Returns:
+            pd.DataFrame: OHLCV data resampled to the specified bin_size.
+        """    
         if data == None:  # minute count of a timeframe for sorting when sorting is needed   
             timeframe_list = [allowed_range_minute_granularity[t][3] for t in self.bin_size]
             timeframe_list.sort(reverse=True)
@@ -1517,12 +1620,25 @@ class BinanceFutures:
 
     def __update_ohlcv(self, action, new_data):
         """
-        get and update OHLCV data and execute the strategy
-        """        
+        Update OHLCV (Open-High-Low-Close-Volume) data and execute the strategy.
+
+        This function takes in new OHLCV data and updates the internal buffer for each specified timeframe.
+        The function ensures that the data is correctly aligned with the timeframe and handles cases where
+        the last candle is incomplete or contains data from the future.
+
+        Args:
+            action (str): The allowed range for updating the OHLCV data.
+                        This could be a minute granularity (e.g., '1m', '5m', '15m') or a custom range.
+            new_data (pd.DataFrame): New OHLCV data to be added. It should be a pandas DataFrame with
+                                    a DatetimeIndex and columns for 'open', 'high', 'low', 'close', and 'volume'.
+        Returns:
+            None
+        """
         # Binance can output wierd timestamps - Eg. 2021-05-25 16:04:59.999000+00:00
         # We need to round up to the nearest second for further processing
         new_data = new_data.rename(index={new_data.iloc[0].name: new_data.iloc[0].name.ceil(freq='1T')})               
 
+        # If OHLCV data is not initialized, create and fetch data
         if self.timeframe_data is None:
             self.timeframe_data = {}            
             for t in self.bin_size:                              
@@ -1629,7 +1745,17 @@ class BinanceFutures:
    
     def __on_update_instrument(self, action, instrument):
         """
-        Update instrument price
+        Update the price of the instrument.
+
+        This function is called when the instrument's price is updated. It keeps track of the current
+        market price and checks if any trailing stop orders need to be updated based on the new price.
+
+        Args:
+            action (str): The action associated with the update (e.g., 'update', 'insert', 'delete').
+            instrument (dict): The updated instrument data, typically containing the current market price.
+
+        Returns:
+            None
         """
         if 'c' in instrument:
             self.market_price = float(instrument['c'])            
@@ -1654,7 +1780,17 @@ class BinanceFutures:
 
     def __on_update_wallet(self, action, wallet):
         """
-        update wallet
+        Update the wallet data.
+
+        This function is called when there is an update to the wallet. It keeps track of the current wallet
+        balance and other relevant information related to the trading account.
+
+        Args:
+            action (str): The action associated with the update (e.g., 'update', 'insert', 'delete').
+            wallet (dict): The updated wallet data, typically containing balance and other related information.
+
+        Returns:
+            None
         """
         self.wallet = wallet #{**self.wallet, **wallet} if self.wallet is not None else self.wallet        
     
@@ -1662,6 +1798,18 @@ class BinanceFutures:
         """
         Update order status
         https://binance-docs.github.io/apidocs/futures/en/#event-order-update
+
+        This function is called when there is an update to the status of an order. It handles various order
+        events such as order creation, cancellation, filling, expiration, etc., and executes any registered
+        callbacks associated with those events.
+
+        Args:
+            action (str): The action associated with the update (e.g., 'update', 'insert', 'delete').
+            order (dict): The updated order data, typically containing information like order ID, type,
+                        status, quantity, price, stop price, etc.
+
+        Returns:
+            None
         """
         order_info = {}
 
@@ -1758,9 +1906,21 @@ class BinanceFutures:
         
     def __on_update_position(self, action, position):
         """
-        Update position
-        """    
+        Update the position data.
 
+        This function is called when there is an update to the position. It filters the position data
+        for the current trading pair and then checks if the position size has changed. If the position
+        size has changed, it updates the trail price to the current market price. It also updates the
+        internal position data and evaluates the profit and loss.
+
+        Args:
+            action (str): The action associated with the update (e.g., 'update', 'insert', 'delete').
+            position (list): List of position data, each containing information like entry price,
+                            position amount, margin type, unrealized profit, etc.
+
+        Returns:
+            None
+        """           
         if len(position) > 0:
             position = [p for p in position if p["s"].startswith(self.pair)]   
             if len(position) == 0:
@@ -1806,7 +1966,18 @@ class BinanceFutures:
 
     def __on_update_margin(self, action, margin):
         """
-         Update margin 
+        Update the margin data.
+
+        This function is called when there is an update to the margin. It keeps track of the available
+        balance and cross-wallet balance. It then calculates and logs the profit and loss percentage.
+        The margin data is used for risk management and evaluating the overall account balance.
+
+        Args:
+            action (str): The action associated with the update (e.g., 'update', 'insert', 'delete').
+            margin (dict): The updated margin data, typically containing balance and cross-wallet balance.
+
+        Returns:
+            None
         """
         if self.margin is not None:
             self.margin[0] = {
@@ -1839,16 +2010,53 @@ class BinanceFutures:
         })
 
     def add_ob_callback(self, id, callback):
+        """
+        Add a callback for order book changes.
+
+        This function allows adding a callback function to be triggered when there are changes to the
+        order book (best bid and best ask prices). The registered callbacks will be executed with
+        arguments indicating whether the best bid and/or best ask prices have changed.
+
+        Args:
+            id (str): Identifier for the callback (usually an integer or string).
+            callback (function): The callback function to be executed on order book changes.
+
+        Returns:
+            None
+        """
         self.best_bid_ask_change_callback[id] = callback
 
     def remove_ob_callback(self, id):
+        """
+        Remove a previously added callback for order book changes.
+
+        This function allows removing a callback function that was previously added using the
+        'add_ob_callback' method. After removing the callback, it will no longer be triggered when there
+        are changes to the order book (best bid and best ask prices).
+
+        Args:
+            id (str): Identifier for the callback to be removed (usually an integer or string).
+
+        Returns:
+            None
+        """
         return self.best_bid_ask_change_callback.pop(id, None)
 
     def __on_update_bookticker(self, action, bookticker):
         """
-        best bid and best ask price 
-        """
+        Update the best bid and best ask prices.
 
+        This function is called when there is an update to the order book ticker. It updates the best
+        bid and best ask prices and then triggers the registered callbacks for order book changes,
+        passing information about whether the best bid and/or best ask prices have changed.
+
+        Args:
+            action (str): The action associated with the update (e.g., 'update', 'insert', 'delete').
+            bookticker (dict): The updated order book ticker data, containing best bid and best ask prices.
+
+        Returns:
+            None
+        """
         best_bid_changed = False
 
         if( self.best_bid_price != float(bookticker['b']) ):
@@ -1872,10 +2080,19 @@ class BinanceFutures:
 
     def on_update(self, bin_size, strategy):
         """
-        Register the strategy function
-        bind functions with webosocket data streams        
-        :param strategy:
-        """        
+        Register the strategy function and bind functions with WebSocket data streams.
+
+        This function is used to set up the WebSocket connections for the specified bin sizes (timeframes)
+        and register the provided strategy function to be executed on data updates. It also binds the
+        necessary update functions to handle instrument, wallet, position, order, margin, and bookticker updates.
+
+        Args:
+            bin_size (list): List of bin sizes (timeframes) for which OHLCV data will be fetched and updated.
+            strategy (function): The strategy function to be executed when OHLCV data is updated.
+
+        Returns:
+            None
+        """   
         logger.info(f"pair: {self.pair}")  
         logger.info(f"timeframes: {bin_size}")      
         self.bin_size = bin_size
@@ -1914,7 +2131,12 @@ class BinanceFutures:
 
     def stop(self):
         """
-        Stop the crawler
+        Stop the WebSocket data streams.
+
+        This function stops the WebSocket data streams and closes the connection with the exchange.
+
+        Returns:
+            None
         """
         if self.is_running:
             self.is_running = False

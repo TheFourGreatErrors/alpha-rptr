@@ -15,350 +15,22 @@ import talib
 from src import verify_series
 
 
-def first(l=[]):
-    return l[0]
 
-
-def last(l=[]):
-    return l[-1]
-
-
-def highest(source, period):
-    return pd.Series(source).rolling(period).max().values
-
-
-def lowest(source, period):
-    return pd.Series(source).rolling(period).min().values
-
-
-def med_price(high, low):
-    """
-    also found in tradingview as hl2 source
-    """
-    return talib.MEDPRICE(high, low)
-
-
-def avg_price(open, high, low, close):
-    """
-    also found in tradingview as ohlc4 source
-    """
-    return talib.AVGPRICE(open, high, low, close)
-
-def typ_price(high,low,close):
-    """
-    typical price, also found in tradingview as hlc3 source
-    """
-    return talib.TYPPRICE(high, low, close)
-
-
-def MAX(close, period):
-    return talib.MAX(close, period)
-
-
-def highestbars(source, length):
-    """
-    Highest value offset for a given number of bars back.
-    Returns offset to the highest bar.
-    """    
-    source = source[-length:]
-    offset = abs(length - 1 - np.argmax(source))
-
-    return offset
-
-
-def lowestbars(source, length):
-    """
-    Lowest value offset for a given number of bars back.
-    Returns offset to the lowest bar.
-    """    
-    source = source[-length:]
-    offset = abs(length - 1 - np.argmin(source))
-
-    return offset
-
-
-def tr(high, low, close):
-    """
-    true range
-    """
-    return talib.TRANGE(high, low, close)
-
-
-def atr(high, low, close, period):
-    """
-    average true range
-    """
-    return talib.ATR(high, low, close, period)
-
-
-def natr(high, low, close, period):
-    """
-    Calculate Normalized Average True Range (NATR) using TA-Lib.
-    Args:
-        high (list or np.ndarray): List or array of high prices.
-        low (list or np.ndarray): List or array of low prices.
-        close (list or np.ndarray): List or array of closing prices.
-        period (int): Period for NATR calculation.
-    Returns:
-        np.ndarray: Array of NATR values.
-    """    
-    return talib.NATR(high, low, close, timeperiod=period)
-
-
-def stdev(source, period):
-    return pd.Series(source).rolling(period).std().values
-
-
-def stddev(source, period, nbdev=1):
-    """
-    talib stdev
-    """
-    return talib.STDDEV(source, timeperiod=period, nbdev=nbdev)
-
-
-def sma(source, period):
-    return pd.Series(source).rolling(period).mean().values
-
-
-def ema(source, period):
-    return talib.EMA(np.array(source), period)
-
-
-def double_ema(src, length):
-    ema_val = ema(src, length)
-    return 2 * ema_val - ema(ema_val, length)
-
-
-def triple_ema(src, length):
-    ema_val = ema(src, length)
-    return 3 * (ema_val - ema(ema_val, length)) + ema(ema(ema_val, length), length)
-
-
-def wma(src, length):
-    return talib.WMA(src, length)
-
-
-def ewma(data, alpha):
-    """
-    Calculate Exponentially Weighted Moving Average (EWMA) using Pandas.
-    Args:
-        data (list or numpy array): Input data for calculating EWMA.
-        alpha (float): Smoothing factor for EWMA.
-    Returns:
-        list: List containing the calculated EWMA values.
-    """
-    ewma_series = pd.Series(data).ewm(alpha=alpha).mean()
-    ewma_list = ewma_series.tolist()
-    return ewma_list
-
-
-def vwap(high, low, volume):
-    average_price = volume * (high + low) / 2
-    return average_price.sum() / volume.sum()
-
-
-def ssma(src, length):
-    return pd.Series(src).ewm(alpha=1.0 / length).mean().values.flatten()
-
-
-def hull(src, length):
-    return wma(2 * wma(src, length / 2) - wma(src, length), round(np.sqrt(length)))
-
-
-def klinger_oscillator(high, low, close, volume, ema_short_length=34, ema_long_length=55, signal_length=13):
-    """
-    Calculates the Klinger Oscillator and Signal values based on high, low, close, and volume.
-    Args:
-        high (array-like): Array or list of high prices.
-        low (array-like): Array or list of low prices.
-        close (array-like): Array or list of closing prices.
-        volume (array-like): Array or list of volume values.
-        ema_short_length (int, optional): Length of the short EMA. Default is 34.
-        ema_long_length (int, optional): Length of the long EMA. Default is 55.
-        signal_length (int, optional): Length of the signal EMA. Default is 13.
-    Returns:
-        kvo (array): Array of Klinger Oscillator values.
-        sig (array): Array of Signal values.
-    """
-    high = np.array(high)
-    low = np.array(low)
-    close = np.array(close)
-    volume = np.array(volume)
-
-    cumVol = np.cumsum(volume)
-    if cumVol[-1] == 0:
-        raise ValueError("No volume is provided by the data vendor.")
-
-    hl_avg = (high + low + close) / 3
-    hl_avg_diff = np.diff(hl_avg)
-    sv = np.where(hl_avg_diff >= 0, volume[1:], -volume[1:])
-    kvo = ema(sv, ema_short_length) - ema(sv, ema_long_length)
-    sig = ema(kvo, signal_length)    
-    
-    return kvo, sig
-
-
-def bbands(source, timeperiod=5, nbdevup=2, nbdevdn=2, matype=0):
-    return talib.BBANDS(source, timeperiod, nbdevup, nbdevdn, matype)
-
-
-def macd(close, fastperiod=12, slowperiod=26, signalperiod=9):
-    return talib.MACD(close, fastperiod, slowperiod, signalperiod)
-
-
-def adx(high, low, close, period=14):
-    return talib.ADX(high, low, close, period)
-
-
-def di_plus(high, low, close, period=14):
-    return talib.PLUS_DI(high, low, close, period)
-
-
-def di_minus(high, low, close, period=14):
-    return talib.MINUS_DI(high, low, close, period)
-
-
-def obv(close, volume):
-    """
-    Calculates the On-Balance Volume (OBV) indicator using the ta-lib library.
-    Args:
-        close (list): List of closing prices.
-        volume (list): List of volume values.
-    Returns:
-        list: OBV values.
-    """
-    obv = talib.OBV(close, volume)
-    return obv
-
-
-def mfi(high, low, close, volume, period=14):
-    """
-    Calculates the Money Flow Index (MFI) using the ta-lib library.
-    Args:
-        high (list): List of high prices.
-        low (list): List of low prices.
-        close (list): List of closing prices.
-        volume (list): List of volume values.
-        period (int, optional): Number of periods to consider (default is 14).
-    Returns:
-        list: MFI values.
-    """
-    mfi = talib.MFI(high, low, close, volume, timeperiod=period)
-    return mfi
-
-
-def stochastic(high, low, close, fastK_period=14, slowk_period=5, d_period=3):
-    """
-    Calculate the Stochastic indicator.
-    Parameters:
-        high: A list or array of high prices.
-        low: A list or array of low prices.
-        close: A list or array of closing prices.
-        period: The number of periods to consider for the Stochastic calculation. Default is 14.
-        k_period: The number of periods to consider for the %K line. Default is 5.
-        d_period: The number of periods to consider for the %D line. Default is 3.
-    Returns:
-        slowk: The slow %K line values.
-        slowd: The slow %D line values.
-    """
-    slowk, slowd = talib.STOCH(high, low, close, fastk_period=fastK_period, slowk_period=slowk_period, slowd_period=d_period)
-    return slowk, slowd
-
-
-def rsi(close, period=14):
-    return talib.RSI(close, period)
-
-
-def rsx(source, length=None, drift=None, offset=None):
-    """
-    Indicator: Relative Strength Xtra (inspired by Jurik RSX)
-    """
-    # Validate arguments
-    length = int(length) if length and length > 0 else 14
-    source = pd.Series(source)
-    source = verify_series(source, length)
-    #drift = get_drift(drift)
-    #offset = get_offset(offset)
-
-    if source is None: return
-
-    # variables
-    vC, v1C = 0, 0
-    v4, v8, v10, v14, v18, v20 = 0, 0, 0, 0, 0, 0
-
-    f0, f8, f10, f18, f20, f28, f30, f38 = 0, 0, 0, 0, 0, 0, 0, 0
-    f40, f48, f50, f58, f60, f68, f70, f78 = 0, 0, 0, 0, 0, 0, 0, 0
-    f80, f88, f90 = 0, 0, 0
-
-    # Calculate Result
-    m = source.size
-    result = [npNaN for _ in range(0, length - 1)] + [0]
-    for i in range(length, m):
-        if f90 == 0:
-            f90 = 1.0
-            f0 = 0.0
-            if length - 1.0 >= 5:
-                f88 = length - 1.0
-            else:
-                f88 = 5.0
-            f8 = 100.0 * source.iloc[i]
-            f18 = 3.0 / (length + 2.0)
-            f20 = 1.0 - f18
-        else:
-            if f88 <= f90:
-                f90 = f88 + 1
-            else:
-                f90 = f90 + 1
-            f10 = f8
-            f8 = 100 * source.iloc[i]
-            v8 = f8 - f10
-            f28 = f20 * f28 + f18 * v8
-            f30 = f18 * f28 + f20 * f30
-            vC = 1.5 * f28 - 0.5 * f30
-            f38 = f20 * f38 + f18 * vC
-            f40 = f18 * f38 + f20 * f40
-            v10 = 1.5 * f38 - 0.5 * f40
-            f48 = f20 * f48 + f18 * v10
-            f50 = f18 * f48 + f20 * f50
-            v14 = 1.5 * f48 - 0.5 * f50
-            f58 = f20 * f58 + f18 * abs(v8)
-            f60 = f18 * f58 + f20 * f60
-            v18 = 1.5 * f58 - 0.5 * f60
-            f68 = f20 * f68 + f18 * v18
-            f70 = f18 * f68 + f20 * f70
-            v1C = 1.5 * f68 - 0.5 * f70
-            f78 = f20 * f78 + f18 * v1C
-            f80 = f18 * f78 + f20 * f80
-            v20 = 1.5 * f78 - 0.5 * f80
-
-            if f88 >= f90 and f8 != f10:
-                f0 = 1.0
-            if f88 == f90 and f0 == 0.0:
-                f90 = 0.0
-
-        if f88 < f90 and v20 > 0.0000000001:
-            v4 = (v14 / v20 + 1.0) * 50.0
-            if v4 > 100.0:
-                v4 = 100.0
-            if v4 < 0.0:
-                v4 = 0.0
-        else:
-            v4 = 50.0
-        result.append(v4)
-    rsx = Series(result, index=source.index)
-
-    # Offset
-    if offset != 0 and offset != None:
-        rsx = rsx.shift(offset)
-    
-    return rsx
-
-
-def cci(high, low, close, period):
-    return talib.CCI(high,low, close, period)
+#############            Trend Indicators            #######################################################################
+############################################################################################################################
 
 
 def sar(high, low, acceleration=0, maximum=0):
+    """
+    Calculate the Parabolic Stop and Reverse (SAR) indicator using the default parameters.
+    Args:
+        high (list or array-like): The high prices of the asset for each period.
+        low (list or array-like): The low prices of the asset for each period.
+        acceleration (float): The acceleration factor for SAR calculation. Default is 0.
+        maximum (float): The maximum value for the acceleration factor. Default is 0.
+    Returns:
+        numpy array: The calculated SAR values for each period.
+    """
     return talib.SAR(high, low, acceleration, maximum)
 
 
@@ -366,58 +38,125 @@ def sarext(high, low, startvalue=0, offsetonreverse=0,
            accelerationinitlong=0.02, accelerationlong=0.02, accelerationmaxlong=0.2,
            accelerationinitshort=0.02, accelerationshort=0.02, accelerationmaxshort=0.2):
     """
-    Parabolic SAR - Extended
+    Calculate the Extended Parabolic Stop and Reverse (SAR) indicator.
+    Args:
+        high (list or array-like): The high prices of the asset for each period.
+        low (list or array-like): The low prices of the asset for each period.
+        startvalue (float): The initial value for SAR. Default is 0.
+        offsetonreverse (float): The offset applied to the price for SAR reversal. Default is 0.
+        accelerationinitlong (float): The initial acceleration factor for long positions. Default is 0.02.
+        accelerationlong (float): The acceleration factor for long positions. Default is 0.02.
+        accelerationmaxlong (float): The maximum value for the acceleration factor in long positions. Default is 0.2.
+        accelerationinitshort (float): The initial acceleration factor for short positions. Default is 0.02.
+        accelerationshort (float): The acceleration factor for short positions. Default is 0.02.
+        accelerationmaxshort (float): The maximum value for the acceleration factor in short positions. Default is 0.2.
+    Returns:
+        numpy array: The calculated absolute values of Extended SAR for each period.
     """
     return abs(talib.SAREXT(high, low, startvalue, offsetonreverse,
                         accelerationinitlong, accelerationlong, accelerationmaxlong,
                         accelerationinitshort, accelerationshort, accelerationmaxshort))
 
 
-def crossover(a, b):
-    return a[-2] < b[-2] and a[-1] > b[-1]
+class Supertrend:
+    def __init__(self, high, low, close, length, multiplier):
+        """
+        Initialize the Supertrend indicator.
+        Using this class as a supertrend indicator make its calculation much faster and more reliable,
+        since there are issues associated with lookback and keeping track of the trend with the other implementations.
+        Args:            
+            high (list or ndarray): List or array of high prices.
+            low (list or ndarray): List or array of low prices.
+            close (list or ndarray): List or array of close prices.
+            length (int): Length parameter for ATR calculation.
+            multiplier (float): Multiplier parameter for Supertrend calculation.
+        """        
+        self.high = pd.Series(high)
+        self.low = pd.Series(low)
+        self.close = pd.Series(close)
+        self.length = length
+        self.multiplier = multiplier
+        self.trend = None
+        self.dir = None
+        self.lowerband = None
+        self.upperband = None
 
+    def update(self, high, low, close):
+        """
+        Update the Supertrend indicator with new price data.
+        Args:
+            high (list or ndarray): List or array of high prices.
+            low (list or ndarray): List or array of low prices.
+            close (list or ndarray): List or array of close prices.
+        """
+        high = pd.Series(high)
+        low = pd.Series(low)
+        close = pd.Series(close)
 
-def crossunder(a, b):
-    return a[-2] > b[-2] and a[-1] < b[-1]
+        # Calculate ATR
+        price_diffs = [high - low,
+                       high - close.shift(),
+                       low - close.shift()]
+        true_range = pd.concat(price_diffs, axis=1)
+        true_range = true_range.abs().max(axis=1)
+        true_range[0] = (high[0] + low[0]) / 2
+        # Default ATR calculation in Supertrend indicator
+        atr = true_range.ewm(alpha=1 / self.length, min_periods=self.length, ignore_na=True, adjust=False).mean()
+        atr.fillna(0, inplace=True)
 
+        # HL2 is simply the average of high and low prices
+        hl2 = (high + low) / 2
+        # Upperband and lowerband calculation
+        # Notice that final bands are set to be equal to the respective bands
+        upperband = hl2 + (self.multiplier * atr)
+        lowerband = hl2 - (self.multiplier * atr)
 
-def ord(seq, sort_seq, idx, itv):
-    p = seq[idx]
-    for i in range(0, itv):
-        if p >= sort_seq[i]:
-            return i + 1
+        if self.trend is None:
+            self.trend = [np.nan] * close.size
+            self.dir = [np.nan] * close.size
 
+            for i in range(1, len(close)):
+                curr, prev = i, i - 1
+                
+                lowerband[curr] = lowerband[curr] if lowerband[curr] > lowerband[prev] \
+                                or close[prev] < lowerband[prev] else lowerband[prev]
+              
+                upperband[curr] = upperband[curr] if upperband[curr] < upperband[prev] \
+                                or close[prev] > upperband[prev] else upperband[prev]
 
-def d(src, itv):
-    sort_src = np.sort(src)[::-1]
-    sum = 0.0
-    for i in range(0, itv):
-        sum += pow((i + 1) - ord(src, sort_src, i, itv), 2)
-    return sum
+                if np.isnan(atr[prev]):
+                    self.dir[curr] = -1
+                elif self.trend[prev] == upperband[prev]:
+                    self.dir[curr] = 1 if close[curr] > upperband[curr] else -1
+                else:
+                    self.dir[curr] = -1 if close[curr] < lowerband[curr] else 1
 
+                self.trend[curr] = lowerband[curr] if self.dir[curr] == 1 else upperband[curr]
+            
+            self.lowerband = lowerband.values
+            self.upperband = upperband.values
+            return
+        
+        close = close.values
+        upperband = upperband.values
+        lowerband = lowerband.values
 
-def rci(src, itv):
-    reversed_src = src[::-1]
-    ret = [(1.0 - 6.0 * d(reversed_src[i:i + itv], itv) / (itv * (itv * itv - 1.0))) * 100.0
-           for i in range(2)]
-    return ret[::-1]
+        lowerbandd = lowerband[-1] if lowerband[-1] > self.lowerband[-1] \
+                        or close[-1] < self.lowerband[-1] else self.lowerband[-1]
+        upperbandd = upperband[-1] if upperband[-1] < self.upperband[-1] \
+                        or close[-1] > self.upperband[-1] else self.upperband[-1]
 
+        if self.trend[-1] == self.upperband[-1]:
+            dir = 1 if close[-1] > self.upperband[-1] else -1
+        else:
+            dir = -1 if close[-1] < self.lowerband[-1] else 1
 
-def vix(close, low, pd=23, bbl=23, mult=1.9, lb=88, ph=0.85, pl=1.01):
-    hst = highest(close, pd)
-    wvf = (hst - low) / hst * 100
-    s_dev = mult * stdev(wvf, bbl)
-    mid_line = sma(wvf, bbl)
-    lower_band = mid_line - s_dev
-    upper_band = mid_line + s_dev
+        trend = lowerbandd if dir == 1 else upperbandd
 
-    range_high = (highest(wvf, lb)) * ph
-    range_low = (lowest(wvf, lb)) * pl
-
-    green_hist = [wvf[-i] >= upper_band[-i] or wvf[-i] >= range_high[-i] for i in range(8)][::-1]
-    red_hist = [wvf[-i] <= lower_band[-i] or wvf[-i] <= range_low[-i] for i in range(8)][::-1]
-
-    return green_hist, red_hist
+        self.trend.append(trend)
+        self.dir.append(dir)
+        self.lowerband = np.append(self.lowerband, [lowerbandd])
+        self.upperband = np.append(self.upperband, [upperbandd])
 
 
 def supertrend(high, low, close, length=None, multiplier=None, offset=None):
@@ -543,105 +282,494 @@ def tv_supertrend(high, low, close, length=14, multiplier=3):
     }, index=close.index)
 
 
-class Supertrend:
-    def __init__(self, high, low, close, length, multiplier):
-        """
-        Initialize the Supertrend indicator.
-        Using this class as a supertrend indicator make its calculation much faster and more reliable,
-        since there are issues associated with lookback and keeping track of the trend with the other implementations.
-        Args:            
-            high (list or ndarray): List or array of high prices.
-            low (list or ndarray): List or array of low prices.
-            close (list or ndarray): List or array of close prices.
-            length (int): Length parameter for ATR calculation.
-            multiplier (float): Multiplier parameter for Supertrend calculation.
-        """        
-        self.high = pd.Series(high)
-        self.low = pd.Series(low)
-        self.close = pd.Series(close)
-        self.length = length
-        self.multiplier = multiplier
-        self.trend = None
-        self.dir = None
-        self.lowerband = None
-        self.upperband = None
+def hurst_exponent(data):
+    """Calculate the Hurst exponent using the R/S method.    
+    Args: 
+        data (numpy.ndarray or list): The input time series data.    
+    Returns: 
+        float: The calculated Hurst exponent.
+    """
+    data = np.asarray(data)
+    n = len(data)
+    rs = np.zeros((len(data)//2, 2))
+    
+    for i in range(1, n//2 + 1):
+        cumsum = np.cumsum(data - np.mean(data))
+        rs[i-1, 0] = np.max(cumsum[:i]) - np.min(cumsum[:i])
+        rs[i-1, 1] = np.std(data)
+    
+    avg_rs = np.mean(rs[:, 0] / rs[:, 1])
+    
+    return np.log2(avg_rs)
 
-    def update(self, high, low, close):
-        """
-        Update the Supertrend indicator with new price data.
-        Args:
-            high (list or ndarray): List or array of high prices.
-            low (list or ndarray): List or array of low prices.
-            close (list or ndarray): List or array of close prices.
-        """
-        high = pd.Series(high)
-        low = pd.Series(low)
-        close = pd.Series(close)
 
-        # Calculate ATR
-        price_diffs = [high - low,
-                       high - close.shift(),
-                       low - close.shift()]
-        true_range = pd.concat(price_diffs, axis=1)
-        true_range = true_range.abs().max(axis=1)
-        true_range[0] = (high[0] + low[0]) / 2
-        # Default ATR calculation in Supertrend indicator
-        atr = true_range.ewm(alpha=1 / self.length, min_periods=self.length, ignore_na=True, adjust=False).mean()
-        atr.fillna(0, inplace=True)
+def lyapunov_exponent(data, dt):  
+    """
+    Calculate the Lyapunov exponent for a given time series data.
+    Parameters:
+        data: Time series data of the dynamical system.
+        dt (float): Time step between consecutive state vectors.
+    Returns: 
+        float: The Lyapunov exponent.
+    """
+    data = data if isinstance(data[0], Iterable) else [data]
+    #n = np.shape(data)[0]  # Length of data
+    #d = np.shape(data)[1] if len(np.shape(data)) > 1 else 1  # Dimensionality of data 
+    n = len(data)
+    d = len(data[0])   
+    epsilon = 1e-8  # small constant to avoid division by zero
 
-        # HL2 is simply the average of high and low prices
-        hl2 = (high + low) / 2
-        # Upperband and lowerband calculation
-        # Notice that final bands are set to be equal to the respective bands
-        upperband = hl2 + (self.multiplier * atr)
-        lowerband = hl2 - (self.multiplier * atr)
+    # Initialize the Lyapunov sum
+    sum_lyapunov = 0.0
 
-        if self.trend is None:
-            self.trend = [np.nan] * close.size
-            self.dir = [np.nan] * close.size
+    for i in range(n):
+        x = data[i]
 
-            for i in range(1, len(close)):
-                curr, prev = i, i - 1
-                
-                lowerband[curr] = lowerband[curr] if lowerband[curr] > lowerband[prev] \
-                                or close[prev] < lowerband[prev] else lowerband[prev]
-              
-                upperband[curr] = upperband[curr] if upperband[curr] < upperband[prev] \
-                                or close[prev] > upperband[prev] else upperband[prev]
+        # Initialize the tangent vector
+        v = np.zeros(d)
+        v[0] = 1.0
 
-                if np.isnan(atr[prev]):
-                    self.dir[curr] = -1
-                elif self.trend[prev] == upperband[prev]:
-                    self.dir[curr] = 1 if close[curr] > upperband[curr] else -1
-                else:
-                    self.dir[curr] = -1 if close[curr] < lowerband[curr] else 1
+        # Integrate the tangent vector
+        for j in range(d):
+            x_forward = data[(i + j) % n]
+            x_backward = data[(i - j) % n]
 
-                self.trend[curr] = lowerband[curr] if self.dir[curr] == 1 else upperband[curr]
-            
-            self.lowerband = lowerband.values
-            self.upperband = upperband.values
-            return
-        
-        close = close.values
-        upperband = upperband.values
-        lowerband = lowerband.values
+            forward_difference = x_forward - x
+            backward_difference = x - x_backward
 
-        lowerbandd = lowerband[-1] if lowerband[-1] > self.lowerband[-1] \
-                        or close[-1] < self.lowerband[-1] else self.lowerband[-1]
-        upperbandd = upperband[-1] if upperband[-1] < self.upperband[-1] \
-                        or close[-1] > self.upperband[-1] else self.upperband[-1]
+            norm_forward = np.linalg.norm(forward_difference) + epsilon
+            norm_backward = np.linalg.norm(backward_difference) + epsilon
 
-        if self.trend[-1] == self.upperband[-1]:
-            dir = 1 if close[-1] > self.upperband[-1] else -1
+            v += np.log(norm_forward / norm_backward) * backward_difference / norm_backward
+
+            # Orthogonalize the tangent vector
+            v -= np.dot(v, x) * x / np.dot(x, x)
+
+        # Calculate the local Lyapunov exponent
+        sum_lyapunov += np.log(np.linalg.norm(v) + epsilon) / dt
+
+    # Calculate the average Lyapunov exponent
+    average_lyapunov = sum_lyapunov / n
+
+    return average_lyapunov
+
+
+#############            Volatility Indicators            ##################################################################
+############################################################################################################################
+
+
+def tr(high, low, close):
+    """
+    True Range
+    """
+    return talib.TRANGE(high, low, close)
+
+
+def atr(high, low, close, period):
+    """
+    Average True Range
+    """
+    return talib.ATR(high, low, close, period)
+
+
+def natr(high, low, close, period):
+    """
+    Calculate Normalized Average True Range (NATR) using TA-Lib.
+    Args:
+        high (list or np.ndarray): List or array of high prices.
+        low (list or np.ndarray): List or array of low prices.
+        close (list or np.ndarray): List or array of closing prices.
+        period (int): Period for NATR calculation.
+    Returns:
+        np.ndarray: Array of NATR values.
+    """    
+    return talib.NATR(high, low, close, timeperiod=period)
+
+
+def stdev(source, period):
+    """
+    Calculate the rolling standard deviation of a time series data.
+    Args:
+        source (list or pandas.Series): The time series data for which to calculate the standard deviation.
+        period (int): The number of periods to consider for the rolling standard deviation.
+
+    Returns:
+        numpy.ndarray: An array containing the rolling standard deviation values.
+    """
+    return pd.Series(source).rolling(period).std().values
+
+
+def stddev(source, period, nbdev=1):
+    """
+    Calculate the standard deviation of a time series data using TA-Lib.
+    Args:
+        source (list or numpy.ndarray): The time series data for which to calculate the standard deviation.
+        period (int): The number of periods to consider for calculating the standard deviation.
+        nbdev (int, optional): The number of standard deviations to use. Default is 1.
+    Returns:
+        numpy.ndarray: An array containing the standard deviation values.
+    """
+    return talib.STDDEV(source, timeperiod=period, nbdev=nbdev)
+
+
+def vix(close, low, pd=23, bbl=23, mult=1.9, lb=88, ph=0.85, pl=1.01):
+    """
+    Calculate the VIX Histogram.
+    Args:
+        close (list): List of closing prices.
+        low (list): List of low prices.
+        pd (int, optional): Period for calculating the highest value. Default is 23.
+        bbl (int, optional): Period for calculating the standard deviation. Default is 23.
+        mult (float, optional): Multiplier for the standard deviation. Default is 1.9.
+        lb (int, optional): Lookback period for calculating range high and range low. Default is 88.
+        ph (float, optional): Threshold for calculating the range high. Default is 0.85.
+        pl (float, optional): Threshold for calculating the range low. Default is 1.01.
+    Returns:
+        tuple: A tuple containing two lists: 
+            - green_hist: A list of boolean values indicating if each element represents a green histogram bar.
+            - red_hist: A list of boolean values indicating if each element represents a red histogram bar.
+    """
+    # Calculate the historical highest close price for the given period.
+    hst = highest(close, pd)
+
+    # Calculate the Williams VIX Fix (WVF) as a percentage.
+    wvf = (hst - low) / hst * 100
+
+    # Calculate the standard deviation and midline for the WVF.
+    s_dev = mult * stdev(wvf, bbl)
+    mid_line = sma(wvf, bbl)
+
+    # Calculate the upper and lower bands for the VIX Histogram.
+    lower_band = mid_line - s_dev
+    upper_band = mid_line + s_dev
+
+    # Calculate the range high and range low for the VIX Histogram.
+    range_high = (highest(wvf, lb)) * ph
+    range_low = (lowest(wvf, lb)) * pl
+
+    # Determine if each element in the last 8 elements is above the upper band or range high (green histogram).
+    green_hist = [wvf[-i] >= upper_band[-i] or wvf[-i] >= range_high[-i] for i in range(8)][::-1]
+
+    # Determine if each element in the last 8 elements is below the lower band or range low (red histogram).
+    red_hist = [wvf[-i] <= lower_band[-i] or wvf[-i] <= range_low[-i] for i in range(8)][::-1]
+
+    # Return the green and red histogram lists.
+    return green_hist, red_hist
+
+
+def ulcer_index(data):
+    """
+    Calculate the Ulcer Index of a given data series.    
+    Parameters:
+        data (numpy.ndarray): Input data series.    
+    Returns:
+        float: Ulcer Index value.
+    """
+    # Calculate the maximum drawdown
+    max_drawdown = np.maximum.accumulate(data) - data
+
+    # Square the maximum drawdown
+    squared_drawdown = np.square(max_drawdown)
+
+    # Calculate the average of squared drawdowns
+    average_squared_drawdown = np.mean(squared_drawdown)
+
+    # Take the square root to obtain the Ulcer Index
+    ulcer_index = np.sqrt(average_squared_drawdown)
+
+    return ulcer_index
+
+
+#############            Momentum Indicators            ####################################################################
+############################################################################################################################
+
+
+def adx(high, low, close, period=14):
+    """
+    This function calculates the Average Directional Index (ADX) using TA-Lib.
+    """
+    return talib.ADX(high, low, close, period)
+
+
+def di_plus(high, low, close, period=14):
+    """
+    This function calculates the Plus Directional Indicator (+DI) using TA-Lib.
+    """
+    return talib.PLUS_DI(high, low, close, period)
+
+
+def di_minus(high, low, close, period=14):
+    """
+    This function calculates the Minus Directional Indicator (-DI) using TA-Lib.
+    """
+    return talib.MINUS_DI(high, low, close, period)
+
+
+def macd(close, fastperiod=12, slowperiod=26, signalperiod=9):
+    """
+    Calculate the Moving Average Convergence Divergence (MACD) using TA-Lib.
+    Args:
+        close (list or array-like): The close price time series data.
+        fastperiod (int, optional): The number of periods for the fast moving average. Default is 12.
+        slowperiod (int, optional): The number of periods for the slow moving average. Default is 26.
+        signalperiod (int, optional): The number of periods for the signal line. Default is 9.
+    Returns:
+        tuple: A tuple containing three arrays: (macd, macdsignal, macdhist).
+            - macd: The MACD line.
+            - macdsignal: The signal line.
+            - macdhist: The MACD histogram (the difference between MACD and signal).
+    """
+    return talib.MACD(close, fastperiod, slowperiod, signalperiod)
+
+
+def obv(close, volume):
+    """
+    Calculates the On-Balance Volume (OBV) indicator using the ta-lib library.
+    Args:
+        close (list): List of closing prices.
+        volume (list): List of volume values.
+    Returns:
+        list: OBV values.
+    """
+    obv = talib.OBV(close, volume)
+    return obv
+
+
+def mfi(high, low, close, volume, period=14):
+    """
+    Calculates the Money Flow Index (MFI) using the ta-lib library.
+    Args:
+        high (list): List of high prices.
+        low (list): List of low prices.
+        close (list): List of closing prices.
+        volume (list): List of volume values.
+        period (int, optional): Number of periods to consider (default is 14).
+    Returns:
+        list: MFI values.
+    """
+    mfi = talib.MFI(high, low, close, volume, timeperiod=period)
+    return mfi
+
+
+def stochastic(high, low, close, fastK_period=14, slowk_period=5, d_period=3):
+    """
+    Calculate the Stochastic indicator.
+    Parameters:
+        high: A list or array of high prices.
+        low: A list or array of low prices.
+        close: A list or array of closing prices.
+        period: The number of periods to consider for the Stochastic calculation. Default is 14.
+        k_period: The number of periods to consider for the %K line. Default is 5.
+        d_period: The number of periods to consider for the %D line. Default is 3.
+    Returns:
+        slowk: The slow %K line values.
+        slowd: The slow %D line values.
+    """
+    slowk, slowd = talib.STOCH(high, low, close, fastk_period=fastK_period, slowk_period=slowk_period, slowd_period=d_period)
+    return slowk, slowd
+
+
+def cci(high, low, close, period):
+    return talib.CCI(high,low, close, period)
+
+
+def rsi(close, period=14):
+    return talib.RSI(close, period)
+
+
+def rsx(source, length=None, drift=None, offset=None):
+    """
+    Indicator: Relative Strength Xtra (inspired by Jurik RSX)
+    """
+    # Validate arguments
+    length = int(length) if length and length > 0 else 14
+    source = pd.Series(source)
+    source = verify_series(source, length)
+    #drift = get_drift(drift)
+    #offset = get_offset(offset)
+
+    if source is None: return
+
+    # variables
+    vC, v1C = 0, 0
+    v4, v8, v10, v14, v18, v20 = 0, 0, 0, 0, 0, 0
+
+    f0, f8, f10, f18, f20, f28, f30, f38 = 0, 0, 0, 0, 0, 0, 0, 0
+    f40, f48, f50, f58, f60, f68, f70, f78 = 0, 0, 0, 0, 0, 0, 0, 0
+    f80, f88, f90 = 0, 0, 0
+
+    # Calculate Result
+    m = source.size
+    result = [npNaN for _ in range(0, length - 1)] + [0]
+    for i in range(length, m):
+        if f90 == 0:
+            f90 = 1.0
+            f0 = 0.0
+            if length - 1.0 >= 5:
+                f88 = length - 1.0
+            else:
+                f88 = 5.0
+            f8 = 100.0 * source.iloc[i]
+            f18 = 3.0 / (length + 2.0)
+            f20 = 1.0 - f18
         else:
-            dir = -1 if close[-1] < self.lowerband[-1] else 1
+            if f88 <= f90:
+                f90 = f88 + 1
+            else:
+                f90 = f90 + 1
+            f10 = f8
+            f8 = 100 * source.iloc[i]
+            v8 = f8 - f10
+            f28 = f20 * f28 + f18 * v8
+            f30 = f18 * f28 + f20 * f30
+            vC = 1.5 * f28 - 0.5 * f30
+            f38 = f20 * f38 + f18 * vC
+            f40 = f18 * f38 + f20 * f40
+            v10 = 1.5 * f38 - 0.5 * f40
+            f48 = f20 * f48 + f18 * v10
+            f50 = f18 * f48 + f20 * f50
+            v14 = 1.5 * f48 - 0.5 * f50
+            f58 = f20 * f58 + f18 * abs(v8)
+            f60 = f18 * f58 + f20 * f60
+            v18 = 1.5 * f58 - 0.5 * f60
+            f68 = f20 * f68 + f18 * v18
+            f70 = f18 * f68 + f20 * f70
+            v1C = 1.5 * f68 - 0.5 * f70
+            f78 = f20 * f78 + f18 * v1C
+            f80 = f18 * f78 + f20 * f80
+            v20 = 1.5 * f78 - 0.5 * f80
 
-        trend = lowerbandd if dir == 1 else upperbandd
+            if f88 >= f90 and f8 != f10:
+                f0 = 1.0
+            if f88 == f90 and f0 == 0.0:
+                f90 = 0.0
 
-        self.trend.append(trend)
-        self.dir.append(dir)
-        self.lowerband = np.append(self.lowerband, [lowerbandd])
-        self.upperband = np.append(self.upperband, [upperbandd])
+        if f88 < f90 and v20 > 0.0000000001:
+            v4 = (v14 / v20 + 1.0) * 50.0
+            if v4 > 100.0:
+                v4 = 100.0
+            if v4 < 0.0:
+                v4 = 0.0
+        else:
+            v4 = 50.0
+        result.append(v4)
+    rsx = Series(result, index=source.index)
+
+    # Offset
+    if offset != 0 and offset != None:
+        rsx = rsx.shift(offset)
+    
+    return rsx
+
+
+def rci(src, itv):
+    """
+    Calculate the Rolling Coefficient of Inefficiency (RCI) indicator for a given data series.
+    Args:
+        src (list or numpy array): The input data series for which RCI will be calculated.
+        itv (int): The size of the rolling window or interval used for RCI calculation.
+    Returns:
+        list: A list containing the RCI values for each window in the input data series.
+    """
+    reversed_src = src[::-1]
+    ret = [(1.0 - 6.0 * d(reversed_src[i:i + itv], itv) / (itv * (itv * itv - 1.0))) * 100.0
+           for i in range(2)]
+    return ret[::-1]
+
+
+def klinger_oscillator(high, low, close, volume, ema_short_length=34, ema_long_length=55, signal_length=13):
+    """
+    Calculates the Klinger Oscillator and Signal values based on high, low, close, and volume.
+    Args:
+        high (array-like): Array or list of high prices.
+        low (array-like): Array or list of low prices.
+        close (array-like): Array or list of closing prices.
+        volume (array-like): Array or list of volume values.
+        ema_short_length (int, optional): Length of the short EMA. Default is 34.
+        ema_long_length (int, optional): Length of the long EMA. Default is 55.
+        signal_length (int, optional): Length of the signal EMA. Default is 13.
+    Returns:
+        kvo (array): Array of Klinger Oscillator values.
+        sig (array): Array of Signal values.
+    """
+    high = np.array(high)
+    low = np.array(low)
+    close = np.array(close)
+    volume = np.array(volume)
+
+    cumVol = np.cumsum(volume)
+    if cumVol[-1] == 0:
+        raise ValueError("No volume is provided by the data vendor.")
+
+    hl_avg = (high + low + close) / 3
+    hl_avg_diff = np.diff(hl_avg)
+    sv = np.where(hl_avg_diff >= 0, volume[1:], -volume[1:])
+    kvo = ema(sv, ema_short_length) - ema(sv, ema_long_length)
+    sig = ema(kvo, signal_length)    
+    
+    return kvo, sig
+
+
+#############            Moving Averages            ########################################################################
+############################################################################################################################
+
+
+def sma(source, period):
+    return pd.Series(source).rolling(period).mean().values
+
+
+def ema(source, period):
+    return talib.EMA(np.array(source), period)
+
+
+def double_ema(src, length):
+    ema_val = ema(src, length)
+    return 2 * ema_val - ema(ema_val, length)
+
+
+def triple_ema(src, length):
+    ema_val = ema(src, length)
+    return 3 * (ema_val - ema(ema_val, length)) + ema(ema(ema_val, length), length)
+
+
+def wma(src, length):
+    return talib.WMA(src, length)
+
+
+def ewma(data, alpha):
+    """
+    Calculate Exponentially Weighted Moving Average (EWMA) using Pandas.
+    Args:
+        data (list or numpy array): Input data for calculating EWMA.
+        alpha (float): Smoothing factor for EWMA.
+    Returns:
+        list: List containing the calculated EWMA values.
+    """
+    data_arr = np.asarray(data, dtype=float)
+    ewma_series = pd.Series(data_arr).ewm(alpha=alpha).mean()
+    ewma_list = ewma_series.tolist()
+    return ewma_list
+
+
+def vwap(high, low, volume):
+    average_price = volume * (high + low) / 2
+    return average_price.sum() / volume.sum()
+
+
+def ssma(src, length):
+    return pd.Series(src).ewm(alpha=1.0 / length).mean().values.flatten()
+
+
+def hull(src, length):
+    return wma(2 * wma(src, length / 2) - wma(src, length), round(np.sqrt(length)))
+
+
+#############            Bands and Channels Indicators            ##########################################################
+############################################################################################################################
+
+
+def bbands(source, timeperiod=5, nbdevup=2, nbdevdn=2, matype=0):
+    return talib.BBANDS(source, timeperiod, nbdevup, nbdevdn, matype)
 
 
 def donchian(high, low, lower_length=None, upper_length=None, offset=None, **kwargs):
@@ -720,104 +848,111 @@ def keltner_channel(high, low, close, period=20, atr_period=20,  multiplier=2):
     return upper_band, middle_band, lower_band
 
 
-def linreg(close, period):
+#############            Pattern Recognition            ####################################################################
+############################################################################################################################
+
+
+def highestbars(source, length):
     """
-    Calculate Linear Regression (LINEARREG) using TA-Lib.
-
-    Args:
-        close (list or np.ndarray): List or array of closing prices.
-        period (int): Period for LINEARREG calculation.
-
-    Returns:
-        np.ndarray: Array of LINEARREG values.
+    Highest value offset for a given number of bars back.
+    Returns offset to the highest bar.
     """    
-    return talib.LINEARREG(close, timeperiod=period)
+    source = source[-length:]
+    offset = abs(length - 1 - np.argmax(source))
+
+    return offset
 
 
-def linreg_slope(close, period):
+def lowestbars(source, length):
     """
-    Calculate Linear Regression Slope (LINEARREG_SLOPE) using TA-Lib.
-
-    Args:
-        close (list or np.ndarray): List or array of closing prices.
-        period (int): Period for LINEARREG_SLOPE calculation.
-
-    Returns:
-        np.ndarray: Array of LINEARREG_SLOPE values.
+    Lowest value offset for a given number of bars back.
+    Returns offset to the lowest bar.
     """    
-    return talib.LINEARREG_SLOPE(close, timeperiod=period)
+    source = source[-length:]
+    offset = abs(length - 1 - np.argmin(source))
+
+    return offset
 
 
-def hurst_exponent(data):
-    """Calculate the Hurst exponent using the R/S method.    
-    Args: 
-        data (numpy.ndarray or list): The input time series data.    
-    Returns: 
-        float: The calculated Hurst exponent.
+def crossover(a, b):
+    return a[-2] < b[-2] and a[-1] > b[-1]
+
+
+def crossunder(a, b):
+    return a[-2] > b[-2] and a[-1] < b[-1]
+
+
+def ord(seq, sort_seq, idx, itv):
     """
-    data = np.asarray(data)
-    n = len(data)
-    rs = np.zeros((len(data)//2, 2))
-    
-    for i in range(1, n//2 + 1):
-        cumsum = np.cumsum(data - np.mean(data))
-        rs[i-1, 0] = np.max(cumsum[:i]) - np.min(cumsum[:i])
-        rs[i-1, 1] = np.std(data)
-    
-    avg_rs = np.mean(rs[:, 0] / rs[:, 1])
-    
-    return np.log2(avg_rs)
-
-
-def lyapunov_exponent(data, dt):  
+    Calculate the ordinal rank of a given element in a sorted sequence.
+    Args:
+        seq (list or numpy array): The input unsorted data sequence.
+        sort_seq (list or numpy array): The sorted version of the input data sequence.
+        idx (int): The index of the element in the input sequence for which the rank is to be determined.
+        itv (int): The number of elements in the sorted sequence.
+    Returns:
+        int: The ordinal rank of the element at the specified index in the sorted sequence.
     """
-    Calculate the Lyapunov exponent for a given time series data.
-    Parameters:
-        data: Time series data of the dynamical system.
-        dt (float): Time step between consecutive state vectors.
-    Returns: 
-        float: The Lyapunov exponent.
+    p = seq[idx]
+    for i in range(0, itv):
+        if p >= sort_seq[i]:
+            return i + 1
+        
+
+def is_under(src, value, p):
+    for i in range(p, -1, -1):
+        if src[-i - 1] > value:
+            return False
+    return True
+
+
+def is_over(src, value, p):
+    for i in range(p, -1, -1):
+        if src[-i - 1] < value:
+            return False
+    return True        
+
+
+#############            Math Operators             ########################################################################
+############################################################################################################################
+
+
+def highest(source, period):
+    return pd.Series(source).rolling(period).max().values
+
+
+def lowest(source, period):
+    return pd.Series(source).rolling(period).min().values
+
+
+def med_price(high, low):
     """
-    data = data if isinstance(data[0], Iterable) else [data]
-    #n = np.shape(data)[0]  # Length of data
-    #d = np.shape(data)[1] if len(np.shape(data)) > 1 else 1  # Dimensionality of data 
-    n = len(data)
-    d = len(data[0])   
-    epsilon = 1e-8  # small constant to avoid division by zero
+    also found in tradingview as hl2 source
+    """
+    return talib.MEDPRICE(high, low)
 
-    # Initialize the Lyapunov sum
-    sum_lyapunov = 0.0
 
-    for i in range(n):
-        x = data[i]
+def avg_price(open, high, low, close):
+    """
+    also found in tradingview as ohlc4 source
+    """
+    return talib.AVGPRICE(open, high, low, close)
 
-        # Initialize the tangent vector
-        v = np.zeros(d)
-        v[0] = 1.0
 
-        # Integrate the tangent vector
-        for j in range(d):
-            x_forward = data[(i + j) % n]
-            x_backward = data[(i - j) % n]
+def typ_price(high,low,close):
+    """
+    typical price, also found in tradingview as hlc3 source
+    """
+    return talib.TYPPRICE(high, low, close)
 
-            forward_difference = x_forward - x
-            backward_difference = x - x_backward
 
-            norm_forward = np.linalg.norm(forward_difference) + epsilon
-            norm_backward = np.linalg.norm(backward_difference) + epsilon
+def MAX(close, period):
+    return talib.MAX(close, period)
 
-            v += np.log(norm_forward / norm_backward) * backward_difference / norm_backward
 
-            # Orthogonalize the tangent vector
-            v -= np.dot(v, x) * x / np.dot(x, x)
+#############            Probability Distributions and Simulations             #############################################
+############################################################################################################################
 
-        # Calculate the local Lyapunov exponent
-        sum_lyapunov += np.log(np.linalg.norm(v) + epsilon) / dt
-
-    # Calculate the average Lyapunov exponent
-    average_lyapunov = sum_lyapunov / n
-
-    return average_lyapunov
 
 
 def detrended_fluctuation_analysis(data, window_sizes):
@@ -1047,7 +1182,8 @@ def ornstein_uhlenbeck_process(timesteps, dt, mean_reversion, volatility, initia
     path = np.cumsum(increments, axis=0)
 
     # Apply the Ornstein-Uhlenbeck process transformation
-    path = initial_value + mean_reversion * path + volatility * np.sqrt(dt) * np.random.normal(loc=0, scale=1, size=(num_increments, num_dimensions))
+    path = initial_value + mean_reversion \
+            * path + volatility * np.sqrt(dt) * np.random.normal(loc=0, scale=1, size=(num_increments, num_dimensions))
 
     return path
 
@@ -1243,19 +1379,40 @@ def monte_carlo_simulation(start_equity, profit_to_loss_ratio, num_simulations, 
     plt.grid(True)
     plt.show()
 
-
-def is_under(src, value, p):
-    for i in range(p, -1, -1):
-        if src[-i - 1] > value:
-            return False
-    return True
+#############            Regression             ############################################################################
+############################################################################################################################
 
 
-def is_over(src, value, p):
-    for i in range(p, -1, -1):
-        if src[-i - 1] < value:
-            return False
-    return True
+def linreg(close, period):
+    """
+    Calculate Linear Regression (LINEARREG) using TA-Lib.
+
+    Args:
+        close (list or np.ndarray): List or array of closing prices.
+        period (int): Period for LINEARREG calculation.
+
+    Returns:
+        np.ndarray: Array of LINEARREG values.
+    """    
+    return talib.LINEARREG(close, timeperiod=period)
+
+
+def linreg_slope(close, period):
+    """
+    Calculate Linear Regression Slope (LINEARREG_SLOPE) using TA-Lib.
+
+    Args:
+        close (list or np.ndarray): List or array of closing prices.
+        period (int): Period for LINEARREG_SLOPE calculation.
+
+    Returns:
+        np.ndarray: Array of LINEARREG_SLOPE values.
+    """    
+    return talib.LINEARREG_SLOPE(close, timeperiod=period)
+
+
+#############            Normalization Techniques             ##############################################################
+############################################################################################################################
 
 
 def min_max_normalization(data):
@@ -1360,6 +1517,35 @@ def pareto_scaling(data):
     return data / np.sqrt(std_val)
 
 
+
+#############            Miscellaneous and Custom             ##############################################################
+############################################################################################################################
+
+
+def first(l=[]):
+    return l[0]
+
+
+def last(l=[]):
+    return l[-1]
+
+
+def d(src, itv):
+    """
+    Calculate a custom metric to quantify the "disorder" or "inefficiency" of the data.
+    Args:
+        src (list or numpy array): The input data series for which the metric will be calculated.
+        itv (int): The length of the metric calculation (number of periods).
+    Returns:
+        float: The calculated metric representing the "disorder" or "inefficiency" of the data.
+    """
+    sort_src = np.sort(src)[::-1]
+    sum = 0.0
+    for i in range(0, itv):
+        sum += pow((i + 1) - ord(src, sort_src, i, itv), 2)
+    return sum
+
+
 def sharpe_ratio(returns, risk_free_rate):
     """
     Calculates the Sharpe ratio given a list of returns.
@@ -1374,29 +1560,6 @@ def sharpe_ratio(returns, risk_free_rate):
     std_dev = np.std(returns)
     sharpe_ratio = np.mean(excess_returns) / std_dev
     return sharpe_ratio
-
-
-def ulcer_index(data):
-    """
-    Calculate the Ulcer Index of a given data series.    
-    Parameters:
-        data (numpy.ndarray): Input data series.    
-    Returns:
-        float: Ulcer Index value.
-    """
-    # Calculate the maximum drawdown
-    max_drawdown = np.maximum.accumulate(data) - data
-
-    # Square the maximum drawdown
-    squared_drawdown = np.square(max_drawdown)
-
-    # Calculate the average of squared drawdowns
-    average_squared_drawdown = np.mean(squared_drawdown)
-
-    # Take the square root to obtain the Ulcer Index
-    ulcer_index = np.sqrt(average_squared_drawdown)
-
-    return ulcer_index
 
 
 def compute_log_returns(balance_changes):
