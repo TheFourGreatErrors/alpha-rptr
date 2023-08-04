@@ -212,7 +212,7 @@ class Bot:
 
     def run(self):
         """
-        Function to search for parameters.
+        Function to run the bot.
 
         Returns:
             None
@@ -276,7 +276,7 @@ class Bot:
 
     def stop(self):
         """
-        Function that stops the bot and by default it cancels all trades(optional).
+        Function that stops the bot and by default it cancels all orders(optional).
 
         Returns:
             None

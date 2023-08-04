@@ -1293,7 +1293,7 @@ class Bybit:
         limit_chase_interval=0
     ):
         """
-        Places an order.
+        Places an order with various options.
 
         Args:
             id (str): Order id (identifier for the order).

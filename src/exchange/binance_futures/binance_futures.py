@@ -828,8 +828,7 @@ class BinanceFutures:
         retry_maker=100
     ):
         """
-        Places an entry order with various options, working as an equivalent to TradingView Pine script implementation:
-        https://tradingview.com/study-script-reference/#fun_strategy{dot}entry
+        Places an entry order with various options.
 
         Args:
             id (str): Order ID (user ID).
@@ -2029,15 +2028,14 @@ class BinanceFutures:
 
     def remove_ob_callback(self, id):
         """
-        Update the best bid and best ask prices.
+        Remove a previously added callback for order book changes.
 
-        This function is called when there is an update to the order book ticker. It updates the best
-        bid and best ask prices and then triggers the registered callbacks for order book changes,
-        passing information about whether the best bid and/or best ask prices have changed.
+        This function allows removing a callback function that was previously added using the
+        'add_ob_callback' method. After removing the callback, it will no longer be triggered when there
+        are changes to the order book (best bid and best ask prices).
 
         Args:
-            action (str): The action associated with the update (e.g., 'update', 'insert', 'delete').
-            bookticker (dict): The updated order book ticker data, containing best bid and best ask prices.
+            id (str): Identifier for the callback to be removed (usually an integer or string).
 
         Returns:
             None
