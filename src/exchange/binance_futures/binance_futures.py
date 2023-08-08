@@ -354,7 +354,7 @@ class BinanceFutures:
         # else:  # when the WebSocket cant get it
 
         ret = retry(lambda: self.client
-                              .futures_position_information())
+                              .futures_position_information_v2())
         if len(ret) > 0:
             self.position = [p for p in ret if p["symbol"] == self.pair]            
             return self.position[0]
