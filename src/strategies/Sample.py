@@ -32,17 +32,15 @@ class Sample(Bot):
         self.isLongEntry = []
         self.isShortEntry = []
         
-    # Hyperopt setting  
-
+    # Hyperopt setting
     # The two hyperparameters we are optimizing are 'fast_len' and 'slow_len.'
     # 'fast_len' represents the length parameter for a fast operation, while 'slow_len' represents the length parameter for a slow operation. 
-    # Both hyperparameters have a uniform distribution between 1 and 30, with integer steps of 1. 
-    # Hyperopt will explore various combinations of these hyperparameters to find the best configuration that maximizes our model's performance.
-    
+    # Both hyperparameters have a uniform distribution between 1 and 20 for 'fast_len' and between 1 and 30 for 'slow_len', respectively, with integer steps of 1. 
+    # Hyperopt will explore various combinations of these hyperparameters to find the best configuration that maximizes our model's performance.    
     def options(self):
         return {
-            'fast_len': hp.quniform('fast_len', 4, 12, 1),
-            'slow_len': hp.quniform('slow_len', 12, 26, 1),
+            'fast_len': hp.quniform('fast_len', 1, 20, 1),
+            'slow_len': hp.quniform('slow_len', 1, 30, 1),
         }
     
     # Override this bot class function to set the length of historical candlestick data required for your indicators

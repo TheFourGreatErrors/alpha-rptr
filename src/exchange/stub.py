@@ -191,18 +191,54 @@ class Stub():
 
     def cancel(self, id, **kwargs):
         """
-        Cancel a specific order.
-
-        This function cancels a specific open order with the given order ID from the stub trading account for backtesting purposes.
+        Cancel a specific order by ID(starts with) from the stub trading account.
 
         Args:
-            id (str): The order ID to be canceled.
+            id (str): The ID of the order to be canceled.
 
         Returns:
             bool: True if the order was successfully canceled, False otherwise.
         """
-        self.open_orders = [o for o in self.open_orders if o["id"] != id]
+        # Query for an order starting with given id
+        order_to_cancel = self.get_open_order(id)
+
+        if order_to_cancel is None:
+            return False
+
+        self.open_orders.remove(order_to_cancel)
         return True
+
+    def get_open_order(self, id, **kwargs):
+        """
+        Get an open order by its ID.
+
+        Args:
+            id (str): Order ID for this pair.
+            
+        Returns:
+            dict or None: If multiple orders are found starting with the given ID, return only the first one. None if no matching order is found.
+        """        
+        open_orders = self.open_orders                           
+        filtered_orders = [o for o in open_orders if o["id"].startswith(id)]
+        if not filtered_orders:
+            return None
+        if len(filtered_orders) > 1:
+            logger.info(f"Found more than 1 order starting with given id. Returning only the first one!")
+        return filtered_orders[0]  
+    
+    def get_open_orders(self, id, **kwargs):
+        """
+        Get a list of open orders.
+
+        Args:
+            id (str, optional): If provided, return only orders whose ID starts with the provided string.
+
+        Returns:
+            list or None: List of open orders that match the ID criteria, or None if no open orders are found.
+        """        
+        open_orders = self.open_orders                                
+        filtered_orders = [o for o in open_orders if o["id"].startswith(id)] if id else open_orders 
+        return filtered_orders if filtered_orders else None
     
     def order(
         self, 
