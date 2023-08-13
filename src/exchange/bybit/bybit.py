@@ -655,13 +655,17 @@ class Bybit:
 
     def cancel(self, id):
         """
-        Cancel a specific active order by order ID.
-        This function cancels an active order by its order ID (user ID).
-        It does not query orders and filter them prior to the cancellation.
+        Cancel a specific active order by its order ID.
+
+        This function searches for active orders associated with the provided order ID (user ID) and attempts to cancel them.
+        If multiple active orders are found, it cancels the first one.
+        If no active orders are found, it logs a message and returns False.
+
         Args:
-            id (str): The order ID (user ID) of the order to be cancelled.
+            order_id (str): The order ID (user ID) of the order to be canceled.
+
         Returns:
-            bool: True if the order was successfully cancelled; False otherwise.
+            bool: True if the order was successfully canceled; False otherwise.
         """
         self.__init_client()
     
@@ -671,6 +675,7 @@ class Bybit:
             logger.info(f"Couldn't find an order of which id string starts with: {id}")
             return False       
         
+        # Determine the appropriate field for order link ID based on trading type
         if self.pair.endswith('PERP') or self.spot: # 'orderId','orderLinkId'             
             order_link_id = 'orderLinkId'
         else: # Inverse and Linear perps           
@@ -680,10 +685,13 @@ class Bybit:
             # Found an active order with the given user ID
             order = orders['active_orders'][0]
             res = self.cancel_active_order(user_id=order[order_link_id])
-        else:
+        elif len(orders['conditional_orders']):
             # Found a conditional order with the given user ID
             order = orders['conditional_orders'][0]
+            # Attempt to cancel the first conditional order found using its order link ID
             res = self.cancel_conditional_order(user_id=order[order_link_id])
+        else:
+            res = False
         # Return the result of the cancellation (True/False)
         if res:
             return res
