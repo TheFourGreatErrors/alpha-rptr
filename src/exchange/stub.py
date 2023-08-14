@@ -146,7 +146,7 @@ class Stub():
         """
         self.open_orders = []
 
-    def close_all(self, callback=None, chaser=False, **kwargs):
+    def close_all(self, post_only=False, callback=None, chaser=False, **kwargs):
         """
         Close all the current positions.
 
