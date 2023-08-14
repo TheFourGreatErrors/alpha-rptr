@@ -481,7 +481,7 @@ class BinanceFutures:
         logger.info(f"Cancel all open orders: {res}")    
         #self.callbacks = {}
 
-    def close_all(self, callback=None, split=1, interval=0, chaser=False, retry_maker=100):
+    def close_all(self, post_only=False, callback=None, split=1, interval=0, chaser=False, retry_maker=100):
         """
         Close the open position for this trading pair using a market order.
         Args:
@@ -498,7 +498,7 @@ class BinanceFutures:
 
         side = False if position_size > 0 else True
         
-        self.order("Close", side, abs(position_size), 
+        self.order("Close", side, abs(position_size), post_only=post_only,
                    callback=callback, 
                    split=split, interval=interval, 
                    chaser=chaser, retry_maker=retry_maker)

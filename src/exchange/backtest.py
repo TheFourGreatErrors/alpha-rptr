@@ -145,7 +145,7 @@ class BackTest(Stub):
         else:
             self.sell_signals.append(self.index)
 
-    def close_all(self, callback=None, chaser=False):
+    def close_all(self, post_only=False, callback=None, chaser=False):
         """
         Close all positions.
 
@@ -157,7 +157,7 @@ class BackTest(Stub):
         """
         if self.get_position_size() == 0:
             return 
-        Stub.close_all(self, callback, chaser=chaser)
+        Stub.close_all(self, post_only, callback, chaser=chaser)
         self.close_signals.append(self.index)
     
     def close_all_at_price(self, price, callback=None, chaser=False):
