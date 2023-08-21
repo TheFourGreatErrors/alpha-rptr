@@ -226,7 +226,7 @@ class Stub():
             logger.info(f"Found more than 1 order starting with given id. Returning only the first one!")
         return filtered_orders[0]  
     
-    def get_open_orders(self, id, **kwargs):
+    def get_open_orders(self, id=None, **kwargs):
         """
         Get a list of open orders.
 
@@ -236,7 +236,9 @@ class Stub():
         Returns:
             list or None: List of open orders that match the ID criteria, or None if no open orders are found.
         """        
-        open_orders = self.open_orders                                
+        open_orders = self.open_orders         
+        if not id:
+            return self.open_orders                      
         filtered_orders = [o for o in open_orders if o["id"].startswith(id)] if id else open_orders 
         return filtered_orders if filtered_orders else None
     
