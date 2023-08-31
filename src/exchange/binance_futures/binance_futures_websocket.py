@@ -79,7 +79,7 @@ class BinanceFuturesWs:
         if len(self.bin_size) > 0: 
             for t in self.bin_size: 
                 klines += self.pair + '@kline_' + t + '/'
-        return 'wss://' + self.domain + '/stream?listenKey=' + self.listenKey + '&streams=' + self.pair + '@ticker/' + self.pair + '@bookTicker/' + klines
+        return 'wss://' + self.domain + '/stream?listenKey=' + self.listenKey + '&streams=' + self.listenKey + '/' + self.pair + '@ticker/' + self.pair + '@bookTicker/' + klines
    
     def __get_auth_user_data_streams(self):
         """
