@@ -9,6 +9,7 @@ import time
 import threading
 from decimal import Decimal
 
+import numpy as np
 import pandas as pd
 from bravado.exception import HTTPNotFound
 from pytz import UTC
@@ -2277,6 +2278,18 @@ class Bybit:
             self.ws.bind('order', self.__on_update_order)
             # TODO orderbook
             # self.ob = OrderBook(self.ws)        
+
+            if self.call_strat_on_start:
+                data = to_data_frame([{
+                    "timestamp": self.now_time() + timedelta(seconds=0.1),
+                    "open": np.nan,
+                    "high": np.nan,
+                    "low" : np.nan,
+                    "close" : np.nan,
+                    "volume": np.nan
+                }])
+                action = allowed_range_minute_granularity[t][0] if self.minute_granularity else allowed_range[t][0]
+                self.__update_ohlcv(action, data)
 
     def stop(self):
         """
