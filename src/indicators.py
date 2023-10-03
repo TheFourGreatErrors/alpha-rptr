@@ -727,12 +727,96 @@ def double_ema(src, length):
     return 2 * ema_val - ema(ema_val, length)
 
 
+def dema(data, period):
+    """
+    Calculate the Double Exponential Moving Average (DEMA) of a given dataset. (TA-lib)
+    Args:
+        data (list or numpy array): The input data.
+        period (int): The period for the moving average.
+    Returns:
+        numpy array: The DEMA values.
+    """
+    return talib.DEMA(data, timeperiod=period)
+
+
 def triple_ema(src, length):
     ema_val = ema(src, length)
     return 3 * (ema_val - ema(ema_val, length)) + ema(ema(ema_val, length), length)
 
 
+def tema(data, period):
+    """
+    Calculate the Triple Exponential Moving Average (TEMA) of a given dataset. (TA-lib)
+    Args:
+        data (list or numpy array): The input data.
+        period (int): The period for the moving average.
+    Returns:
+        numpy array: The TEMA values.
+    """
+    return talib.TEMA(data, timeperiod=period)
+
+
+def trima(data, period):
+    """
+    Calculate the Triangular Moving Average (TRIMA) of a given dataset. (TA-lib)
+    Args:
+        data (list or numpy array): The input data.
+        period (int): The period for the moving average.
+    Returns:
+        numpy array: The TRIMA values.
+    """
+    return talib.TRIMA(data, timeperiod=period)
+
+
+def kama(data, period):
+    """
+    Calculate Kaufman's Adaptive Moving Average (KAMA) of a given dataset. (TA-lib)
+    Args:
+        data (list or numpy array): The input data.
+        period (int): The period for the moving average.
+    Returns:
+        numpy array: The KAMA values.
+    """
+    return talib.KAMA(data, timeperiod=period)
+
+
+def mama(data, fastlimit=0.5, slowlimit=0.05):
+    """
+    Calculate the Mesa Adaptive Moving Average (MAMA) of a given dataset. (TA-lib)
+    Args:
+        data (list or numpy array): The input data.
+        fastlimit (float): The fast limit parameter for MAMA.
+        slowlimit (float): The slow limit parameter for MAMA.
+    Returns:
+        numpy array: The MAMA values.
+    """
+    return talib.MAMA(data, fastlimit=fastlimit, slowlimit=slowlimit)
+
+
+def mavp(data, periods, minperiod=2, maxperiod=30, matype=0):
+    """
+    Calculate the Moving Average with Variable Period (MAVP) of a given dataset. (TA-lib)
+    Args:
+        data (list or numpy array): The input data.
+        periods (list): A list of periods to be used for variable period calculation.
+        minperiod (int): The minimum period for the moving average.
+        maxperiod (int): The maximum period for the moving average.
+        matype (int): The type of moving average to use.
+    Returns:
+        numpy array: The MAVP values.
+    """
+    return talib.MAVP(data, periods, minperiod=minperiod, maxperiod=maxperiod, matype=matype)
+
+
 def wma(src, length):
+    """
+    Calculate the Weighted Moving Average (WMA) of a given dataset. (TA-lib)
+    Args:
+        src (list or numpy array): The input data.
+        length (int): The period for the moving average.
+    Returns:
+        numpy array: The WMA values.
+    """
     return talib.WMA(src, length)
 
 

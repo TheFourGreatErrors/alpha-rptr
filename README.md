@@ -516,7 +516,14 @@ self.exchange.order("user_given_id", True, 1, 19500, stop=20 000)
 | -------- | ----------- | 
 | `sma()` |  Simple Moving Average (SMA) |
 | `ema()` | Exponential Moving Average (EMA) |
+| `double_ema()` | Double Exponential Moving Average (DEMA) |
+| `dema()` | Double Exponential Moving Average (DEMA) - TA-lib |
 | `triple_ema()` | Triple Exponential Moving Average (TEMA) |
+| `tema()` | Triple Exponential Moving Average (TEMA) - TA-lib |
+| `trima()` | Triangular Moving Average (TRIMA) - TA-lib |
+| `kama()` | Kaufman's Adaptive Moving Average (KAMA) - TA-lib |
+| `mama()` | Mesa Adaptive Moving Average (MAMA) - TA-lib |
+| `mavp()` | Moving Average with Variable Period (MAVP) - TA-lib |
 | `wma()` | Weighted Moving Average (WMA) | 
 | `ewma()` | Exponentially Weighted Moving Average (EWMA) | 
 | `vwap()` | Volume Weighted Average Price (VWAP) | 
