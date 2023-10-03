@@ -560,6 +560,7 @@ self.exchange.order("user_given_id", True, 1, 19500, stop=20 000)
 | `med_price()` | Also found in tradingview as hl2 source | 
 | `typ_price()` |  Also found in tradingview as hlc3 source | 
 | `avg_price()` | also found in tradingview as ohlc4 source | 
+| `wcl_price()` | also found in tradingview as hlcc4 source - Weighted Close Price (WCLPRICE) | 
 
 #### Probability Distributions and Simulation
 

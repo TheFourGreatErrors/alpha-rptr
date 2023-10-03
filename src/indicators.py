@@ -1011,23 +1011,38 @@ def lowest(source, period):
 
 def med_price(high, low):
     """
-    also found in tradingview as hl2 source
+    Also found in tradingview as hl2 source
     """
     return talib.MEDPRICE(high, low)
 
 
 def avg_price(open, high, low, close):
     """
-    also found in tradingview as ohlc4 source
+    Also found in tradingview as ohlc4 source
     """
     return talib.AVGPRICE(open, high, low, close)
 
 
-def typ_price(high,low,close):
+def typ_price(high, low, close):
     """
-    typical price, also found in tradingview as hlc3 source
+    Typical price, also found in tradingview as hlc3 source
     """
     return talib.TYPPRICE(high, low, close)
+
+
+def wclprice(high, low, close):
+    """
+    Calculate Weighted Close Price (WCLPRICE) using TA-Lib. 
+    Also found in tradingview as hlcc4
+    Args:
+        high (list or numpy array): List or array of high prices for the period.
+        low (list or numpy array): List or array of low prices for the period.
+        close (list or numpy array): List or array of closing prices for the period.
+    Returns:
+        numpy array: Array of WCLPRICE values.
+    """    
+    wclprice = talib.WCLPRICE(high, low, close)
+    return wclprice
 
 
 def MAX(close, period):
