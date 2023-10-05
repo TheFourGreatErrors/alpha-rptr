@@ -820,6 +820,39 @@ def wma(src, length):
     return talib.WMA(src, length)
 
 
+def vwma(data, volume_data, period, ma_type='sma'):
+    """
+    Calculate the Volume Weighted Moving Average (VWMA) of a given dataset using the specified moving average type. (using TA-lib)
+    Args:
+        price_data (list or numpy array): The price data.
+        volume_data (list or numpy array): The volume data.
+        period (int): The period for the moving average.
+        ma_type (str): The type of moving average to use ('sma', 'ema', 'wma', 'dema', 'tema', etc.).
+    Returns:
+        numpy array: The VWMA values.
+    """
+    # Ensure that price_data and volume_data have the same length
+    #min_length = min(len(price_data), len(volume_data))
+    #price_data = price_data[:min_length]
+    #volume_data = volume_data[:min_length]
+
+    # Calculate the VWMA using NumPy operations
+    weighted_price = data * volume_data
+
+    if ma_type == 'sma':
+        return talib.SMA(weighted_price, timeperiod=period)
+    elif ma_type == 'ema':
+        return talib.EMA(weighted_price, timeperiod=period)
+    elif ma_type == 'wma':        
+        return talib.WMA(weighted_price, timeperiod=period)       
+    elif ma_type == 'dema':
+        return talib.DEMA(weighted_price, timeperiod=period)
+    elif ma_type == 'tema':
+        return talib.TEMA(weighted_price, timeperiod=period)
+    else:
+        raise ValueError("Invalid ma_type. Supported values are 'sma', 'ema', 'wma', 'dema', 'tema', etc.")
+
+
 def ewma(data, alpha):
     """
     Calculate Exponentially Weighted Moving Average (EWMA) using Pandas.

@@ -524,7 +524,8 @@ self.exchange.order("user_given_id", True, 1, 19500, stop=20 000)
 | `kama()` | Kaufman's Adaptive Moving Average (KAMA) - TA-lib |
 | `mama()` | Mesa Adaptive Moving Average (MAMA) - TA-lib |
 | `mavp()` | Moving Average with Variable Period (MAVP) - TA-lib |
-| `wma()` | Weighted Moving Average (WMA) | 
+| `wma()` | Weighted Moving Average (WMA) - TA-lib | 
+| `vwma()` | Volume Weighted Moving Average (VWMA) of a given dataset using the specified moving average type - TA-lib | 
 | `ewma()` | Exponentially Weighted Moving Average (EWMA) | 
 | `vwap()` | Volume Weighted Average Price (VWAP) | 
 | `ssma()` | Smoothed Simple Moving Average (SSMA) | 
