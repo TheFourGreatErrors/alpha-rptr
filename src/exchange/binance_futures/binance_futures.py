@@ -58,6 +58,8 @@ class BinanceFutures:
         self.account = account
         # Pair
         self.pair = pair
+        # Launch date
+        self.launch_date = None
         # Base Asset
         self.base_asset = None
         # Asset Rounding
@@ -169,6 +171,9 @@ class BinanceFutures:
             symbols = exchange_info['symbols']
             symbol = [symbol for symbol in symbols if symbol.get('symbol')==self.pair]                 
 
+            self.launch_date = datetime.fromtimestamp(symbol[0]['onboardDate']/1000).astimezone(UTC) 
+            logger.info(f"Pair Launched: {self.launch_date.isoformat()}")         
+
             self.base_asset = symbol[0]['baseAsset']
             self.asset_rounding = symbol[0]['quantityPrecision'] 
 
@@ -204,6 +209,17 @@ class BinanceFutures:
             datetime: The current time in UTC timezone.
         """
         return datetime.now().astimezone(UTC)
+
+    def get_launch_date(self):
+        """
+        Get the launch date of this pair
+        Args:
+            None
+        Returns:
+            datetime: The launch date of this pair
+        """
+        self.__init_client()
+        return self.launch_date
         
     def get_retain_rate(self):
         """

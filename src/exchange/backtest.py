@@ -380,7 +380,7 @@ class BackTest(Stub):
             None
         """
        
-        start_time = datetime.now(timezone.utc) - 1 * timedelta(days=self.days)
+        start_time = self.get_launch_date() + 1 * timedelta(days=1)
         end_time = datetime.now(timezone.utc)
         file = self.OHLC_FILENAME #OHLC_FILENAME.format("binance_futures", self.pair, bin_size) 
         print(file)
