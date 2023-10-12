@@ -22,6 +22,11 @@ if __name__ == "__main__":
     parser.add_argument("--strategy", type=str, default="Doten", help="Trading strategy.")
     parser.add_argument("--session", type=str, default=None, help="Session ID.")
     parser.add_argument("--profile", type=str, default=None, help="Configuration profile name.")
+    
+    parser.add_argument('--plot', action='store_true')
+    parser.add_argument('--no-plot', dest='plot', action='store_false')
+    parser.set_defaults(plot=True)
+
     args = parser.parse_args()
 
     if args.profile and args.profile in conf["args_profile"]:

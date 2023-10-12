@@ -27,6 +27,7 @@ class BotFactory():
             bot.account = args.account
             bot.exchange_arg = args.exchange
             bot.pair = args.pair
+            bot.plot = args.plot
 
             STRATEGY_FILENAME = os.path.join(os.getcwd(), f"src/strategies/{args.strategy}.py")
             symlink(STRATEGY_FILENAME, 'html/data/strategy.py', overwrite=True)

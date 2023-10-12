@@ -1,6 +1,6 @@
 # coding: UTF-8
 
-import sys
+import sys, os
 import time
 from datetime import datetime, timezone
 from time import sleep
@@ -55,6 +55,8 @@ class Bot:
     spot = False
     # Parameter optimization?
     hyperopt = False
+    # Show Plot after back test
+    plot = True
     # Session Persistence
     session = Session()
     # session = type("Session", (object,), {})()
@@ -272,7 +274,7 @@ class Bot:
                f"Strategy : {type(self).__name__}\n"
                f"Balance : {self.exchange.get_balance()}")
         
-        self.exchange.show_result()
+        self.exchange.show_result(plot=self.plot)
 
     def stop(self):
         """
@@ -299,4 +301,4 @@ class Bot:
         if self.cancel_all_orders_at_stop:
             self.exchange.cancel_all()
 
-        sys.exit(0)
+        os._exit(0)

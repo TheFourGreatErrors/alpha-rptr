@@ -2158,7 +2158,7 @@ class BinanceFutures:
             self.is_running = False
             self.ws.close()
 
-    def show_result(self):
+    def show_result(self, plot=True):
         """
         Show results
         """

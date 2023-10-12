@@ -383,8 +383,8 @@ class BackTest(Stub):
         start_time = self.get_launch_date() + 1 * timedelta(days=1)
         end_time = datetime.now(timezone.utc)
         file = self.OHLC_FILENAME #OHLC_FILENAME.format("binance_futures", self.pair, bin_size) 
-        print(file)
-        print(self.bin_size)
+        #print(file)
+        #print(self.bin_size)
         # Force minute granularity if multiple timeframes are used
         if len(bin_size) > 1:
             self.minute_granularity = True   
@@ -426,7 +426,7 @@ class BackTest(Stub):
         if self.check_candles_flag:
             self.check_candles(self.df_ohlcv)
 			    
-    def show_result(self):
+    def show_result(self, plot=True):
         """
         Display the backtesting results.
 
@@ -449,6 +449,9 @@ class BackTest(Stub):
         logger.info(f"SHARPE RATIO        : {sharpe_ratio(self.balance_history, 0)}")
         logger.info(f"MAX DRAW DOWN TOTAL : {round(self.max_draw_down_session, 4)} or {round(self.max_draw_down_session_perc, 2)}%")
         logger.info(f"======================================")
+
+        if not plot:
+            return
 
         import matplotlib.pyplot as plt
 
