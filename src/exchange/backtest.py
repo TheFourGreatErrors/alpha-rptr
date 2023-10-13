@@ -1,6 +1,6 @@
 # coding: UTF-8
 
-import os
+import os, shutil
 import time
 import math
 from datetime import timedelta, datetime, timezone
@@ -436,10 +436,11 @@ class BackTest(Stub):
 
         It also plots the price chart and any additional plot data provided during backtesting.
         """
-        DATA_FILENAME = self.OHLC_FILENAME #OHLC_FILENAME.format("binance_futures", self.pair, self.bin_size)
-        symlink(DATA_FILENAME, 'html/data/data.csv', overwrite=True)
-        ORDERS_FILENAME = os.path.join(os.getcwd(), "./", conf["args"].order_log)
-        symlink(ORDERS_FILENAME, 'html/data/orders.csv', overwrite=True)
+        if conf["args"].html_report:
+            DATA_FILENAME = self.OHLC_FILENAME #OHLC_FILENAME.format("binance_futures", self.pair, self.bin_size)
+            shutil.copy(DATA_FILENAME, 'html/data/data.csv')
+            ORDERS_FILENAME = os.path.join(os.getcwd(), "./", conf["args"].order_log)
+            shutil.copy(ORDERS_FILENAME, 'html/data/orders.csv')
         
         logger.info(f"============== Result ================")
         logger.info(f"TRADE COUNT         : {self.order_count}")

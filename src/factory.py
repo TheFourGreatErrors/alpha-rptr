@@ -1,10 +1,11 @@
 # coding: UTF-8
 
-import importlib, os
+import importlib, os, shutil
 
 import json #pickle #jsonpickle #json
 
 from src import logger, query_yes_no, symlink
+from src.config import config as conf
 
 class BotFactory():
 
@@ -29,8 +30,9 @@ class BotFactory():
             bot.pair = args.pair
             bot.plot = args.plot
 
-            STRATEGY_FILENAME = os.path.join(os.getcwd(), f"src/strategies/{args.strategy}.py")
-            symlink(STRATEGY_FILENAME, 'html/data/strategy.py', overwrite=True)
+            if conf["args"].html_report:
+                STRATEGY_FILENAME = os.path.join(os.getcwd(), f"src/strategies/{args.strategy}.py")
+                shutil.copy(STRATEGY_FILENAME, 'html/data/strategy.py')
             
             if args.session != None:
                 try:

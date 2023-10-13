@@ -29,6 +29,10 @@ if __name__ == "__main__":
     parser.add_argument('--no-plot', dest='plot', action='store_false')
     parser.set_defaults(plot=True)
 
+    parser.add_argument('--html-report', dest='html_report', action='store_true')
+    parser.add_argument('--no-html-report', dest='html_report', action='store_false')
+    parser.set_defaults(html_report=True)
+
     args = parser.parse_args()
 
     if args.profile and args.profile in conf["args_profile"]:
