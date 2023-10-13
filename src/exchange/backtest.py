@@ -186,6 +186,10 @@ class BackTest(Stub):
         """      
         self.df_ohlcv = self.df_ohlcv.set_index(self.df_ohlcv.columns[0])       
         self.df_ohlcv.index = pd.to_datetime(self.df_ohlcv.index, errors='coerce')
+
+        if conf["args"].from_date != "epoch":
+            cut_off_time = pd.to_datetime(conf["args"].from_date, utc=True) 
+            self.df_ohlcv = self.df_ohlcv.loc[(self.df_ohlcv.index >= cut_off_time)]
         
         start = time.time()
 

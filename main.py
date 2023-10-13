@@ -23,6 +23,8 @@ if __name__ == "__main__":
     parser.add_argument("--session", type=str, default=None, help="Session ID.")
     parser.add_argument("--profile", type=str, default=None, help="Configuration profile name.")
 
+    parser.add_argument("--from", type=str, dest="from_date", default="epoch", help="Start Backtest from this date (yyyy-mm-dd) if possible.")
+
     parser.add_argument("--order-log", type=str, dest="order_log", default="orders.csv", help="File to store order data.")
     
     parser.add_argument('--plot', action='store_true')
