@@ -19,6 +19,7 @@ from src.exchange.stub import Stub
 from src.exchange_config import exchange_config
 from src.exchange.binance_futures.binance_futures_stub import BinanceFuturesStub
 
+from src.config import config as conf
 
 OHLC_DIRNAME = os.path.join(os.path.dirname(__file__), "./ohlc/{}/{}/{}")
 OHLC_FILENAME = os.path.join(os.path.dirname(__file__), "./ohlc/{}/{}/{}/data.csv")
@@ -437,7 +438,7 @@ class BackTest(Stub):
         """
         DATA_FILENAME = self.OHLC_FILENAME #OHLC_FILENAME.format("binance_futures", self.pair, self.bin_size)
         symlink(DATA_FILENAME, 'html/data/data.csv', overwrite=True)
-        ORDERS_FILENAME = os.path.join(os.getcwd(), "./orders.csv")
+        ORDERS_FILENAME = os.path.join(os.getcwd(), "./", conf["args"].order_log)
         symlink(ORDERS_FILENAME, 'html/data/orders.csv', overwrite=True)
         
         logger.info(f"============== Result ================")
