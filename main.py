@@ -24,6 +24,7 @@ if __name__ == "__main__":
     parser.add_argument("--profile", type=str, default=None, help="Configuration profile name.")
 
     parser.add_argument("--from", type=str, dest="from_date", default="epoch", help="Start Backtest from this UTC date[time] (yyyy-mm-dd[T00:00:00]) if possible.")
+    parser.add_argument("--to", type=str, dest="to_date", default="now", help="End Backtest at this UTC date[time] (yyyy-mm-dd[T00:00:00]) if possible.")
 
     parser.add_argument("--order-log", type=str, dest="order_log", default="orders.csv", help="File to store order data.")
     
