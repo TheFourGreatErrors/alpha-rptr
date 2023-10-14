@@ -23,16 +23,16 @@ if __name__ == "__main__":
     parser.add_argument("--session", type=str, default=None, help="Session ID.")
     parser.add_argument("--profile", type=str, default=None, help="Configuration profile name.")
 
-    parser.add_argument("--from", type=str, dest="from_date", default="epoch", help="Start Backtest from this date (yyyy-mm-dd) if possible.")
+    parser.add_argument("--from", type=str, dest="from_date", default="epoch", help="Start Backtest from this UTC date[time] (yyyy-mm-dd[T00:00:00]) if possible.")
 
     parser.add_argument("--order-log", type=str, dest="order_log", default="orders.csv", help="File to store order data.")
     
     parser.add_argument('--plot', action='store_true')
-    parser.add_argument('--no-plot', dest='plot', action='store_false')
+    parser.add_argument('--no-plot', dest='plot', action='store_false', help="Do not show plot after backtest")
     parser.set_defaults(plot=True)
 
     parser.add_argument('--html-report', dest='html_report', action='store_true')
-    parser.add_argument('--no-html-report', dest='html_report', action='store_false')
+    parser.add_argument('--no-html-report', dest='html_report', action='store_false', help="Do not add this backtest to HTML Workbench")
     parser.set_defaults(html_report=True)
 
     args = parser.parse_args()
