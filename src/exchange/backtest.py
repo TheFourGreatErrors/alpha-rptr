@@ -420,7 +420,7 @@ class BackTest(Stub):
 
             if self.update_data:
                 self.df_ohlcv = self.df_ohlcv[:-1] # exclude last candle
-                data = self.download_data( bin_size, dateutil.parser.isoparse(self.df_ohlcv.iloc[-1].name), end_time)
+                data = self.download_data( bin_size, dateutil.parser.isoparse(self.df_ohlcv.iloc[-1].name) if self.df_ohlcv.shape[0] > 0 else start_time, end_time)
                 self.df_ohlcv = pd.concat([self.df_ohlcv, data])
                 self.save_csv(self.df_ohlcv, file) 
                 
