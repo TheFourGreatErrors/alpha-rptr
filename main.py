@@ -28,6 +28,14 @@ if __name__ == "__main__":
 
     parser.add_argument("--order-log", type=str, dest="order_log", default="orders.csv", help="File to store order data.")
     
+    parser.add_argument('--check-candles', dest="check_candles", action='store_true', help="Check candles before backtest")
+    parser.add_argument('--dont-check-candles', dest='check_candles', action='store_false', help="Don't check candles before backtest")
+    parser.set_defaults(check_candles=None)
+
+    parser.add_argument('--update-ohlcv', dest="update_ohlcv", action='store_true', help="Update OHLCV before backtest")
+    parser.add_argument('--dont-update-ohlcv', dest='update_ohlcv', action='store_false', help="Don't update OHLCV before backtest")
+    parser.set_defaults(update_ohlcv=None)
+
     parser.add_argument('--plot', action='store_true')
     parser.add_argument('--no-plot', dest='plot', action='store_false', help="Do not show plot after backtest")
     parser.set_defaults(plot=True)

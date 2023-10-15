@@ -8,6 +8,8 @@ from time import sleep
 import json #pickle #jsonpickle #json
 from hyperopt import fmin, tpe, STATUS_OK, STATUS_FAIL, Trials
 
+from src.config import config as conf
+
 from src import logger, notify
 from src.exchange.bitmex.bitmex import BitMex
 from src.exchange.bybit.bybit import Bybit
@@ -263,6 +265,13 @@ class Bot:
             else:
                 logger.info(f"--exchange argument missing or invalid")
                 return
+        
+        if conf["args"].check_candles is not None:
+            self.exchange.check_candles_flag = conf["args"].check_candles
+
+        if conf["args"].update_ohlcv is not None:
+            self.exchange.update_data = conf["args"].update_ohlcv
+        
         self.exchange.ohlcv_len = self.ohlcv_len()
         self.exchange.on_update(self.bin_size, self.strategy)
 
