@@ -197,7 +197,8 @@ class BackTest(Stub):
 
         if conf["args"].to_date != "now":
             cut_off_time = pd.to_datetime(conf["args"].to_date, utc=True) 
-            self.df_ohlcv = self.df_ohlcv.loc[(self.df_ohlcv.index <= cut_off_time)]
+            self.df_ohlcv = self.df_ohlcv.loc[(self.df_ohlcv.index < cut_off_time)]
+            logger.info(f"Strategy End: {conf['args'].to_date} (Exclusive)")
         
         start = time.time()
 
