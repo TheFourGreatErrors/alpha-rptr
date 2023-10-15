@@ -187,9 +187,13 @@ class BackTest(Stub):
         self.df_ohlcv = self.df_ohlcv.set_index(self.df_ohlcv.columns[0])       
         self.df_ohlcv.index = pd.to_datetime(self.df_ohlcv.index, errors='coerce')
 
+        #calculate warmup duration in minutes
+        warmup_duration = allowed_range_minute_granularity[self.warmup_tf][3] * self.ohlcv_len
+
         if conf["args"].from_date != "epoch":
-            cut_off_time = pd.to_datetime(conf["args"].from_date, utc=True) 
+            cut_off_time = pd.to_datetime(conf["args"].from_date, utc=True) - np.timedelta64(warmup_duration, 'm')
             self.df_ohlcv = self.df_ohlcv.loc[(self.df_ohlcv.index >= cut_off_time)]
+            logger.info(f"OHLCV Buffer Start: {cut_off_time} - Strategy Start: {conf['args'].from_date} (Inclusive)")
 
         if conf["args"].to_date != "now":
             cut_off_time = pd.to_datetime(conf["args"].to_date, utc=True) 
