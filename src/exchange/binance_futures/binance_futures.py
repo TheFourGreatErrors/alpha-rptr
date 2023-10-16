@@ -1,8 +1,8 @@
 # coding: UTF-8
 
-#import json
+import json
 import math
-#import os
+import os
 import traceback
 from datetime import datetime, timezone
 from inspect import signature
@@ -167,7 +167,16 @@ class BinanceFutures:
         if self.base_asset == None or self.asset_rounding == None or \
             self.quote_asset == None or self.quote_rounding == None:
 
-            exchange_info =  retry(lambda: self.client.futures_exchange_info())
+            if conf["args"].exchange_info == "cached" and os.path.exists("bf_exchange_info.json"):
+                with open("bf_exchange_info.json", 'r') as f:
+                    exchange_info =  json.load(f)
+                    info_time = datetime.fromtimestamp(exchange_info['serverTime']/1000).astimezone(UTC)
+                    logger.info(f"Using Cached Exchange Info Retrieved at {info_time}")
+            else:
+                exchange_info =  retry(lambda: self.client.futures_exchange_info())
+                with open("bf_exchange_info.json", 'w') as f:
+                    json.dump(exchange_info, f, indent=4)
+
             symbols = exchange_info['symbols']
             symbol = [symbol for symbol in symbols if symbol.get('symbol')==self.pair]                 
 

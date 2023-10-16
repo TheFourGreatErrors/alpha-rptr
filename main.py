@@ -44,6 +44,8 @@ if __name__ == "__main__":
     parser.add_argument('--no-html-report', dest='html_report', action='store_false', help="Do not add this backtest to HTML Workbench")
     parser.set_defaults(html_report=True)
 
+    parser.add_argument("--exchange-info", type=str, dest="exchange_info", default="fetch", help="Fetch <fetch> (default) or use cached <cached> exchange info.")
+
     args = parser.parse_args()
 
     if args.profile and args.profile in conf["args_profile"]:
