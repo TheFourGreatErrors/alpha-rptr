@@ -58,6 +58,8 @@ class BinanceFutures:
         self.account = account
         # Pair
         self.pair = pair
+        # Leverage
+        self.leverage = 1
         # Launch date
         self.launch_date = None
         # Base Asset
@@ -188,6 +190,11 @@ class BinanceFutures:
 
             self.quote_asset = symbol[0]['quoteAsset']
             self.quote_rounding = symbol[0]['pricePrecision']      
+
+        if conf["args"].leverage is not None:
+            self.leverage = conf["args"].leverage
+        
+        self.set_leverage(self.leverage)
 
         self.sync()  
 

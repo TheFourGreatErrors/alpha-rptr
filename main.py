@@ -46,6 +46,8 @@ if __name__ == "__main__":
 
     parser.add_argument("--exchange-info", type=str, dest="exchange_info", default="fetch", help="Fetch <fetch> (default) or use cached <cached> exchange info.")
 
+    parser.add_argument("--leverage", type=int, dest="leverage", help="Set the leverage on this trading account.")
+
     args = parser.parse_args()
 
     if args.profile and args.profile in conf["args_profile"]:
