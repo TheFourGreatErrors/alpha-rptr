@@ -189,6 +189,7 @@ class BinanceFutures:
             self.quote_asset = symbol[0]['quoteAsset']
             self.quote_rounding = symbol[0]['pricePrecision']      
 
+        logger.info(f"Current Leverage: {self.get_leverage()}")
         if conf["args"].leverage is not None:
             self.set_leverage(conf["args"].leverage)       
 
