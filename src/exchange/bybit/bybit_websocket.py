@@ -24,7 +24,7 @@ def generate_nonce():
 
 class BybitWs:
 
-    def __init__(self, account, pair, spot=False, test=False):
+    def __init__(self, account, pair, spot=False, is_unified=False, test=False):
         """
         constructor
         """
@@ -35,7 +35,7 @@ class BybitWs:
         # Spot
         self.spot = spot
         # Unified margin?
-        self.unified_margin = False
+        self.unified_margin = is_unified      
         # testnet
         self.testnet = test     
         # Separate private websocket
@@ -49,23 +49,33 @@ class BybitWs:
         # Notification destination listener
         self.handlers = {}      
         # Endpoints    
+        self.unified_margin = False        
         if self.spot:
             self.endpoint = 'wss://stream-testnet.bybit.com/spot/public/v3' \
                             if self.testnet else  'wss://stream.bybit.com/spot/public/v3'
             self.endpoint_private = 'wss://stream-testnet.bybit.com/spot/private/v3' \
                             if self.testnet else 'wss://stream.bybit.com/spot/private/v3'
-        else:
-            if self.unified_margin:
-                if self.pair.endswith("USDT"):
+        else:                      
+            if self.unified_margin and not self.spot:
+                if self.pair.endswith("USDT"):                   
                     self.endpoint = 'wss://stream-testnet.bybit.com/contract/usdt/public/v3' \
                                     if self.testnet else 'wss://stream.bybit.com/contract/usdt/public/v3'
                     self.endpoint_private = 'wss://stream-testnet.bybit.com/unified/private/v3' \
                                     if self.testnet else 'wss://stream.bybit.com/unified/private/v3'
-                if self.pair.endswith("PERP"):
+                elif self.pair.endswith("PERP"):
                     self.endpoint = 'wss://stream-testnet.bybit.com/contract/usdc/public/v3' \
                                     if self.testnet else 'wss://stream.bybit.com/contract/usdc/public/v3'
+                    self.endpoint_private = 'wss://stream-testnet.bybit.com/contract/private/v3' \
+                                    if self.testnet else 'wss://stream.bybit.com/contract/private/v3'           
+                else:     
+                    # Inverse contracts UNIIFIED   
+                    # We have to treat the private ws connection as if it was a CONTRACT and not UNIFIED
+                    # since it uses the CONTRACT wallet           
+                    self.unified_margin = False
+                    self.endpoint = 'wss://stream-testnet.bybit.com/contract/inverse/public/v3' \
+                                    if self.testnet else 'wss://stream.bybit.com/contract/inverse/public/v3'
                     self.endpoint_private = 'wss://stream-testnet.bybit.com/unified/private/v3' \
-                                    if self.testnet else 'wss://stream.bybit.com/unified/private/v3'
+                                    if self.testnet else 'wss://stream.bybit.com/unified/private/v3'     
             else:
                 if self.pair.endswith("USDT"):
                     self.endpoint = 'wss://stream-testnet.bybit.com/contract/usdt/public/v3' \
@@ -75,8 +85,8 @@ class BybitWs:
                 elif self.pair.endswith("PERP"):
                     self.endpoint = 'wss://stream-testnet.bybit.com/contract/usdc/public/v3' \
                                     if self.testnet else 'wss://stream.bybit.com/contract/usdc/public/v3'
-                    self.endpoint_private = 'wss://stream-testnet.bybit.com/trade/option/usdc/private/v1' \
-                                    if self.testnet else 'wss://stream.bybit.com/trade/option/usdc/private/v1'
+                    self.endpoint_private = 'wss://stream-testnet.bybit.com/contract/private/v3' \
+                                    if self.testnet else 'wss://stream.bybit.com/contract/private/v3'
                 else:
                     self.endpoint = 'wss://stream-testnet.bybit.com/contract/inverse/public/v3' \
                                     if self.testnet else 'wss://stream.bybit.com/contract/inverse/public/v3'
@@ -176,66 +186,78 @@ class BybitWs:
         while self.is_running:                    
             self.wsp.run_forever()      
 
-    def __on_open_public(self, ws):        
+    def __on_open_public(self, ws):             
         if self.spot:  
             ws.send(
                 json.dumps({
                     'op': 'subscribe',
-                    'args': ["kline.1m." + self.pair,
-                              "kline.5m." + self.pair, 
-                             "kline.1h." + self.pair, 
-                             "kline.1d." + self.pair, #"trade." + self.pair,
-                             "tickers." + self.pair, 
-                             "bookticker." + self.pair, 
-                             "orderbook.40." + self.pair]
-                }) 
-            )    
+                    'args': [
+                        "kline.1m." + self.pair,
+                        "kline.5m." + self.pair, 
+                        "kline.1h." + self.pair, 
+                        "kline.1d." + self.pair,
+                        #"trade." + self.pair,
+                        "tickers." + self.pair, 
+                        "bookticker." + self.pair, 
+                        "orderbook.40." + self.pair
+                    ]
+                })
+            )  
         else:
-           ws.send(
-           json.dumps({
-                'op': 'subscribe',
-                'args': ["kline.1." + self.pair, 
-                         "kline.5." + self.pair, 
-                         "kline.60." + self.pair, 
-                         "kline.D." + self.pair, #"publicTrade." + self.pair,
-                         "tickers." + self.pair, 
-                         "orderbook.1." + self.pair] # orderbook 1 level data is 10ms, 50 level data is 20ms, 200 is 100ms, 500 is 100ms
-            })
-        )    
+            ws.send(
+                json.dumps({
+                    'op': 'subscribe',
+                    'args': [
+                        "kline.1." + self.pair, 
+                        "kline.5." + self.pair, 
+                        "kline.60." + self.pair, 
+                        "kline.D." + self.pair,
+                        #"publicTrade." + self.pair,
+                        "tickers." + self.pair, 
+                        "orderbook.1." + self.pair  # orderbook 1 level data is 10ms, 50 level data is 20ms, 200 is 100ms, 500 is 100ms
+                    ]
+                })
+            )
     
     def __on_open_private(self, ws):        
         ws = self.wsp if self.wsp else ws    
-        self.__auth(ws)      
+        self.__auth(ws)           
         account = "unifiedAccount" if self.unified_margin else "contractAccount" 
 
         if self.spot:
-             ws.send(
-            json.dumps({
-                    'op': 'subscribe',
-                    'args': ["outboundAccountInfo", 
-                             "stopOrder", 
-                             "order", 
-                             "ticketInfo"]
+            ws.send(
+                json.dumps({
+                        'op': 'subscribe',
+                        'args': [
+                            "outboundAccountInfo", 
+                            "stopOrder", 
+                            "order", 
+                            "ticketInfo"
+                        ]
                 }) 
             )            
         elif self.pair.endswith('PERP') and not self.unified_margin:
             ws.send(
-            json.dumps({
+                json.dumps({
                     'op': 'subscribe',
-                    'args': ["user.openapi.perp.position", 
-                             "user.openapi.perp.trade", 
-                             "user.openapi.perp.order", 
-                             "user.service"]
+                    'args': [
+                        "user.openapi.perp.position", 
+                        "user.openapi.perp.trade", 
+                        "user.openapi.perp.order", 
+                        "user.service"
+                    ]
                 }) 
             )         
         else:           
             ws.send(
-            json.dumps({
+                json.dumps({
                     'op': 'subscribe',
-                    'args': ["user.position." + account, 
-                             "user.execution." + account, 
-                             "user.order." + account, 
-                             "user.wallet."  + account]
+                    'args': [
+                        "user.position." + account, 
+                        "user.execution." + account, 
+                        "user.order." + account, 
+                        "user.wallet."  + account
+                    ]
                 }) 
             )              
           
@@ -260,16 +282,16 @@ class BybitWs:
         """                
         try:
             obj = json.loads(message)      
-     
+            #print(obj)
             if 'topic' in obj:
                 if len(obj['data']) <= 0:
                     return
-
+             
                 table = obj['topic']
                 action = obj['topic'] #obj['type']
                 data = obj['data']  
-
-                data = data['result'] if table.startswith("user.openapi.") else data
+                
+                data = data['result'] if 'reuslt' in data else data  #table.startswith("user.openapi.") else data
 
                 if table.startswith("trade"): # Tick Data, currently not used         
                     pass
@@ -341,17 +363,19 @@ class BybitWs:
                     self.__emit("position", action, data)                   
 
                 elif table.startswith(("user." if not self.spot else "") + "execution") \
-                    or table.startswith("tickerInfo") or table == "user.openapi.perp.trade":                   
-                    self.__emit("execution", action, data[0])
+                    or table.startswith("tickerInfo") or table == "user.openapi.perp.trade":       
+                    data = data['result'] if 'result' in data else data[0]            
+                    self.__emit("execution", action, data)
 
                 elif table.startswith("user.order") \
                     or table == "user.openapi.perp.order" \
-                    or table == "order" or table.startswith("stopOrder"):
+                    or table == "order" or table.startswith("stopOrder"):                    
                     self.__emit("order", action, data)
 
                 elif table.startswith("outboundAccountInfo") \
-                    or table.startswith("user.wallet") or table == "user.service":
-                    self.__emit("wallet", action, data[0])                    
+                    or table.startswith("user.wallet") or table == "user.service":            
+                    data = data['result'] if 'result' in data else data[0]
+                    self.__emit("wallet", action, data)                    
 
         except Exception as e:
             logger.error(e)

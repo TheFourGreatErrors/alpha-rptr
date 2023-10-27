@@ -12,4 +12,5 @@ oauth2client
 discord-webhook==1.1.0
 pybit==2.4.1
 ciso8601
+pycryptodome
 influxdb-client[ciso]
