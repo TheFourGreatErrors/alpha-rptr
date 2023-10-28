@@ -10,7 +10,7 @@ pyti
 google-api-python-client
 oauth2client
 discord-webhook==1.1.0
-pybit==2.4.1
+pybit
 ciso8601
 pycryptodome
 influxdb-client[ciso]
