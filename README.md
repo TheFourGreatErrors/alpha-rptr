@@ -390,21 +390,21 @@ These examples are usually in the context of `strategy()`, which can be found in
 
 # Bybit order with all parameters and default arguments
 order(
-      id,
-      long,
-      qty,
-      limit,
-      stop=0,
-      post_only=False,
-      reduce_only=False,
-      when=True,
-      callback=None,
-      trigger_by='LastPrice',
-      split=1, # for iceberg order
-      interval=0, # for iceberg order 
-      limit_chase_init_delay=0.0001, # for limit chase order
-      chase_update_rate=0.05, # for limit chase
-      limit_chase_interval=0  # side, qty and this parameter above 0 starts limit chase (currently only supperted on Bybit)
+      id, # Order ID (user ID)
+      long, # True for a long position, False for a short position.
+      qty, # Quantity. Quantity of the asset to buy/sell in the order.
+      limit, # Limit price.
+      stop=0, # Stop limit. Stop price for the order (if applicable, set to 0 for non-stop orders).
+      post_only=False, # Post Only. Set to True to place the order as a post-only order (default is False).
+      reduce_only=False, # Reduce Only. Set to True if the order is intended to reduce the existing position, not increase it (default is False).
+      when=True, # When. Set to True to execute the order, False to skip execution (useful for testing etc.).
+      callback=None, # Callback. A function to be called after the order is executed (optional).
+      trigger_by='LastPrice', # Trigger By. Price to use for triggers (e.g., 'LastPrice', 'IndexPrice', etc.).
+      split=1, # For iceberg orders, set the number of order splits (default is 1, for non-iceberg orders).
+      interval=0, # For iceberg orders, set the time interval between order splits (default is 0, for non-iceberg orders).
+      limit_chase_init_delay=0.0001, # Limit Chase Init Delay. Initial delay for limit order chasing (used when post_only is True and limit_chase_interval > 0).
+      chase_update_rate=0.05, # Chase Update Rate. Sleep interval between price updates during limit order chasing.
+      limit_chase_interval=0  # side, qty, post_only and this parameter above 0 starts limit chase (currently only supperted on Bybit).
 )
 
 
