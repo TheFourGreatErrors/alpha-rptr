@@ -1,6 +1,6 @@
 # coding: UTF-8
 
-import importlib, os, shutil
+import importlib, os, sys, shutil, textwrap
 
 import json #pickle #jsonpickle #json
 
@@ -32,7 +32,25 @@ class BotFactory():
 
             if conf["args"].html_report:
                 STRATEGY_FILENAME = os.path.join(os.getcwd(), f"src/strategies/{args.strategy}.py")
-                shutil.copy(STRATEGY_FILENAME, 'html/data/strategy.py')
+
+                with open(STRATEGY_FILENAME, 'r') as file:
+                    original_content = file.read()
+
+                updated_content = f"""
+                #####################
+                #
+                # Command: {' '.join(sys.argv)}  
+                #
+                #####################
+                """
+                updated_content = textwrap.dedent(updated_content)
+
+                updated_content = updated_content + original_content
+
+                with open('html/data/strategy.py', 'w') as file:
+                    file.write(updated_content)
+
+                #shutil.copy(STRATEGY_FILENAME, 'html/data/strategy.py')
             
             if args.session != None:
                 try:
