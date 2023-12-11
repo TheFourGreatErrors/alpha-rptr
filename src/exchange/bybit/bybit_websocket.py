@@ -48,8 +48,7 @@ class BybitWs:
         self.is_running = True
         # Notification destination listener
         self.handlers = {}      
-        # Endpoints    
-        self.unified_margin = False        
+        # Endpoints           
         if self.spot:
             self.endpoint = 'wss://stream-testnet.bybit.com/spot/public/v3' \
                             if self.testnet else  'wss://stream.bybit.com/spot/public/v3'
