@@ -727,23 +727,26 @@ class Bybit:
                                                 orderId=order_id, orderLinkId=user_id,
                                                 stop_order_id=stop_order_id, 
                                                 symbol=self.pair, orderFilter='StopOrder'))      
-        
+       
         if 'list' not in res:
             if 'success' in res:
                 return res['success']
             else: return False
 
         res = res['list']        
-        res_len = len(res[0])                
-       
+        res_len = len(res) if res else 0              
+        
         if res_len > 1:
-            logger.info(f"Cancelled {res_len} conditional orders: {res[0]}, pair: {self.pair}")
-        elif res_len == 1 and ('orderId' not in res[0]  or 'orderLinkId' not in res[0]):           
-            return False
-        else:
-            logger.info(f"Cancelled order usder id: {res[0]['orderLinkId']} order id: {res[0]['orderId']} pair: {self.pair}")
+            logger.info(f"Cancelled {res_len} conditional orders: {res}, pair: {self.pair}")
+        elif res_len == 1:    
+            if ('orderId' not in res[0]  or 'orderLinkId' not in res[0]):
+                return False
+            logger.info(f"Cancelled order user id: {res[0]['orderLinkId']} order id: {res[0]['orderId']} pair: {self.pair}")       
+            
+            
         if user_id is not None:
             self.callbacks.pop(user_id)
+
         return True      
     
     def cancel_active_order(self, order_id=None, user_id=None, cancel_all=False):
@@ -774,13 +777,11 @@ class Bybit:
                                  orderId=order_id, orderLinkId=user_id, category=self.category,
                                    symbol=self.pair, orderFilter='Order',
                                      orderTypes="LIMIT,LIMIT_MAKER"))
-      
+       
         if self.spot and not self.is_unified_account and 'success' in res:
             if res['success']:
                 return True
-            else: return False
-        
-        res = res['list'] if cancel_all else [res]
+            else: return False    
 
         # TODO exception pybit.exceptions.InvalidRequestError: Order not exists or too late to repalce (ErrCode: 20001) (ErrTime: 22:40:43). etc...
        
@@ -790,16 +791,18 @@ class Bybit:
             else: return False
 
         res = res['list']        
-        res_len = len(res)
+        res_len = len(res) if res else 0   
         
         if res_len > 1:
-            logger.info(f"Cancelled {res_len} active orders: {res[0]}, pair: {self.pair}")
-        elif res_len == 1 and ('orderId' not in res[0]  or 'orderLinkId' not in res[0]):           
-            return False        
-        else:
-            logger.info(f"Cancelling order usder id: {res[0]['orderLinkId']} order id: {res[0]['orderId']} pair: {self.pair}") 
+            logger.info(f"Cancelled {res_len} active orders: {res}, pair: {self.pair}")
+        elif res_len == 1:    
+            if ('orderId' not in res[0]  or 'orderLinkId' not in res[0]):
+                return False
+            logger.info(f"Cancelled order user id: {res[0]['orderLinkId']} order id: {res[0]['orderId']} pair: {self.pair}")       
+
         if user_id is not None:
             self.callbacks.pop(user_id)
+
         return True      
 
     def __new_order(
@@ -2253,7 +2256,7 @@ class Bybit:
             # TODO orderbook
             # self.ob = OrderBook(self.ws)        
 
-            if self.call_strat_on_start and not self.spot and not self.pair.endswith("PERP"):               
+            if self.call_strat_on_start and not self.spot: #and not self.pair.endswith("PERP"):               
                 data = to_data_frame([{
                     "timestamp": self.now_time() + timedelta(seconds=0.1),
                     "open": np.nan,
