@@ -5,6 +5,7 @@ import math
 import os
 import traceback
 from datetime import datetime, timezone, timedelta
+from inspect import signature
 import time
 import threading
 from decimal import Decimal
@@ -15,8 +16,8 @@ from bravado.exception import HTTPNotFound
 from pytz import UTC
 
 from src import (logger, bin_size_converter, find_timeframe_string,
-                 allowed_range_minute_granularity, allowed_range, sync_obj_with_config,
-                 to_data_frame, resample, delta, FatalError, notify, ord_suffix)
+                 allowed_range_minute_granularity, allowed_range, parseFloat, sync_obj_with_config,
+                 to_data_frame, resample, delta, FatalError, notify, log_metrics, ord_suffix)
 from src import retry_bybit as retry
 from pybit import unified_trading
 #from pybit import spot as spot_http
@@ -28,6 +29,47 @@ from src.exchange.bybit.bybit_websocket import BybitWs
 #TODO
 # orderbook class
 #from src.exchange.bybit.bybit_orderbook import OrderBook
+
+
+bybit_order_type_mapping = {
+    "Market"    : "MARKET",
+    "Limit"     : "LIMIT"
+}
+
+
+bybit_trigger_by_mapping = {
+    "LastPrice"     : "CONTRACT_PRICE",
+    "MarkPrice"     : "MARK_PRICE",
+    "IndexPrice"    : "INDEX_PRICE",
+    "UNKNOWN"       : "CONTRACT_PRICE",
+
+    "CONTRACT_PRICE" : "LastPrice",
+    "MARK_PRICE"     : "MarkPrice",
+    "INDEX_PRICE"    : "IndexPrice"      
+}
+
+
+bybit_tif_mapping = {
+    "GTC"           : "GTC",
+    "IOC"           : "IOC",
+    "FOK"           : "FOK",
+    "PostOnly"      : "GTX"
+}
+
+
+bybit_order_status_mapping = {
+    "Created"           : "CREATED",
+    "New"               : "NEW",
+    "Rejected"          : "REJECTED",
+    "PartiallyFilled"   : "PARTIALLY_FILLED",
+    "Filled"            : "FILLED",
+    "PendingCancel"     : "PENDING_CANCEL",
+    "Cancelled"         : "CANCELED",
+    "Untriggered"       : "UNTRIGGERED",
+    "Triggered"         : "TRIGGERED",
+    "Deactivated"       : "DEACTIVATED",
+    "Active"            : "ACTIVE"
+}
 
 
 class Bybit:
@@ -52,10 +94,10 @@ class Bybit:
 
     def __init__(self, account, pair, demo=False, spot=False, threading=True):
         """
-        Constructor for BinanceFutures class.
+        Constructor for ByBit class.
         Args:
             account (str): The account identifier for Bybit.
-            pair (str): The trading pair for Binance futures.
+            pair (str): The trading pair for ByBit.
             demo (bool, optional): Flag to use the testnet. Default is False.
             threading (bool, optional): Condition for setting the 'is_running' flag.
                 Default is True to indicate the bot is running.
@@ -64,6 +106,8 @@ class Bybit:
         self.account = account
         # Pair
         self.pair = (pair.replace("-", "") if pair.upper().endswith("PERP") else pair).upper()
+        # Launch date
+        self.launch_date = None
         # Spot market?
         self.spot = spot
         # Base Asset
@@ -122,7 +166,9 @@ class Bybit:
             'stop_long_callback': None,
             'stop_short_callback': None,
             'split': 1,
-            'interval': 0
+            'interval': 0,
+            'chaser': False,
+            'retry_maker': 100
         }      
         # Is SLTP active
         self.is_sltp_active = False   
@@ -135,7 +181,9 @@ class Bybit:
             'loss_callback': None,
             'trail_callbak': None,
             'split': 1,
-            'interval': 0
+            'interval': 0,
+            'chaser': False,
+            'retry_maker': 100
         }
         # Is exit order active
         self.is_exit_order_active = False
@@ -143,11 +191,6 @@ class Bybit:
         self.trail_price = 0   
         # Order callbacks
         self.callbacks = {}    
-        # Limit chaser order
-        self.limit_chaser_ord = {'Buy': {},
-                                 'Sell': {}}    
-        # Force chaser thread stop
-        self.stop_chaser_thread = False
         # Best bid price
         self.best_bid_price = None
         # Best ask price
@@ -156,10 +199,12 @@ class Bybit:
         self.bid_quantity_L1 = None
         # Ask quantity L1
         self.ask_quantity_L1 = None
+        # callback
+        self.best_bid_ask_change_callback = {}
 
         # Bybit specific
         self.is_unified_account = None 
-        self.account_type = None # 'UNIFIED'. 'CLASSIC'?, 'CONTRACT', 'SPOT' etc.
+        self.account_type = 'UNIFIED' # 'UNIFIED'. 'CLASSIC'?, 'CONTRACT', 'SPOT' etc.
         self.category = None # 'linear', 'inverse', 'spot' etc.
 
         sync_obj_with_config(exchange_config['bybit'], Bybit, self)            
@@ -180,22 +225,14 @@ class Bybit:
         self.client = unified_trading.HTTP(testnet=self.demo, api_key=api_key, api_secret=api_secret)
 
         # Get account type information
-        self.is_unified_account = True if retry(lambda: self.client.get_account_info())['unifiedMarginStatus'] > 1 else False      
+        self.is_unified_account = True if retry(lambda: self.client.get_account_info())['unifiedMarginStatus'] > 2 else False      
         
         if self.spot: 
             self.category = 'spot'            
-            self.account_type = 'UNIFIED' if self.is_unified_account else 'SPOT'
         elif self.pair.endswith('USDT') or self.pair.endswith('PERP'):
             self.category = 'linear'       
-            self.account_type = 'UNIFIED' if self.is_unified_account else 'CONTRACT'
-            if not self.is_unified_account and self.pair.endswith('PERP'):
-                logger.info(f"USDC Perpetuals Are Only available Via UNIFIED Account in API version 5 !!!!!!!!!!!")
-                logger.info(f"USDC Perpetuals Are Only available Via UNIFIED Account in API version 5 !!!!!!!!!!!")
-                logger.info(f"USDC Perpetuals Are Only available Via UNIFIED Account in API version 5 !!!!!!!!!!!")
-                self.stop()
         elif self.pair.endswith('USD'):
             self.category = 'inverse' 
-            self.account_type =  'CONTRACT'
         else:
             raise ValueError("Invalid or unsupported pair!")
 
@@ -243,6 +280,17 @@ class Bybit:
         Get the current time in UTC timezone.
         """
         return datetime.now().astimezone(UTC)
+
+    def get_launch_date(self):
+        """
+        Get the launch date of this pair
+        Args:
+            None
+        Returns:
+            datetime: The launch date of this pair
+        """
+        self.launch_date = datetime.fromisoformat("2020-01-01T00:00:00+00:00")
+        return self.launch_date
         
     def get_retain_rate(self):
         """
@@ -308,28 +356,26 @@ class Bybit:
             if len(balance) > 0:          
                 # Calculate and return the available or total balance based on the 'return_available' flag.
                 balance = float(balance[0]['walletBalance']) - float(balance[0]['locked'])  if return_available \
-                            else float(balance[0]['walletBalance' if self.is_unified_account else 'free'])                      
+                            else float(balance[0]['walletBalance'])                      
                 return balance             
             else:
                 logger.info(f"Unable to find asset: {asset} in balances")
             
         # Check if the trading pair ends with specific strings.    
         elif self.pair.endswith('USDT') or self.pair.endswith('USD') or self.pair.endswith('PERP'):   
-            # If it's not a unified account(except for ) and asset is not specified, determine the asset based on category.       
-            if self.account_type == 'CONTRACT' and not asset:   
-                asset = self.base_asset if self.category == 'inverse' else self.quote_asset 
-                balances = balances[0]['coin']                          
- 
+
             if not asset:          
                 # Calculate and return the available or total balance based on the 'return_available' flag.
                 balance = (float(balances[0]['totalAvailableBalance']) \
                             if return_available else float(balances[0]['totalMarginBalance']))      
                 return balance             
             elif asset:
+                balances = balances[0]['coin']
                 # Find the balance entry for the specified asset.
                 balance =  [balance for balance in balances if balance.get('coin')==asset]
-                balance = float(balance[0]['walletBalance']) - float(balance[0]['locked']) \
-                            if return_available else float(balance[0]['walletBalance'])         
+                balance = (float(balance[0]['walletBalance']) - float(balance[0]['locked']) \
+                            if return_available else float(balance[0]['walletBalance']) ) \
+                            if len(balance) > 0 else 0 #coin not found        
                 return balance
             else:
                 logger.info(f"Unable to find asset: {asset} in balances")           
@@ -390,7 +436,7 @@ class Bybit:
         symbol = self.pair if symbol is None else symbol
         return float(self.get_position()[0]["leverage"])
 
-    def get_position(self, symbol=None, force_api_call=False):
+    def get_position(self, symbol=None, force_api_call=True):
         """
         Get the leverage for the specified symbol.
         Args:
@@ -427,7 +473,7 @@ class Bybit:
             position = get_position_api_call()       
             return position
 
-    def get_position_size(self, force_api_call=False):
+    def get_position_size(self, force_api_call=True):
         """
         Get the position size.
         Args:
@@ -476,11 +522,11 @@ class Bybit:
         if self.market_price != 0:
             return self.market_price
         else:  # when the WebSocket cant get it
-            symbol_information = self.get_ticker_information()
+            symbol_information = self.get_orderbook_ticker()
             if symbol_information is None:
                 return 0               
             
-            self.market_price = float(symbol_information[0]['lastPrice'])             
+            self.market_price = float(symbol_information['lastPrice'])             
             
             return self.market_price
     
@@ -527,7 +573,7 @@ class Bybit:
 
         return profit
     
-    def get_ticker_information(self, symbol=None):
+    def get_orderbook_ticker(self, symbol=None):
         """
         Get the latest symbol (trading pair) information.
         Args:
@@ -545,6 +591,14 @@ class Bybit:
         
         if not ticker_information:
             return None
+
+        ticker_information = ticker_information[0] # List to Dict
+
+        ticker_information["askPrice"] = ticker_information["ask1Price"]
+        ticker_information["askSize"] = ticker_information["ask1Size"]
+
+        ticker_information["bidPrice"] = ticker_information["bid1Price"]
+        ticker_information["bidSize"] = ticker_information["bid1Size"]
         
         return ticker_information
     
@@ -615,12 +669,12 @@ class Bybit:
         if not res_active_orders and not res_conditional_orders:
             logger.info(f"No orders to cancel or an issue occurred for {self.pair}")
 
-        self.callbacks = {} 
+        #self.callbacks = {} 
     
     def close_all(self, 
                   spot_safety_catch=True, 
                   callback=None, 
-                  split=1, interval=0, 
+                  split=1, interval=0, chaser=False, retry_maker=100,
                   limit_chase_init_delay=0.0001, chase_update_rate=0.05, limit_chase_interval=0):
         """
         Close open positions for this pair.
@@ -650,7 +704,7 @@ class Bybit:
                 logger.info(f"Failed to close all {self.pair} position, still {position_size} amount remaining")
         
         self.order("Close", side, abs(position_size), 
-                   post_only=bool(limit_chase_interval),
+                   post_only=chaser or bool(limit_chase_interval), chaser=chaser, retry_maker=retry_maker,
                    limit_chase_init_delay=limit_chase_init_delay,
                    chase_update_rate=chase_update_rate, 
                    limit_chase_interval=limit_chase_interval, 
@@ -727,27 +781,27 @@ class Bybit:
                                                 orderId=order_id, orderLinkId=user_id,
                                                 stop_order_id=stop_order_id, 
                                                 symbol=self.pair, orderFilter='StopOrder'))      
-       
-        if 'list' not in res:
-            if 'success' in res:
-                return res['success']
-            else: return False
-
-        res = res['list']        
-        res_len = len(res) if res else 0              
         
-        if res_len > 1:
-            logger.info(f"Cancelled {res_len} conditional orders: {res}, pair: {self.pair}")
-        elif res_len == 1:    
-            if ('orderId' not in res[0]  or 'orderLinkId' not in res[0]):
+        # TODO exception pybit.exceptions.InvalidRequestError: Order not exists or too late to repalce (ErrCode: 20001) (ErrTime: 22:40:43). etc...
+        if cancel_all:
+            if self.category == "spot":
+                if res["success"] == "1":
+                    return True
+                else:
+                    return False
+            else:
+                orders = res["list"] 
+                if res["success"] == "1":
+                    logger.info(f"Cancelled Orders: {orders}")
+                    return True
+                else:
+                    return False
+        else: #single order cancellation
+            if res["orderId"] == order_id or res["orderLinkId"] == user_id:
+                logger.info(f"Cancelled Order: {user_id}")
+                return True
+            else :
                 return False
-            logger.info(f"Cancelled order user id: {res[0]['orderLinkId']} order id: {res[0]['orderId']} pair: {self.pair}")       
-            
-            
-        if user_id is not None:
-            self.callbacks.pop(user_id)
-
-        return True      
     
     def cancel_active_order(self, order_id=None, user_id=None, cancel_all=False):
         """
@@ -777,34 +831,28 @@ class Bybit:
                                  orderId=order_id, orderLinkId=user_id, category=self.category,
                                    symbol=self.pair, orderFilter='Order',
                                      orderTypes="LIMIT,LIMIT_MAKER"))
-       
-        if self.spot and not self.is_unified_account and 'success' in res:
-            if res['success']:
-                return True
-            else: return False    
-
+      
         # TODO exception pybit.exceptions.InvalidRequestError: Order not exists or too late to repalce (ErrCode: 20001) (ErrTime: 22:40:43). etc...
-       
-        if 'list' not in res:
-            if 'success' in res:
-                return res['success']
-            else: return False
-
-        res = res['list']        
-        res_len = len(res) if res else 0   
-        
-        if res_len > 1:
-            logger.info(f"Cancelled {res_len} active orders: {res}, pair: {self.pair}")
-        elif res_len == 1:    
-            if ('orderId' not in res[0]  or 'orderLinkId' not in res[0]):
+        if cancel_all:
+            if self.category == "spot":
+                if res["success"] == "1":
+                    return True
+                else:
+                    return False
+            else:
+                orders = res["list"] 
+                if res["success"] == "1":
+                    logger.info(f"Cancelled Orders: {orders}")
+                    return True
+                else:
+                    return False
+        else: #single order cancellation
+            if res["orderId"] == order_id or res["orderLinkId"] == user_id:
+                logger.info(f"Cancelled Order: {user_id}")
+                return True
+            else :
                 return False
-            logger.info(f"Cancelled order user id: {res[0]['orderLinkId']} order id: {res[0]['orderId']} pair: {self.pair}")       
-
-        if user_id is not None:
-            self.callbacks.pop(user_id)
-
-        return True      
-
+        
     def __new_order(
         self,
         ord_id,
@@ -816,7 +864,7 @@ class Bybit:
         reduce_only=False,
         trailing_stop=0, 
         activationPrice=0,
-        trigger_by='LastPrice'
+        trigger_by='CONTRACT_PRICE'
     ):
         """
         Create an order.
@@ -852,6 +900,7 @@ class Bybit:
                     #market_price + market_price / 100 * 1 if stop > market_price else market_price - market_price / 100 * 1 
         trig_dir = 1 if stop > base_price else 2
         timeInForce = 'GTC'
+        trigger_by = bybit_trigger_by_mapping[trigger_by]
         cat = self.category   
        
         if limit > 0 and post_only:            
@@ -893,7 +942,7 @@ class Bybit:
             type = "LIMIT"
             orderFilter = "Order" # if self.pair.endswith('PERP') else None 
             limit = str(limit) # if self.pair.endswith('PERP') else limit          
-            
+            post_only=True, 
             res = retry(lambda: self.client
                                 .place_order(symbol=self.pair, category=cat,
                                             order_type=ord_type, orderType=ord_type, type=type,
@@ -920,53 +969,24 @@ class Bybit:
                                             time_in_force='GoodTillCancel', timeInForce=timeInForce,
                                             trigger_by=trigger_by, triggerBy=trigger_by,
                                             orderFilter=orderFilter, position_idx=0))
-        elif post_only:  # Limit Chaser        
+        elif post_only:         
             limit = self.best_bid_price if side == "Buy" else self.best_ask_price
             ord_type = "Limit" 
             type = "LIMIT_MAKER" # Spot only
             orderFilter = "Order" # if self.pair.endswith('PERP') else None             
             limit = str(limit) # if self.pair.endswith('PERP') else limit 
            
-            def chaser(ord_id=ord_id):
-                i=0
-                while True:                                        
-                    #logger.info(f"{self.limit_chaser_ord}")
-                    if self.limit_chaser_ord[side]['is_amend_active'] \
-                        or not self.limit_chaser_ord[side]['is_active'] \
-                        or self.stop_chaser_thread: 
-                        self.limit_chaser_ord[side]['active_counter'] = 0             
-                        return                    
-                    
-                    ord_id = self.limit_chaser_ord[side]['ID'].split('_')[0] \
-                             + '_' + str(i) + ord_suffix() if i>0 else ord_id              
-                    
-                    limit = self.best_bid_price if side == "Buy" else self.best_ask_price
-                    #logger.info(f"i: {i}   active_counter: {self.limit_chaser_ord[side]['active_counter']}")
-                    if limit is None \
-                        or self.limit_chaser_ord[side]['active_counter'] != i:
-                        time.sleep(0.05)
-                        continue
-                    limit = str(limit) # if self.pair.endswith('PERP') else limit   
-                    #logger.info(f"best bid: {self.best_bid_price}     best ask: {self.best_ask_price} ")                   
+            res = retry(lambda: self.client
+                                .place_order(symbol=self.pair, category=cat,
+                                            order_type=ord_type, orderType=ord_type, type=type,
+                                            order_link_id=ord_id, orderLinkId=ord_id, side=side, 
+                                            qty=ord_qty, orderQty=ord_qty,
+                                            price=limit, orderPrice=limit,
+                                            reduce_only=reduce_only, reduceOnly=reduce_only,
+                                            close_on_trigger=reduce_only,
+                                            time_in_force='PostOnly', timeInForce='PostOnly',
+                                            orderFilter=orderFilter, position_idx=0))
 
-                    self.limit_chaser_ord[side]['ID'] = ord_id      
-                    ord_qty = abs(self.limit_chaser_ord[side]['Qty']) - self.limit_chaser_ord[side]['Filled']
-                    ord_qty = str(ord_qty) # if self.pair.endswith('PERP') else ord_qty
-
-                    res = retry(lambda: self.client
-                                    .place_order(symbol=self.pair, category=cat,
-                                                order_type=ord_type, orderType=ord_type, type=type,
-                                                order_link_id=ord_id, orderLinkId=ord_id, side=side, 
-                                                qty=ord_qty, orderQty=ord_qty,
-                                                price=limit, orderPrice=limit,
-                                                reduce_only=reduce_only, reduceOnly=reduce_only,
-                                                close_on_trigger=reduce_only,
-                                                time_in_force='PostOnly', timeInForce='PostOnly',
-                                                orderFilter=orderFilter, position_idx=0))
-                    time.sleep(0.1)
-                    i += 1   
-
-            threading.Timer(0.001, chaser).start()       
         else:
             ord_type = "Market"
             type = "MARKET"
@@ -1106,9 +1126,11 @@ class Bybit:
         when=True,
         round_decimals=None,
         callback=None,
-        trigger_by='LastPrice',
+        trigger_by='CONTRACT_PRICE',
         split=1,
         interval=0,
+        chaser=False,
+        retry_maker=100,
         limit_chase_init_delay=0.0001, 
         chase_update_rate=0.05, 
         limit_chase_interval=0
@@ -1163,9 +1185,9 @@ class Bybit:
         ord_qty = abs(qty) + abs(pos_size)
         ord_qty = round(ord_qty, round_decimals if round_decimals != None else self.asset_rounding)
 
-        self.order(id, long, ord_qty, limit, stop, post_only, 
-                   reduce_only, when, callback, trigger_by, split, interval,
-                   limit_chase_init_delay, chase_update_rate, limit_chase_interval)
+        self.order(id, long, ord_qty, limit=limit, stop=stop, post_only=post_only, 
+                   reduce_only=reduce_only, when=when, callback=callback, trigger_by=trigger_by, split=split, interval=interval, chaser=chaser, retry_maker=retry_maker,
+                   limit_chase_init_delay=limit_chase_init_delay, chase_update_rate=chase_update_rate, limit_chase_interval=limit_chase_interval)
 
     def entry_pyramiding(
         self,
@@ -1174,7 +1196,6 @@ class Bybit:
         qty,
         limit=0,
         stop=0,
-        trailValue= 0,
         post_only=False,
         reduce_only=False,
         cancel_all=False,
@@ -1182,9 +1203,11 @@ class Bybit:
         when=True,
         round_decimals=None,
         callback=None,
-        trigger_by='LastPrice',
+        trigger_by='CONTRACT_PRICE',
         split=1,
         interval=0,
+        chaser=False,
+        retry_maker=100,
         limit_chase_init_delay=0.0001, 
         chase_update_rate=0.05, 
         limit_chase_interval=0
@@ -1256,9 +1279,9 @@ class Bybit:
 
         ord_qty = round(ord_qty, round_decimals if round_decimals != None else self.asset_rounding)
 
-        self.order(id, long, ord_qty, limit, stop, post_only, 
-                   reduce_only, when, callback, trigger_by, split, interval,
-                   limit_chase_init_delay, chase_update_rate, limit_chase_interval)
+        self.order(id, long, ord_qty, limit=limit, stop=stop, post_only=post_only, 
+                   reduce_only=reduce_only, when=when, callback=callback, trigger_by=trigger_by, split=split, interval=interval, chaser=chaser, retry_maker=retry_maker,
+                   limit_chase_init_delay=limit_chase_init_delay, chase_update_rate=chase_update_rate, limit_chase_interval=limit_chase_interval)
 
     def order(
         self,
@@ -1272,9 +1295,11 @@ class Bybit:
         when=True,
         round_decimals=None,
         callback=None,
-        trigger_by='LastPrice',
+        trigger_by='CONTRACT_PRICE',
         split=1,
         interval=0, 
+        chaser=False,
+        retry_maker=100,
         limit_chase_init_delay=0.0001, 
         chase_update_rate=0.05, 
         limit_chase_interval=0
@@ -1356,80 +1381,282 @@ class Bybit:
             self.order(sub_ord_id, long, sub_ord_qty, limit, stop, post_only,
                         reduce_only, trigger_by=trigger_by, callback=split_order(1))
             return
-        
-        if limit_chase_interval>0:         
-            # Logic for limit order chasing (if enabled).  
-            self.limit_chaser_ord[side] = {'ID': ord_id,
-                                           'Status': '',
-                                           'Qty': ord_qty,
-                                           'Filled': 0,
-                                           'Limit': 0,
-                                           'active_counter': 0,
-                                           'chase_counter': 0,
-                                           'is_active': True,
-                                           'is_amend_active': False,                                           
-                                           'callback': callback}
-            
-            # Place the first order.
-            first_ord_res = self.__new_order(ord_id=ord_id, 
-                                             side=side, 
-                                             ord_qty=ord_qty, 
-                                             post_only=post_only, 
-                                             reduce_only=reduce_only)           
 
-            def amend_chaser():      
-                i=1 
-                while True:                 
-                    if (not self.limit_chaser_ord[side]['is_amend_active'] \
-                        and not self.limit_chaser_ord[side]['is_active']) or self.stop_chaser_thread:
-                        return
-           
-                    ord_id = self.limit_chaser_ord[side]['ID']
-                    limit = self.best_bid_price if side == "Buy" else self.best_ask_price 
+        if chaser:
 
-                    if limit is None:
-                        time.sleep(chase_update_rate)
-                        continue
-                         
-                    if 'Status' in self.limit_chaser_ord[side] \
-                        and self.limit_chaser_ord[side]['Status'] == 'Cancelled' \
-                        and self.limit_chaser_ord[side]['chase_counter'] > 0:
-                         # Calculate the remaining quantity when amending fails
-                        ord_qty = abs(self.limit_chaser_ord[side]['Qty']) #- self.limit_chaser_ord[side]['Filled']
-                         # Send a replacement order when amending fails
-                        self.__new_order(ord_id=ord_id.split('_')[0] + ord_suffix(),  # Sending a replacement order 
-                                         side=side, ord_qty=ord_qty,                  # When amending fails
-                                         post_only=post_only, 
-                                         reduce_only=reduce_only)  
-                                               
-                        self.limit_chaser_ord[side]['callback'] = callback 
-                        self.limit_chaser_ord[side]['chase_counter'] = 0         
-                        i=1             
-                        #time.sleep(0.05)
-                        continue                        
+            exchange = self
+
+            class Chaser:
+
+                def __init__(self, 
+                             order_id, 
+                             long, qty, 
+                             limit, stop, 
+                             post_only, 
+                             reduce_only, 
+                             callback, 
+                             trigger_by):
+                    self.order_id = order_id
+                    self.long = long
+                    self.qty = abs(qty)
+                    # stop-market orders cannot be chased as they will
+                    # be triggered and filled almost immediately
+                    # with out any time for intervention.
+                    # so converting them into stop-limit with limit=stop
+                    self.limit = stop if stop != 0 and limit == 0 else limit
+                    self.stop = stop
+                    self.post_only = post_only #set to True for maker orders
+                    self.reduce_only = reduce_only
+                    self.callback = callback
+
+                    self.callback_type = None
+                    if callable(self.callback):                        
+                        self.callback_type = True if len(signature(self.callback).parameters) > 0 else False
+
+                    self.trigger_by = trigger_by
+
+                    self.filled = {}
+                    self.started = None
+                    self.start_price = self.limit if self.limit != 0 else 0
+                    self.count = 0
+                    self.current_order_id = None
+                    # if no limit price is set, set it to best bid/ask price
+                    self.current_order_price = self.limit if self.limit != 0 else self.price()
+                    # First order will be sent without post-only flag irrespective
+                    # and post-only will be used once the order is triggered
+                    self.order(retry_maker, 
+                               self.sub_order_id(), 
+                               self.long, self.qty, 
+                               self.current_order_price, 
+                               self.stop, self.post_only if self.stop==0 else False, 
+                               self.reduce_only, 
+                               self.trigger_by, 
+                               self.on_order_update)     
                     
-                    if limit == self.limit_chaser_ord[side]['Limit'] \
-                        or self.limit_chaser_ord[side]['chase_counter'] != i:  
-                        # Checking if the price has changed
-                        #logger.info(f"best bid: {self.best_bid_price}     best ask: {self.best_ask_price}")                                    
-                        time.sleep(chase_update_rate)
-                        continue                   
+                def sub_order_id(self):
+                    return f"{self.order_id}_{self.count}"
+                
+                def filled_qty(self):
+                    filled_qty = 0
+                    for value in self.filled.values():
+                        filled_qty += value[0]
+                    
+                    return round(filled_qty, exchange.asset_rounding)
+                
+                def remaining_qty(self):
+                    return round(self.qty - self.filled_qty(), exchange.asset_rounding)
+                
+                def price(self):
+                    return exchange.best_bid_price if self.long else exchange.best_ask_price 
 
-                    if not self.limit_chaser_ord[side]['is_amend_active']:
-                        time.sleep(chase_update_rate)
-                        continue
+                # Used to follow Bed Bid/Ask to chase 
+                # limit orders at a specifid price.
+                # The actual chaser starts once the limit price 
+                # is crossed. Useful for TP orders.
+                def limit_tracker(self, limit):
 
-                    # Checking if the price has changed
-                    limit = str(limit) if self.pair.endswith('PERP') else limit  
-                    res = self.__amend_order(ord_id, is_conditional=False, limit=limit) # Amend the order
-                    time.sleep(limit_chase_interval)
-                    i+=1
-            threading.Timer(limit_chase_init_delay, amend_chaser).start()
-            return
+                    logger.info(f"Chaser: Limit Tracker Active: {self.order_id}")
+
+                    #watch for best bid/ask price to cross limit price
+                    limit_chaser = self
+                    def tracker(best_bid_changed, best_ask_changed):
+
+                        if (exchange.best_bid_price <= limit and limit_chaser.long) or \
+                            (exchange.best_ask_price >= limit_chaser.limit and not limit_chaser.long):
+                            limit_chaser.start()
+
+                    exchange.add_ob_callback(self.order_id, tracker)                    
+
+                def start(self):
+                    self.started = True #started
+                    self.start_price = self.price()
+                    exchange.add_ob_callback(self.order_id, self.on_bid_ask_change)      
+                    logger.info(f"Chaser Active: {self.order_id} @ {self.start_price}")              
+
+                def end(self):
+                    exchange.remove_ob_callback(self.order_id)
+
+                def avg_price(self, print_suborders=False):
+                    order_value = 0
+                    for key, value in self.filled.items():
+                        if value[0] > 0:
+                            if print_suborders:
+                                logger.info(f"{key} - {value[0]} @ {value[1]}")
+                            order_value += value[0]*value[1]
+                    return round(order_value/self.qty if self.qty > 0 else 0, exchange.quote_rounding)
+
+                def stats(self, status="FILLED"):
+                    logger.info(f"Chaser Order Stats:")
+                    logger.info(f"--------------------------------------")
+                    logger.info(f"Order: {self.order_id} Status: {status}")
+                    logger.info(f"Start Price: {self.start_price}")
+                    logger.info(f"--------------------------------------")
+                    avg_price = self.avg_price(True)
+                    slippage = (avg_price - self.start_price if self.long else self.start_price - avg_price)/self.start_price
+                    logger.info(f"--------------------------------------")
+                    logger.info(f"Avg Price: {avg_price}")
+                    logger.info(f"Slippage: {slippage*100:.2f}%")
+                    logger.info(f"--------------------------------------")
+
+                    log_metrics(datetime.utcnow(), "chaser", {
+                        "side": "BUY" if self.long else "SELL",
+                        "quantity": self.qty,
+                        "start_price": self.start_price,
+                        "avg_price": avg_price,
+                        "slippage": round(slippage*100, 3)                        
+                    },
+                    {
+                        "exchange": conf["args"].exchange,
+                        "account": exchange.account,
+                        "pair": exchange.pair,
+                        "base_asset": exchange.base_asset,
+                        "quote_asset": exchange.quote_asset,
+                        "strategy": conf["args"].strategy
+                    })
+
+                def cancel(self):
+                    self.started = False #canceled
+                    if self.current_order_id is not None:
+                        exchange.remove_ob_callback(self.order_id)
+                        self.cancel_order(self.current_order_id)
+
+                def cancel_order(self, id):
+                    try:
+                        exchange.cancel(id)
+                    except Exception as e:
+                        error_code  = abs(int(e.status_code))
+                        if (error_code == 110001):
+                            logger.info("Chaser: Cancel Order: Unknown order. Already filled?")
+                            return
+                        raise e
+
+                def order(self, retry, id, long, qty, limit, stop, post_only, reduce_only, trigger_by, callback):
+                    # try fixed number of times
+                    for x in range(retry):
+                        try:  
+                            exchange.order(id, long, qty, limit=limit, stop=stop, post_only=post_only, 
+                                           reduce_only=reduce_only, trigger_by=trigger_by, callback=callback)
+                            self.current_order_id = id
+                            break
+                        except Exception as e:
+                            #pybit.exceptions.InvalidRequestError: expect Rising, but trigger_price[419768000] <= current[419769000]??last (ErrCode: 10001) (ErrTime: 07:57:00).
+                            error_code  = abs(int(e.status_code))
+                            if x < (retry-1):
+                                time.sleep(2)
+                                continue
+                            raise e
+
+                def on_bid_ask_change(self, best_bid_changed, best_ask_changed):
+
+                    if (self.long and best_bid_changed) or (not self.long and best_ask_changed):
+                        logger.info(f"Chaser: Price Changed - {self.price()}")
+
+                        if self.current_order_id is not None :
+                            exchange.remove_ob_callback(self.order_id)
+                            self.cancel_order(self.current_order_id)
+                            logger.info(f"Chaser: Cancel Order : {self.current_order_id} : Price Changed - {self.current_order_price} -> {self.price()}")
+                            self.current_order_id = None
+                        
+                def on_order_update(self, order):
+                    
+                    #save filled qty
+                    self.filled[order["id"]] = [order["filled"], order["limit"]]
+                    
+                    if order["status"] == "NEW":
+                        logger.info(f"Chaser Event: Order Accepted - {order['id']}")
+                        if self.started is None:
+                            # market order - start chasing immediately
+                            if self.stop == 0 and self.limit == 0:
+                                self.start()
+                            # limit order - start limit tracker
+                            elif self.stop == 0 and self.limit != 0:
+                                self.limit_tracker(self.limit)        
+                        else:
+                            # new sub-order - start ob chaser
+                            exchange.add_ob_callback(self.order_id, self.on_bid_ask_change)
+
+                    if self.stop != 0 and order["status"] == "TRIGGERED":
+                        logger.info(f"Chaser Event: {order['id']} is Triggered @ {order['stop']}!")
+                        if self.limit == self.stop:
+                            # there was no limit set
+                            self.start()
+                        else:
+                            self.limit_tracker(self.limit)
+                        return
+
+                    if order["status"] == "FILLED":
+                        self.current_order_id = None
+                        self.end()
+                        self.stats(status=order["status"])
+                        if self.callback_type is not None:
+                            if self.callback_type:
+                                order['id'] = self.order_id
+                                order['filled'] = self.filled_qty()
+                                order['qty'] = self.qty
+                                order['limit'] = self.limit
+                                order['stop'] = self.stop  
+                                order['avgprice'] = self.avg_price()                              
+
+                                self.callback(order)
+                            else:
+                                self.callback()
+
+                    if order["status"] == "CANCELED" or order["status"] == "EXPIRED":
+                        logger.info(f"Chaser Event: Order Cancelled: {order['id']} @ {order['limit']}")
+                        if self.started is not True: #Chaser did not Cancel this order internally
+                            self.end()
+                            if self.callback_type is not None:
+                                if self.callback_type:
+                                    order['id'] = self.order_id
+                                    order['filled'] = self.filled_qty()
+                                    order['qty'] = self.qty
+                                    order['limit'] = self.limit
+                                    order['stop'] = self.stop     
+                                    order['avgprice'] = self.avg_price()
+                                    
+                                    self.callback(order)
+                        else:
+                            self.current_order_id = None
+                            self.current_order_price = self.price()
+                            self.count += 1
+                            self.order(retry_maker, 
+                                       self.sub_order_id(), 
+                                       self.long, 
+                                       self.remaining_qty(), 
+                                       self.current_order_price, 
+                                       0, 
+                                       self.post_only, 
+                                       self.reduce_only, 
+                                       self.trigger_by, 
+                                       self.on_order_update)
+                    if order["status"] == "REJECTED":
+                        logger.info(f"Chaser Event: Order Rejected: {order['id']} @ {order['limit']}")
+                        # Bybit immediately rejects limit-maker orders if limit > BBA for longs and vice versa
+                        if order["timeinforce"] == "GTX":
+                            time.sleep(2)
+                            self.current_order_id = None
+                            self.limit = 0 #falling to market order with limit=BBA
+                            self.current_order_price = self.price()
+                            self.count += 1
+                            self.order(retry_maker, 
+                                       self.sub_order_id(), 
+                                       self.long, 
+                                       self.remaining_qty(), 
+                                       self.current_order_price, 
+                                       0, 
+                                       self.post_only, 
+                                       self.reduce_only, 
+                                       self.trigger_by, 
+                                       self.on_order_update)                
+            
+            # start the chaser
+            return Chaser(id, long, qty, limit, stop, post_only, reduce_only, 
+                          callback, trigger_by)
+
 
         self.callbacks[ord_id] = callback
   
-        self.__new_order(ord_id, side, ord_qty, limit, stop, post_only, reduce_only, trigger_by)
+        self.__new_order(ord_id, side, ord_qty, limit=limit, stop=stop, post_only=post_only, reduce_only=reduce_only, trigger_by=trigger_by)
 
 
     def get_open_order_qty(self, id, only_active=False, only_conditional=False):
@@ -1519,7 +1746,9 @@ class Bybit:
         loss_callback=None,
         trail_callback=None,
         split=1,
-        interval=0
+        interval=0,
+        chaser=False,
+        retry_maker=100
     ):
         """
         Profit taking, stop loss, and trailing functionality.(Independent of sltp())
@@ -1541,7 +1770,9 @@ class Bybit:
             'loss_callback': loss_callback,
             'trail_callback': trail_callback,
             'split': split,
-            'interval': interval
+            'interval': interval,
+            'chaser': chaser,
+            'retry_maker': retry_maker
         }
         self.is_exit_order_active = self.exit_order['profit'] > 0 \
                                     or self.exit_order['loss'] > 0 \
@@ -1559,9 +1790,11 @@ class Bybit:
         profit_short_callback=None,
         stop_long_callback=None,
         stop_short_callback=None,
-        trigger_by='LastPrice',
+        trigger_by='CONTRACT_PRICE',
         split=1,
-        interval = 0
+        interval = 0,
+        chaser=False,
+        retry_maker=100
     ):
         """
         Implement a simple take profit and stop loss strategy.(Independent of exit())
@@ -1593,7 +1826,9 @@ class Bybit:
             'stop_short_callback': stop_short_callback,
             'trigger_by': trigger_by,
             'split': split,
-            'interval': interval
+            'interval': interval,
+            'chaser': chaser,
+            'retry_maker': retry_maker
         } 
         self.is_sltp_active = self.sltp_values['profit_long'] > 0 \
                                 or self.sltp_values['profit_short'] > 0 \
@@ -1634,26 +1869,35 @@ class Bybit:
                     self.get_market_price() - self.get_exit_order()['trail_offset'] < self.get_trail_price():
                 logger.info(f"Loss cut by trailing stop: {self.get_exit_order()['trail_offset']}")
                 self.close_all(self.get_exit_order()['trail_callback'],
-                                self.get_exit_order()['split'], self.get_exit_order()['interval'])
+                                self.get_exit_order()['split'], self.get_exit_order()['interval'],
+                                chaser=self.get_sltp_values()['chaser'],
+                                retry_maker=self.get_sltp_values()['retry_maker'])                    
+                            
             elif self.get_position_size() < 0 and \
                     self.get_market_price() + self.get_exit_order()['trail_offset'] > self.get_trail_price():
                 logger.info(f"Loss cut by trailing stop: {self.get_exit_order()['trail_offset']}")
                 self.close_all(self.get_exit_order()['trail_callback'],
-                                self.get_exit_order()['split'], self.get_exit_order()['interval'])
+                                self.get_exit_order()['split'], self.get_exit_order()['interval'],
+                                chaser=self.get_sltp_values()['chaser'],
+                                retry_maker=self.get_sltp_values()['retry_maker'])                                
 
         #stop loss
         if unrealised_pnl < 0 and \
                 0 < self.get_exit_order()['loss'] < abs(unrealised_pnl):
             logger.info(f"Loss cut by stop loss: {self.get_exit_order()['loss']}")
             self.close_all(self.get_exit_order()['loss_callback'],
-                            self.get_exit_order()['split'], self.get_exit_order()['interval'])
+                            self.get_exit_order()['split'], self.get_exit_order()['interval'],
+                            chaser=self.get_sltp_values()['chaser'],
+                            retry_maker=self.get_sltp_values()['retry_maker'])                            
 
         # profit take
         if unrealised_pnl > 0 and \
                 0 < self.get_exit_order()['profit'] < abs(unrealised_pnl):
             logger.info(f"Take profit by stop profit: {self.get_exit_order()['profit']}")
             self.close_all(self.get_exit_order()['profit_callback'],
-                            self.get_exit_order()['split'], self.get_exit_order()['interval'])
+                            self.get_exit_order()['split'], self.get_exit_order()['interval'],
+                            chaser=self.get_sltp_values()['chaser'],
+                            retry_maker=self.get_sltp_values()['retry_maker'])                            
 
     def eval_sltp(self):
         """
@@ -1664,6 +1908,8 @@ class Bybit:
         pos_size = float(self.get_position_size())
         if pos_size == 0:
             return
+        
+        avg_entry = self.get_position_avg_price()
 
         is_tp_full_size = False 
         is_sl_full_size = False       
@@ -1672,30 +1918,15 @@ class Bybit:
         tp_order = self.get_open_order('TP')           
 
         if tp_order is not None:
-            tp_id = tp_order['orderLinkId'] if self.spot or self.pair.endswith('PERP') else tp_order['order_link_id']    
-            origQty = self.get_open_order_qty('TP')#float(tp_order['origQty'])
-            is_tp_full_size = origQty == abs(pos_size) 
-            #pos_size =  pos_size - origQty                 
+            tp_id = tp_order['orderLinkId']    
+            origQty = parseFloat(tp_order['qty'])
+            orig_side = tp_order['side'] == "Buy"
+            if orig_side == False:
+                origQty = -origQty            
+            is_tp_full_size = origQty == -pos_size             
         
         tp_percent_long = self.get_sltp_values()['profit_long']
         tp_percent_short = self.get_sltp_values()['profit_short']   
-
-        # sl
-        sl_order = self.get_open_order('SL')      
-        if sl_order is not None:
-            sl_id = sl_order['orderLinkId'] if self.spot or self.pair.endswith('PERP') else sl_order['order_link_id']    
-            origQty =  self.get_open_order_qty('SL')#float(sl_order['origQty'])
-            orig_side = sl_order['side'] == "Buy"        
-            if (orig_side and pos_size > 0) or (not orig_side and pos_size < 0):                
-                self.cancel(id=sl_id)
-            if orig_side == False:
-                origQty = -origQty            
-            is_sl_full_size = origQty == -pos_size  
-
-        sl_percent_long = self.get_sltp_values()['stop_long']
-        sl_percent_short = self.get_sltp_values()['stop_short']
-
-        avg_entry = self.get_position_avg_price()
 
         # tp execution logic                
         if tp_percent_long > 0 and is_tp_full_size == False:
@@ -1705,17 +1936,15 @@ class Bybit:
                     #time.sleep(0.05)                                         
                     self.cancel(id=tp_id)
                     #time.sleep(0.05)
-                    self.order("TP", False, abs(pos_size), limit=tp_price_long, reduce_only=True,
-                                callback=self.get_sltp_values()['profit_long_callback'],
-                                trigger_by=self.get_sltp_values()['trigger_by'], 
-                                split=self.get_sltp_values()['split'],
-                                interval=self.get_sltp_values()['interval'])
-                else:               
-                    self.order("TP", False, abs(pos_size), limit=tp_price_long, reduce_only=True,
-                               callback=self.get_sltp_values()['profit_long_callback'],
-                               trigger_by=self.get_sltp_values()['trigger_by'],
-                               split=self.get_sltp_values()['split'],
-                               interval=self.get_sltp_values()['interval'])
+                self.order("TP", False, abs(pos_size), limit=tp_price_long, reduce_only=True,
+                            callback=self.get_sltp_values()['profit_long_callback'],
+                            trigger_by=self.get_sltp_values()['trigger_by'], 
+                            split=self.get_sltp_values()['split'],
+                            interval=self.get_sltp_values()['interval'],
+                            chaser=self.get_sltp_values()['chaser'],
+                            retry_maker=self.get_sltp_values()['retry_maker']
+                            )
+                
         if tp_percent_short > 0 and is_tp_full_size == False:
             if pos_size < 0:                
                 tp_price_short = round(avg_entry -(avg_entry*tp_percent_short), self.quote_rounding)
@@ -1723,17 +1952,26 @@ class Bybit:
                     #time.sleep(0.05)                                                        
                     self.cancel(id=tp_id)
                     #time.sleep(0.05)
-                    self.order("TP", True, abs(pos_size), limit=tp_price_short, reduce_only=True,
-                               callback=self.get_sltp_values()['profit_short_callback'], 
-                               trigger_by=self.get_sltp_values()['trigger_by'], 
-                               split=self.get_sltp_values()['split'], 
-                               interval=self.get_sltp_values()['interval'])
-                else:
-                    self.order("TP", True, abs(pos_size), limit=tp_price_short, reduce_only=True,
-                               callback=self.get_sltp_values()['profit_short_callback'], 
-                               trigger_by=self.get_sltp_values()['trigger_by'],
-                               split=self.get_sltp_values()['split'],
-                               interval=self.get_sltp_values()['interval'])    
+                self.order("TP", True, abs(pos_size), limit=tp_price_short, reduce_only=True,
+                            callback=self.get_sltp_values()['profit_short_callback'], 
+                            trigger_by=self.get_sltp_values()['trigger_by'], 
+                            split=self.get_sltp_values()['split'], 
+                            interval=self.get_sltp_values()['interval'],
+                            chaser=self.get_sltp_values()['chaser'],
+                            retry_maker=self.get_sltp_values()['retry_maker']
+                            )
+        # sl
+        sl_order = self.get_open_order('SL')      
+        if sl_order is not None:
+            sl_id = sl_order['orderLinkId']
+            origQty =  parseFloat(sl_order['qty'])
+            orig_side = sl_order['side'] == "Buy"        
+            if orig_side == False:
+                origQty = -origQty            
+            is_sl_full_size = origQty == -pos_size  
+
+        sl_percent_long = self.get_sltp_values()['stop_long']
+        sl_percent_short = self.get_sltp_values()['stop_short']
 
         # sl execution logic
         if sl_percent_long > 0 and is_sl_full_size == False:
@@ -1743,17 +1981,15 @@ class Bybit:
                     #time.sleep(0.05)                                    
                     self.cancel(id=sl_id)
                     #time.sleep(0.05)
-                    self.order("SL", False, abs(pos_size), stop=sl_price_long, reduce_only=True,
-                                callback=self.get_sltp_values()['stop_long_callback'], 
-                                trigger_by=self.get_sltp_values()['trigger_by'],
-                                split=self.get_sltp_values()['split'],
-                                interval=self.get_sltp_values()['interval'])
-                else:  
-                    self.order("SL", False, abs(pos_size), stop=sl_price_long, reduce_only=True,
-                                callback=self.get_sltp_values()['stop_long_callback'],
-                                trigger_by=self.get_sltp_values()['trigger_by'],
-                                split=self.get_sltp_values()['split'], 
-                                interval=self.get_sltp_values()['interval'])
+                self.order("SL", False, abs(pos_size), stop=sl_price_long, reduce_only=True,
+                            callback=self.get_sltp_values()['stop_long_callback'], 
+                            trigger_by=self.get_sltp_values()['trigger_by'],
+                            split=self.get_sltp_values()['split'],
+                            interval=self.get_sltp_values()['interval'],
+                            chaser=self.get_sltp_values()['chaser'],
+                            retry_maker=self.get_sltp_values()['retry_maker']
+                            )
+                
         if sl_percent_short > 0 and is_sl_full_size == False:
             if pos_size < 0:
                 sl_price_short = round(avg_entry + (avg_entry*sl_percent_short), self.quote_rounding)
@@ -1761,17 +1997,14 @@ class Bybit:
                     #time.sleep(0.05)                                         
                     self.cancel(id=sl_id)
                     #time.sleep(0.05)
-                    self.order("SL", True, abs(pos_size), stop=sl_price_short, reduce_only=True,
-                                callback=self.get_sltp_values()['stop_short_callback'], 
-                                trigger_by=self.get_sltp_values()['trigger_by'],
-                                split=self.get_sltp_values()['split'], 
-                                interval=self.get_sltp_values()['interval']) 
-                else:  
-                    self.order("SL", True, abs(pos_size), stop=sl_price_short, reduce_only=True,
-                                callback=self.get_sltp_values()['stop_short_callback'], 
-                                trigger_by=self.get_sltp_values()['trigger_by'],
-                                split=self.get_sltp_values()['split'], 
-                                interval=self.get_sltp_values()['interval'])       
+                self.order("SL", True, abs(pos_size), stop=sl_price_short, reduce_only=True,
+                            callback=self.get_sltp_values()['stop_short_callback'], 
+                            trigger_by=self.get_sltp_values()['trigger_by'],
+                            split=self.get_sltp_values()['split'], 
+                            interval=self.get_sltp_values()['interval'],
+                            chaser=self.get_sltp_values()['chaser'],
+                            retry_maker=self.get_sltp_values()['retry_maker']
+                            )                  
 
     def fetch_ohlcv(self, bin_size, start_time, end_time):
         """
@@ -1875,6 +2108,10 @@ class Bybit:
         Returns:
             None
         """  
+        # Bybit can output wierd timestamps - Eg. 2021-05-25 16:04:59.999000+00:00
+        # We need to round up to the nearest second for further processing
+        new_data = new_data.rename(index={new_data.iloc[0].name: new_data.iloc[0].name.ceil(freq='1T')})           
+
         # If OHLCV data is not initialized, create and fetch data
         if self.timeframe_data is None:
             self.timeframe_data = {}            
@@ -1926,7 +2163,7 @@ class Bybit:
                                       t, 
                                       minute_granularity=True if self.minute_granularity else False)
             self.timeframe_info[t]['partial_candle'] = re_sample_data.iloc[-1].values # store partial candle data
-            re_sample_data =re_sample_data[:-1].dropna()  # exclude current candle data
+            re_sample_data =re_sample_data[:-1]  # exclude current candle data
 
             #logger.info(f"{self.timeframe_info[t]['last_action_time']} : {self.timeframe_data[t].iloc[-1].name} : {re_sample_data.iloc[-1].name}")  
 
@@ -1960,6 +2197,11 @@ class Bybit:
                 if self.strategy is not None:   
                     self.timestamp = re_sample_data.iloc[-1].name.isoformat()           
                     self.strategy(t, open, close, high, low, volume)              
+                    # Evaluation of profit and loss
+                    if self.is_exit_order_active:
+                        self.eval_exit()
+                    if self.is_sltp_active:
+                        self.eval_sltp()                   
                 self.timeframe_info[t]['last_action_time'] = re_sample_data.iloc[-1].name
             except FatalError as e:
                 # Fatal error
@@ -1982,6 +2224,30 @@ class Bybit:
         """
         self.wallet = {**self.wallet, **wallet}       
         
+        balance = parseFloat(wallet["totalWalletBalance"], 0)
+        position_size = self.get_position_size()
+        pnl = parseFloat(wallet["totalPerpUPL"], 0)
+        pnl_perc = pnl*100/balance
+
+        message = f"Balance: {balance:.2f}\nPosition: {position_size:.3f}\nPnL: {pnl:.2f} ({pnl_perc:.2f}%)"
+        logger.info(message)
+        notify(message)
+        
+        log_metrics(datetime.utcnow(), "margin", {
+            "balance": balance,
+            "margin": balance+pnl,
+            "profit": pnl,
+            "pnl": pnl_perc
+        },
+        {
+            "exchange": conf["args"].exchange,
+            "account": self.account,
+            "pair": self.pair,
+            "base_asset": self.base_asset,
+            "quote_asset": self.quote_asset,
+            "strategy": conf["args"].strategy
+        })
+        
     def __on_update_instrument(self, action, instrument):
         """
         Update instrument.
@@ -1995,8 +2261,7 @@ class Bybit:
         self.instrument[action].update(instrument)
         #logger.info(f"self.instrument : {self.instrument}")
         
-        self.market_price = float(instrument['lastPrice']) if 'lastPrice' in instrument \
-                            else float(instrument['c']) if 'c' in instrument else 0  
+        self.market_price = float(self.instrument[action]['lastPrice'])
         
         if self.position_size == None or self.position_size == 0:
                 return        
@@ -2028,8 +2293,8 @@ class Bybit:
         message = f"""========= FILLS =============
                            {fills} 
                       ============================="""
-        #logger.info(f"{message}")
-        notify(message)
+        logger.info(f"{message}")
+        #notify(message)
     
     def __on_update_order(self, action, orders):
         """
@@ -2049,103 +2314,133 @@ class Bybit:
                 o['lastExecQty'] = None
             if 'rejectReason' not in o: # Some ws endpoints wont prvide us with this
                 o['rejectReason'] = None
-            id = o['c' if self.spot else 'orderLinkId']
-            side = o['S' if self.spot else 'side']      
-            type = o['o' if self.spot else 'orderType']
-            status = o['X' if self.spot else 'orderStatus']
-            time_in_force = o['f' if self.spot else 'timeInForce']
-            qty = float(o['q' if self.spot else 'qty'])
-            filled_qty =float(o['z' if self.spot else 'cumExecQty'])
-            status = o['X' if self.spot else 'orderStatus']
-            limit = float(o['p' if self.spot else 'price'])
-            stop = None if self.spot else o['triggerPrice']
-            last_fill = o['l' if self.spot else 'lastExecQty']
-            rejec_reason = o['rejectReason']
-            APprice = None if self.spot else o['triggerPrice']
+            if 'avgPrice' not in o: # Some ws endpoints wont prvide us with this
+                o['avgPrice'] = None
+            id = o['orderLinkId']
+            side = o['side']      
+            type = o['orderType']
+            status = o['orderStatus']
+            time_in_force = o['timeInForce']
+            qty = float(o['qty'])
+            filled_qty =float(o['cumExecQty'])
+            limit = parseFloat(o['price'], 0)
+            stop = parseFloat(o['triggerPrice'], 0)
+            last_fill = parseFloat(o['lastExecQty'], 0)
+            reject_reason = o['rejectReason']
+            a_price = parseFloat(o['avgPrice'], 0)
+            reduceOnly = o['reduceOnly']
+            triggerBy = o["triggerBy"] if len(o["triggerBy"]) else "LastPrice"
 
-            shared_msg = (f"                                 ID     : {id}\n"
-                          f"                                 Type   : {type}\n"
-                          f"                                 Side   : {side}\n"
-                          f"                                 RejecR.: {rejec_reason}\n"
-                          f"                                 TIF    : {time_in_force}\n"
-                          f"                                 Qty    : {qty}\n"
-                          f"                                 LstFill: {last_fill}\n"
-                          f"                                 Filled : {filled_qty}\n"
-                          f"                                 Limit  : {limit}\n"
-                          f"                                 Stop   : {stop}\n"
-                          f"                                 APrice : {APprice}")
+            created_time = int(o["createdTime"])
+            updated_time = int(o["updatedTime"])
+            create_update_interval = updated_time - created_time
 
-            if status.upper() in ["CANCELLED", "EXPIRED"] and self.order_update_log:
-                # Order cancelled or expired
-                logger.info(f"========= Order Update ===============")              
-                logger.info(f"Status : {status}\n{shared_msg}")                  
-                logger.info(f"======================================")             
-                # If stop price is set for a GTC Order and filled quanitity is 0 then EXPIRED means TRIGGERED
-                if(float(0 if self.spot or not o['triggerPrice'] else o['triggerPrice']) > 0 \
-                   and (o['f' if self.spot else 'timeInForce'] == "GTC" or "GoodTillCancel") \
-                   and float(o['z' if self.spot else 'cumExecQty']) == 0 \
-                   and o['X' if self.spot else 'orderStatus'] == "EXPIRED"):
-                    logger.info(f"========= Order Update ===============")          
-                    logger.info(f"Status : TRIGGERED\n{shared_msg}")
-                    logger.info(f"{shared_msg}")
-                    logger.info(f"======================================")
+            if(time_in_force=="PostOnly" and status == "Cancelled" and create_update_interval < 25 and reject_reason == "EC_PostOnlyWillTakeLiquidity"):
+                logger.info(f"Post Only Auto Cancelled/Rejected - {reject_reason}") # EC_PostOnlyWillTakeLiquidity
+                status = "Rejected" # Bybit immediately rejects limit-maker orders if limit > BBA for longs and vice versa
 
-                self.callbacks.pop(o['c' if self.spot else 'orderLinkId'], None) # Removes the respective order callback
+            logger.info(f"Order: {o}")
 
-            # Only after order if completely filled
-            elif self.order_update_log and qty == filled_qty and status.upper() != "CANCELLED": 
-                # Order fully filled
-                logger.info(f"========= Order Fully Filled =========")      
-                logger.info(f"Status : {status}\n{shared_msg}")                
-                logger.info(f"======================================")      
-                
-                # Call the respective order callback       
-                if len(self.limit_chaser_ord[side]) > 0 \
-                    and id == self.limit_chaser_ord[side]['ID'] \
-                    and 'callback' in self.limit_chaser_ord[side]:
-                    callback = self.limit_chaser_ord[side].pop('callback', None)  # Removes the respective order callback and returns it   
-                    self.limit_chaser_ord[side]['active_counter'] = 0
+            order_info = {}
+
+            # Normalize Order Info to canonical names
+            order_info["id"]            = id  # Client Order ID
+            order_info["type"]          = bybit_order_type_mapping[type] # LIMIT, MARKET
+            order_info["uses"]          = bybit_trigger_by_mapping[triggerBy] # CONTRACT_PRICE, MARK_PRICE, INDEX_PRICE (for stop orders)
+            order_info["side"]          = side.upper()  # BUY, SELL
+            order_info["status"]        = bybit_order_status_mapping[status]  # NEW, CANCELED, EXPIRED, PARTIALLY_FILLED, FILLED
+            order_info["timeinforce"]   = bybit_tif_mapping[time_in_force]  # GTC, IOC, FOK, GTX (PostOnly)
+            order_info["qty"]           = qty  # order quantity
+            order_info["filled"]        = filled_qty  # filled quantity
+            order_info["limit"]         = limit  # limit price
+            order_info["stop"]          = stop # stop price
+            order_info["avgprice"]      = a_price # average price
+            order_info["reduceonly"]    = reduceOnly # Reduce Only Order
+
+            #logger.info(f"Order Update: {order_info}")
+
+            order_log = False
+
+            callback = self.callbacks.get(id, None)
+            all_updates = None
+            if callable(callback):
+                if len(signature(callback).parameters) > 0: # check if the callback accepts order argument
+                    all_updates = True # call the callback with order_info oject on all relevant updates from WS
                 else:
-                    callback = self.callbacks.pop(o['c' if self.spot else 'orderLinkId'], None)  # Removes the respective order callback and returns it
-                if callable(callback):
-                    callback()
-            else:
-                # Order status update not fully filled 
-                logger.info(f"========= Order Update ===============")           
-                logger.info(f"Status : {status}\n{shared_msg}")                  
-                logger.info(f"======================================")             
+                    all_updates = False # call the callback without any arguements only once the order is filled
 
-        if len(self.limit_chaser_ord[side]) > 0 and id == self.limit_chaser_ord[side]['ID']:           
-            is_active = status.upper() == "CANCELLED"
-            is_amend_active = status != 'Filled' \
-                                    and status.upper() != "CANCELLED"
-       
-            limit_chaser_ord = {'ID' : id,
-                                'Side' : side,
-                                'Status' : status,
-                                'Qty' : qty,
-                                'Filled' : filled_qty,
-                                'Limit': limit,
-                                'is_active':  is_active,
-                                'is_amend_active': is_amend_active}
+            # currently only these events will use callbacks
+            if(order_info['status'] == "NEW"
+            or order_info['status'] == "CANCELED" 
+            or order_info['status'] == "REJECTED" 
+            or order_info['status'] == "TRIGGERED" 
+            or order_info['status'] == "PARTIALLY_FILLED" 
+            or order_info['status'] == "FILLED"):
+                
+                if(order_info['status'] == "NEW"):
+                    if all_updates:
+                        callback(order_info)    
+
+                # When stop price is hit, the stop order expires and converts into a limit/market order
+                if(order_info["status"] == "TRIGGERED"):                    
+                    
+                    order_log = True  
+                    if all_updates:
+                        callback(order_info)    
+
+                if(order_info['status'] == "CANCELED"):
+                    
+                    order_log = True                  
+                    self.callbacks.pop(order_info['id'], None) # Removes the respective order callback 
+                    
+                    if all_updates:
+                        callback(order_info) 
+                
+                if(order_info['status'] == "REJECTED"):
+
+                    order_log = True
+                    if all_updates:
+                        callback(order_info)
+                    
+                #only after order is completely filled
+                if order_info['status'] == "PARTIALLY_FILLED" or order_info['status'] == "FILLED":
+
+                    if self.order_update_log and order_info['status'] == "FILLED" and order_info["qty"] == order_info["filled"]:
+
+                        order_log = True                    
+                        self.callbacks.pop(order_info['id'], None)  # Removes the respective order callback 
+                        
+                    if all_updates is True:
+                        callback(order_info)
+                    elif all_updates is False and order_info['status'] == "FILLED":
+                        callback()
             
-            if not self.limit_chaser_ord[side]['is_amend_active'] and is_active: # if not flipping from amending to active
-                self.limit_chaser_ord[side]['active_counter'] += 1  
-            if is_amend_active:
-                self.limit_chaser_ord[side]['chase_counter'] += 1 
-            self.limit_chaser_ord[side].update(limit_chaser_ord) # Updating chaser order dict
+            if order_log == True:
+                logger.info(f"========= Order Update ==============")
+                logger.info(f"ID     : {order_info['id']}") # Clinet Order ID
+                logger.info(f"Type   : {order_info['type']}")
+                logger.info(f"Uses   : {order_info['uses']}")
+                logger.info(f"Side   : {order_info['side']}")
+                logger.info(f"Status : {order_info['status']}")
+                logger.info(f"TIF    : {order_info['timeinforce']}")
+                logger.info(f"Qty    : {order_info['qty']}")
+                logger.info(f"Filled : {order_info['filled']}")
+                logger.info(f"Limit  : {order_info['limit']}")
+                logger.info(f"Stop   : {order_info['stop']}")
+                logger.info(f"APrice : {order_info['avgprice']}")
+                logger.info(f"======================================")
 
-        # Evaluation of profit and loss
-        if self.is_exit_order_active:
-            self.eval_exit()
-        if self.is_sltp_active:
-            self.eval_sltp()    
+            if order_info['status'] == "FILLED":
+                # Evaluation of profit and loss
+                if self.is_exit_order_active:
+                    self.eval_exit()
+                if self.is_sltp_active:
+                    self.eval_sltp()    
         
     def __on_update_position(self, action, position):
         """
         Update position
         """         
-        position = position['result'] if 'result' in position else position        
 
         if len(position) > 0:
             position = [p for p in position if p["symbol"].startswith(self.pair)]   
@@ -2154,39 +2449,68 @@ class Bybit:
                 return
         else:
             return         
-        
-        if 'liqPrice' not in position[0]:
-            position[0]['liqPrice'] = None
 
+        position[0]['size'] = parseFloat(position[0]['size'], 0)
+        
         # Was the position size changed?
-        is_update_pos_size = self.get_position_size() != float(position[0]['size'])        
+        is_update_pos_size = self.get_position_size() != position[0]['size']      
 
         # Reset trail to current price if position size changes
-        if is_update_pos_size and float(position[0]['size']) != 0:
+        if is_update_pos_size and position[0]['size'] != 0:
             self.set_trail_price(self.market_price)
 
         if is_update_pos_size:
             quote_asset_str = self.base_asset if self.category == 'inverse' else self.quote_asset
-            logger.info(f"Updated Position\n"
+            message =   (f"Updated Position\n"
                         f"Price(entryPrice): {self.position[0]['avgPrice']} => {position[0]['entryPrice']}\n"
-                        f"Qty(size): {self.position[0]['size']} => {position[0]['size']}\n"
-                        f"liqPrice: {self.position[0]['liqPrice']} => {position[0]['liqPrice']}\n"
+                        f"Qty(size): {self.position[0]['size'] * (-1 if self.position[0]['side'] == 'Sell' else 1)} => {position[0]['size'] * (-1 if position[0]['side'] == 'Sell' else 1)}\n"
+                        f"liqPrice: {parseFloat(self.position[0]['liqPrice'])} => {parseFloat(position[0]['liqPrice'])}\n"
                         f"Balance: {self.get_balance()} {quote_asset_str}")
-            notify(f"Updated Position\n"
-                        f"Price(entryPrice): {self.position[0]['avgPrice']} => {position[0]['entryPrice']}\n"
-                        f"Qty(size): {self.position[0]['size']} => {position[0]['size']}\n"
-                        f"liqPrice: {self.position[0]['liqPrice']} => {position[0]['liqPrice']}\n"
-                        f"Balance: {self.get_balance()} {quote_asset_str}")       
+            logger.info(message)
+            notify(message)       
         
         self.position[0]['avgPrice'] = float(position[0]['entryPrice'])
         self.position[0].update(position[0])
        
-        self.position_size = float(self.position[0]['size'])
-        self.entry_price = float(self.position[0]['avgPrice'])        
+        self.position_size = parseFloat(self.position[0]['size'])
+        self.entry_price = parseFloat(self.position[0]['avgPrice'])        
     
         # Evaluation of profit and loss, calling stop loss and take profit functions
         #self.eval_exit()
         #self.eval_sltp()
+
+    def add_ob_callback(self, id, callback):
+        """
+        Add a callback for order book changes.
+
+        This function allows adding a callback function to be triggered when there are changes to the
+        order book (best bid and best ask prices). The registered callbacks will be executed with
+        arguments indicating whether the best bid and/or best ask prices have changed.
+
+        Args:
+            id (str): Identifier for the callback (usually an integer or string).
+            callback (function): The callback function to be executed on order book changes.
+
+        Returns:
+            None
+        """
+        self.best_bid_ask_change_callback[id] = callback
+
+    def remove_ob_callback(self, id):
+        """
+        Remove a previously added callback for order book changes.
+
+        This function allows removing a callback function that was previously added using the
+        'add_ob_callback' method. After removing the callback, it will no longer be triggered when there
+        are changes to the order book (best bid and best ask prices).
+
+        Args:
+            id (str): Identifier for the callback to be removed (usually an integer or string).
+
+        Returns:
+            None
+        """
+        return self.best_bid_ask_change_callback.pop(id, None)
 
     def __on_update_bookticker(self, action, bookticker):
         """
@@ -2195,17 +2519,33 @@ class Bybit:
             action (str): Action description (e.g., "update", "create", "delete", etc.).
             bookticker (dict): Dictionary containing the updated book ticker data.
         """
-        if not self.spot:
-            self.bookticker = {k:v for k,v in bookticker.items() if (k=='a' or k=='b') and len(v) > 0}       
-        else:
-            self.bookticker.update(bookticker)
 
-        if ('bp' in  self.bookticker and 'ap'in self.bookticker) \
-            or ('b' in self.bookticker and 'a' in self.bookticker):
-            self.best_bid_price = float(self.bookticker['bp']) if self.spot else float(self.bookticker['b'][0][0])
-            self.best_ask_price = float(self.bookticker['ap']) if self.spot else float(self.bookticker['a'][0][0])
-            self.bid_quantity_L1 = float(self.bookticker['bq']) if self.spot else float(self.bookticker['b'][0][1])          
-            self.ask_quantity_L1 = float(self.bookticker['aq']) if self.spot else  float(self.bookticker['a'][0][1])
+        self.bookticker = {k:v for k,v in bookticker.items() if (k=='a' or k=='b') and len(v) > 0}       
+
+        if 'b' in self.bookticker and 'a' in self.bookticker:
+            
+            best_bid_changed = False
+
+            best_bid_price = float(self.bookticker['b'][0][0])
+            if( self.best_bid_price != best_bid_price ):
+                self.best_bid_price = best_bid_price
+                best_bid_changed = True
+            
+            best_ask_changed = False
+
+            best_ask_price = float(self.bookticker['a'][0][0])
+            if (self.best_ask_price != best_ask_price ):
+                self.best_ask_price = best_ask_price
+                best_ask_changed = True
+
+            
+            if best_bid_changed or best_ask_changed:
+                for callback in self.best_bid_ask_change_callback.copy().values():
+                    if callable(callback):
+                        callback(best_bid_changed, best_ask_changed)
+            
+            self.bid_quantity_L1 = float(self.bookticker['b'][0][1])          
+            self.ask_quantity_L1 = float(self.bookticker['a'][0][1])
         #logger.info(f"best bid: {self.best_bid_price}          best_ask: {self.best_ask_price}           bq_L1: {self.bid_quantity_L1}           aq_L1: {self.ask_quantity_L1}")
 
     def on_update(self, bin_size, strategy):
@@ -2229,7 +2569,7 @@ class Bybit:
 
         if self.is_running:
             self.__init_client()
-            self.ws = BybitWs(account=self.account, pair=self.pair, spot=self.spot, is_unified=self.is_unified_account, test=self.demo)
+            self.ws = BybitWs(account=self.account, pair=self.pair, bin_size=self.bin_size, spot=self.spot, is_unified=self.is_unified_account, test=self.demo)
 
             #if len(self.bin_size) > 1:   
                 #self.minute_granularity=True  
@@ -2256,18 +2596,6 @@ class Bybit:
             # TODO orderbook
             # self.ob = OrderBook(self.ws)        
 
-            if self.call_strat_on_start and not self.spot: #and not self.pair.endswith("PERP"):               
-                data = to_data_frame([{
-                    "timestamp": self.now_time() + timedelta(seconds=0.1),
-                    "open": np.nan,
-                    "high": np.nan,
-                    "low" : np.nan,
-                    "close" : np.nan,
-                    "volume": np.nan
-                }])
-                action = allowed_range_minute_granularity[t][0] if self.minute_granularity else allowed_range[t][0]
-                self.__update_ohlcv(action, data)
-
     def stop(self):
         """
         Stop the WebSocket data streams.
@@ -2278,10 +2606,11 @@ class Bybit:
             None
         """
         self.stop_chaser_thread = True
-        self.is_running = False
-        self.ws.close()
+        if self.is_running:
+            self.is_running = False
+            self.ws.close()
 
-    def show_result(self):
+    def show_result(self, plot):
         """
         Show results
         """

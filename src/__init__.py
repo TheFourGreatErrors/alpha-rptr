@@ -21,6 +21,7 @@ from influxdb_client.client.write_api import SYNCHRONOUS
 
 from src.config import config as conf
 from src.exchange.binance_futures.exceptions import BinanceAPIException, BinanceRequestException
+from pybit.exceptions import InvalidRequestError
 
 
 logging.basicConfig(
@@ -43,6 +44,20 @@ allowed_range = {
     "3h": ["1h", "3H", 3, 3], "4h":  ["1h", "4H", 4, 4],
     "6h": ["1h", "6H", 6, 6], "12h": ["1h", "12H", 12, 12],
     "1d": ["1d", "1D", 1, 1], "3d": ["3d", "3D", 3, 3]
+    # not support yet '1w', '2w', '1M'
+}
+
+
+bybit_allowed_range = {
+    "1m": ["1", "1T", 1, 1], "2m":  ["1", "2T", 2, 2], "3m":  ["1", "3T", 3, 3],
+    "4m": ["1", "4T", 4, 4], "5m": ["1", "5T", 5, 5], "6m": ["1", "6T", 6, 6],
+    "7m": ["1", "7T", 7, 7], "8m": ["1", "8T", 8, 8], "9m": ["1", "9T", 9, 9],
+    "10m": ["1", "10T", 10, 10], "11m": ["1", "11T", 11, 11],
+    "15m": ["5", "15T", 3, 15], "30m": ["5", "30T", 6, 30], "45m": ["5", "45T", 9, 45],
+    "1h": ["60", "1H", 1, 1], "2h":  ["60", "2H", 2, 2],
+    "3h": ["60", "3H", 3, 3], "4h":  ["60", "4H", 4, 4],
+    "6h": ["60", "6H", 6, 6], "12h": ["60", "12H", 12, 12],
+    "1d": ["D", "1D", 1, 1], "3d": ["D", "3D", 3, 3]
     # not support yet '1w', '2w', '1M'
 }
 
@@ -91,6 +106,11 @@ def bin_size_converter(bin_size):
 
     return bin_sizes[bin_size]
 
+def parseFloat(str, default=None):
+    try:
+        return float(str)
+    except:
+        return default
 
 class RepeatedTimer(object):
   def __init__(self, interval, function, next_call=time.time(), *args, **kwargs):    
@@ -492,6 +512,9 @@ def retry_bybit(func, count=5):
                 continue
             elif status_code in status_codes:
                 raise FatalError(error)
+        #pybit.exceptions.InvalidRequestError: expect Rising, but trigger_price[419768000] <= current[419769000]??last (ErrCode: 10001) (ErrTime: 07:57:00).
+        except InvalidRequestError as e:
+            raise e
     raise err
 
 
