@@ -2610,7 +2610,7 @@ class Bybit:
             self.is_running = False
             self.ws.close()
 
-    def show_result(self, plot):
+    def show_result(self):
         """
         Show results
         """
