@@ -2019,10 +2019,10 @@ class BinanceFutures:
 
         balance = float(self.margin[0]['balance'])
         position_size = self.get_position_size()
-        pnl = round(self.get_pnl())
+        pnl = self.get_pnl()
         profit = self.get_profit()
-        notify(f"Balance: {balance}\nPosition Size: {position_size}\nPnL: {profit:.2f}({pnl}%)")
-        logger.info(f"Balance: {balance} Position Size: {position_size} PnL: {profit:.2f}({pnl}%)")     
+        notify(f"Balance: {balance}\nPosition Size: {position_size}\nPnL: {profit:.2f}({pnl:.2f}%)")
+        logger.info(f"Balance: {balance} Position Size: {position_size} PnL: {profit:.2f}({pnl:.2f}%)")     
 
         log_metrics(datetime.utcnow(), "margin", {
             "balance": balance,
