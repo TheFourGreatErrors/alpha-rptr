@@ -4,7 +4,7 @@ scipy==1.11.0
 ta-lib==0.4.26
 pandas==2.0.2
 bravado
-websocket-client==0.52.0
+websocket-client
 hyperopt
 pyti
 google-api-python-client
