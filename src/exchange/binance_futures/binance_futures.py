@@ -111,6 +111,7 @@ class BinanceFutures:
             'profit_short_callback': None,
             'stop_long_callback': None,
             'stop_short_callback': None,
+            'trigger_by': "CONTRACT_PRICE",
             'split': 1,
             'interval': 0,
             'chaser': False, 
@@ -1369,7 +1370,7 @@ class BinanceFutures:
             'profit_short_callback': profit_short_callback,
             'stop_long_callback': stop_long_callback,
             'stop_short_callback': stop_short_callback,
-            'sltp_working_type': trigger_by,
+            'trigger_by': trigger_by,
             'split': split,
             'interval': interval,
             'chaser': chaser,
@@ -1477,7 +1478,7 @@ class BinanceFutures:
                     time.sleep(1)
                     self.order("TP", False, abs(pos_size), limit=tp_price_long, reduce_only=True, 
                                callback=self.get_sltp_values()['profit_long_callback'], 
-                               trigger_by=self.get_sltp_values()['sltp_working_type'],
+                               trigger_by=self.get_sltp_values()['trigger_by'],
                                split=self.get_sltp_values()['split'], 
                                interval=self.get_sltp_values()['interval'],
                                chaser=self.get_sltp_values()['chaser'],
@@ -1485,7 +1486,7 @@ class BinanceFutures:
                 else:               
                     self.order("TP", False, abs(pos_size), limit=tp_price_long, reduce_only=True, 
                                callback=self.get_sltp_values()['profit_long_callback'], 
-                               trigger_by=self.get_sltp_values()['sltp_working_type'],
+                               trigger_by=self.get_sltp_values()['trigger_by'],
                                split=self.get_sltp_values()['split'], 
                                interval=self.get_sltp_values()['interval'],
                                chaser=self.get_sltp_values()['chaser'],
@@ -1499,14 +1500,14 @@ class BinanceFutures:
                     time.sleep(1)
                     self.order("TP", True, abs(pos_size), limit=tp_price_short, reduce_only=True, 
                                callback=self.get_sltp_values()['profit_short_callback'], 
-                               trigger_by=self.get_sltp_values()['sltp_working_type'],
+                               trigger_by=self.get_sltp_values()['trigger_by'],
                                split=self.get_sltp_values()['split'], interval=self.get_sltp_values()['interval'],
                                chaser=self.get_sltp_values()['chaser'],
                                retry_maker=self.get_sltp_values()['retry_maker'])
                 else:
                     self.order("TP", True, abs(pos_size), limit=tp_price_short, reduce_only=True, 
                                callback=self.get_sltp_values()['profit_short_callback'], 
-                               trigger_by=self.get_sltp_values()['sltp_working_type'],
+                               trigger_by=self.get_sltp_values()['trigger_by'],
                                split=self.get_sltp_values()['split'], 
                                interval=self.get_sltp_values()['interval'],
                                chaser=self.get_sltp_values()['chaser'],
@@ -1533,7 +1534,7 @@ class BinanceFutures:
                     time.sleep(1)
                     self.order("SL", False, abs(pos_size), stop=sl_price_long, reduce_only=True, 
                                callback=self.get_sltp_values()['stop_long_callback'], 
-                               trigger_by=self.get_sltp_values()['sltp_working_type'], 
+                               trigger_by=self.get_sltp_values()['trigger_by'], 
                                split=self.get_sltp_values()['split'], 
                                interval=self.get_sltp_values()['interval'],
                                chaser=self.get_sltp_values()['chaser'],
@@ -1541,7 +1542,7 @@ class BinanceFutures:
                 else:  
                     self.order("SL", False, abs(pos_size), stop=sl_price_long, reduce_only=True, 
                                callback=self.get_sltp_values()['stop_long_callback'], 
-                               trigger_by=self.get_sltp_values()['sltp_working_type'],
+                               trigger_by=self.get_sltp_values()['trigger_by'],
                                split=self.get_sltp_values()['split'], 
                                interval=self.get_sltp_values()['interval'],
                                chaser=self.get_sltp_values()['chaser'],
@@ -1555,7 +1556,7 @@ class BinanceFutures:
                     time.sleep(1)
                     self.order("SL", True, abs(pos_size), stop=sl_price_short, reduce_only=True, 
                                callback=self.get_sltp_values()['stop_short_callback'], 
-                               trigger_by=self.get_sltp_values()['sltp_working_type'], 
+                               trigger_by=self.get_sltp_values()['trigger_by'], 
                                split=self.get_sltp_values()['split'], 
                                interval=self.get_sltp_values()['interval'],
                                chaser=self.get_sltp_values()['chaser'],
@@ -1563,7 +1564,7 @@ class BinanceFutures:
                 else:  
                     self.order("SL", True, abs(pos_size), stop=sl_price_short, reduce_only=True, 
                                callback=self.get_sltp_values()['stop_short_callback'], 
-                               trigger_by=self.get_sltp_values()['sltp_working_type'],
+                               trigger_by=self.get_sltp_values()['trigger_by'],
                                split=self.get_sltp_values()['split'], 
                                interval=self.get_sltp_values()['interval'],
                                chaser=self.get_sltp_values()['chaser'],
