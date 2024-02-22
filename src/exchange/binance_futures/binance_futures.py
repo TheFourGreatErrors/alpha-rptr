@@ -568,7 +568,7 @@ class BinanceFutures:
         reduce_only=False,
         trailing_stop=0,
         activationPrice=0,
-        workingType="CONTRACT_PRICE"
+        trigger_by="CONTRACT_PRICE"
     ):
         """
         Create a new order (do not use directly).
@@ -583,7 +583,7 @@ class BinanceFutures:
             reduce_only (bool, optional): If True, the order will only reduce the existing position, not increase it. Defaults to False.
             trailing_stop (float, optional): Binance futures built-in implementation of trailing stop in percentage. Defaults to 0.
             activationPrice (float, optional): Price that triggers Binance futures built-in trailing stop. Defaults to 0.
-            workingType (str, optional): Price type to use, "CONTRACT_PRICE" by default. Defaults to "CONTRACT_PRICE".
+            trigger_by (str, optional): Price type to use, "CONTRACT_PRICE" by default. Defaults to "CONTRACT_PRICE".
         """
         #removes "+" from order suffix, because of the new regular expression rule for newClientOrderId updated as ^[\.A-Z\:/a-z0-9_-]{1,36}$ (2021-01-26)
         ord_id = ord_id.replace("+", "k") 
@@ -595,12 +595,12 @@ class BinanceFutures:
             retry(lambda: self.client.futures_create_order(symbol=self.pair, type=ord_type, newClientOrderId=ord_id,
                                                            side=side, quantity=ord_qty, activationPrice=activationPrice,
                                                            callbackRate=trailing_stop, reduceOnly=reduce_only,
-                                                           workingType=workingType))
+                                                           trigger_by=trigger_by))
         elif trailing_stop > 0:
             ord_type = "TRAILING_STOP_MARKET"
             retry(lambda: self.client.futures_create_order(symbol=self.pair, type=ord_type, newClientOrderId=ord_id,
                                                             side=side, quantity=ord_qty, callbackRate=trailing_stop,
-                                                            reduceOnly=reduce_only, workingType=workingType))
+                                                            reduceOnly=reduce_only, trigger_by=trigger_by))
         elif limit > 0 and post_only:
             ord_type = "LIMIT"
             retry(lambda: self.client.futures_create_order(symbol=self.pair, type=ord_type, newClientOrderId=ord_id,
@@ -611,7 +611,7 @@ class BinanceFutures:
             retry(lambda: self.client.futures_create_order(symbol=self.pair, type=ord_type, newClientOrderId=ord_id,
                                                            side=side, quantity=ord_qty, price=limit,
                                                            stopPrice=stop, reduceOnly=reduce_only,
-                                                           workingType=workingType))
+                                                           trigger_by=trigger_by))
         elif limit > 0:   
             ord_type = "LIMIT"
             retry(lambda: self.client.futures_create_order(symbol=self.pair, type=ord_type, newClientOrderId=ord_id,
@@ -621,7 +621,7 @@ class BinanceFutures:
             ord_type = "STOP_MARKET"
             retry(lambda: self.client.futures_create_order(symbol=self.pair, type=ord_type, newClientOrderId=ord_id,
                                                            side=side, quantity=ord_qty, stopPrice=stop,
-                                                           reduceOnly=reduce_only, workingType=workingType))        
+                                                           reduceOnly=reduce_only, trigger_by=trigger_by))        
         elif post_only: # limit order with post only
             ord_type = "LIMIT"
                              
@@ -680,7 +680,7 @@ class BinanceFutures:
         when=True,
         round_decimals=None,
         callback=None,
-        workingType="CONTRACT_PRICE",
+        trigger_by="CONTRACT_PRICE",
         split=1,
         interval=0,
         chaser=False,
@@ -712,7 +712,7 @@ class BinanceFutures:
             when (bool, optional): If True, the order is executed. Defaults to True.
             round_decimals (int, optional): Decimal places to round the order quantity. Automatic if left equal to None. Defaults to None.
             callback (function, optional): A callback function to execute after the order is filled. Defaults to None.
-            workingType (str, optional): Price type to use, "CONTRACT_PRICE" by default. Defaults to "CONTRACT_PRICE".
+            trigger_by (str, optional): Price type to use, "CONTRACT_PRICE" by default. Defaults to "CONTRACT_PRICE".
             split (int, optional): Number of orders to split the quantity into (iceberg order). Defaults to 1.
             interval (int, optional): Interval between orders (iceberg order). Defaults to 0.
             chaser (bool, optional): If True, a chaser order is placed to follow the Best Bid/Ask (BBA) Price.
@@ -741,7 +741,7 @@ class BinanceFutures:
 
         self.order(id, long, ord_qty, limit=limit, stop=stop, post_only=post_only, reduce_only=reduce_only,
                     trailing_stop=trailing_stop, activationPrice=activationPrice, when=when, callback=callback, 
-                    workingType=workingType, split=split, interval=interval, chaser=chaser, retry_maker=retry_maker)
+                    trigger_by=trigger_by, split=split, interval=interval, chaser=chaser, retry_maker=retry_maker)
 
     def entry_pyramiding(
         self,
@@ -759,7 +759,7 @@ class BinanceFutures:
         when=True,
         round_decimals=None,
         callback=None,
-        workingType="CONTRACT_PRICE",
+        trigger_by="CONTRACT_PRICE",
         split=1,
         interval=0,
         chaser=False,
@@ -790,7 +790,7 @@ class BinanceFutures:
             when (bool, optional): If True, the order is executed. Defaults to True.
             round_decimals (int, optional): Decimal places to round the order quantity. Automatic if left equal to None. Defaults to None.
             callback (function, optional): A callback function to execute after the order is filled. Defaults to None.
-            workingType (str, optional): Price type to use, "CONTRACT_PRICE" by default. Defaults to "CONTRACT_PRICE".
+            trigger_by (str, optional): Price type to use, "CONTRACT_PRICE" by default. Defaults to "CONTRACT_PRICE".
             split (int, optional): Number of orders to split the quantity into (iceberg order). Defaults to 1.
             interval (int, optional): Interval between orders (iceberg order). Defaults to 0.
             chaser (bool, optional): If True, a chaser order is placed to follow the Best Bid/Ask (BBA) Price.
@@ -834,7 +834,7 @@ class BinanceFutures:
 
         self.order(id, long, ord_qty, limit=limit, stop=stop, post_only=post_only, reduce_only=reduce_only,
                     trailing_stop=trailing_stop, activationPrice=activationPrice, when=when, callback=callback, 
-                    workingType=workingType, split=split, interval=interval, chaser=chaser, retry_maker=retry_maker)
+                    trigger_by=trigger_by, split=split, interval=interval, chaser=chaser, retry_maker=retry_maker)
 
     def order(
         self,
@@ -850,7 +850,7 @@ class BinanceFutures:
         when=True,
         round_decimals=None, 
         callback=None,
-        workingType="CONTRACT_PRICE", 
+        trigger_by="CONTRACT_PRICE", 
         split=1, 
         interval=0,
         chaser=False,
@@ -872,7 +872,7 @@ class BinanceFutures:
             when (bool, optional): If True, the order is executed. Defaults to True.
             round_decimals (int, optional): Decimal places to round the order quantity. Automatic if left equal to None. Defaults to None.
             callback (function, optional): A callback function to execute after the order is filled. Defaults to None.
-            workingType (str, optional): Price type to use, "CONTRACT_PRICE" by default. Defaults to "CONTRACT_PRICE".
+            trigger_by (str, optional): Price type to use, "CONTRACT_PRICE" by default. Defaults to "CONTRACT_PRICE".
             split (int, optional): Number of orders to split the quantity into (iceberg order). Defaults to 1.
             interval (int, optional): Interval between orders (iceberg order). Defaults to 0.
             chaser (bool, optional): If True, a chaser order is placed to follow the Best Bid/Ask (BBA) Price.
@@ -927,13 +927,13 @@ class BinanceFutures:
                     exchange.order(sub_ord_id, long, s_ord_qty, limit=limit, stop=0, 
                                    post_only=post_only, reduce_only=reduce_only,
                                     trailing_stop=trailing_stop, activationPrice=activationPrice, 
-                                    workingType=workingType, callback=sub_ord_callback)
+                                    trigger_by=trigger_by, callback=sub_ord_callback)
 
             sub_ord_id = f"{id}_sub1"
             self.order(sub_ord_id, long, sub_ord_qty, limit=limit, stop=stop, 
                        post_only=post_only, reduce_only=reduce_only,
                         trailing_stop=trailing_stop, activationPrice=activationPrice, 
-                        workingType=workingType, callback=split_order(1))
+                        trigger_by=trigger_by, callback=split_order(1))
             return
 
         if chaser:
@@ -951,7 +951,7 @@ class BinanceFutures:
                              trailing_stop, 
                              activationPrice, 
                              callback, 
-                             workingType):
+                             trigger_by):
                     self.order_id = order_id
                     self.long = long
                     self.qty = qty
@@ -969,7 +969,7 @@ class BinanceFutures:
                     if callable(self.callback):                        
                         self.callback_type = True if len(signature(self.callback).parameters) > 0 else False
 
-                    self.workingType = workingType
+                    self.trigger_by = trigger_by
 
                     self.started = None
                     self.start_price = 0
@@ -985,7 +985,7 @@ class BinanceFutures:
                                self.current_order_price, 
                                self.stop, self.post_only if self.stop==0 else False, 
                                self.reduce_only, 
-                               self.workingType, 
+                               self.trigger_by, 
                                self.on_order_update)     
                     
                     self.filled = {}
@@ -1087,12 +1087,12 @@ class BinanceFutures:
                             return
                         raise e
 
-                def order(self, retry, id, long, qty, limit, stop, post_only, reduce_only, workingType, callback):
+                def order(self, retry, id, long, qty, limit, stop, post_only, reduce_only, trigger_by, callback):
                     # try fixed number of times
                     for x in range(retry):
                         try:  
                             exchange.order(id, long, qty, limit=limit, stop=stop, post_only=post_only, 
-                                           reduce_only=reduce_only, workingType=workingType, callback=callback)
+                                           reduce_only=reduce_only, trigger_by=trigger_by, callback=callback)
                             self.current_order_id = id
                             break
                         except BinanceAPIException as e:
@@ -1202,21 +1202,21 @@ class BinanceFutures:
                                        0, 
                                        self.post_only, 
                                        self.reduce_only, 
-                                       self.workingType, 
+                                       self.trigger_by, 
                                        self.on_order_update)               
             
             # start the chaser
             return Chaser(id, long, qty, limit, stop, post_only, reduce_only, 
-                          trailing_stop, activationPrice, callback, workingType)
+                          trailing_stop, activationPrice, callback, trigger_by)
 
         self.callbacks[ord_id] = callback
 
         if order is None:
             self.__new_order(ord_id, side, ord_qty, limit, stop, post_only, reduce_only,
-                              trailing_stop, activationPrice, workingType)
+                              trailing_stop, activationPrice, trigger_by)
         else:
             self.__new_order(ord_id, side, ord_qty, limit, stop, post_only, reduce_only,
-                              trailing_stop, activationPrice, workingType)
+                              trailing_stop, activationPrice, trigger_by)
             #self.__amend_order(ord_id, side, ord_qty, limit, stop, post_only)
             return    
 
@@ -1332,7 +1332,7 @@ class BinanceFutures:
             profit_short_callback=None, 
             stop_long_callback=None, 
             stop_short_callback=None, 
-            workingType="CONTRACT_PRICE", 
+            trigger_by="CONTRACT_PRICE", 
             split=1, 
             interval = 0,
             chaser=False,
@@ -1353,7 +1353,7 @@ class BinanceFutures:
             profit_short_callback (function, optional): Callback function to call if the take profit is triggered on a Short position.
             stop_long_callback (function, optional): Callback function to call if the stop loss is triggered on a Long position.
             stop_short_callback (function, optional): Callback function to call if the stop loss is triggered on a Short position.
-            workingType (str): CONTRACT_PRICE or MARK_PRICE to use with the underlying stop order.
+            trigger_by (str): CONTRACT_PRICE or MARK_PRICE to use with the underlying stop order.
             split (int): Number of orders to split the quantity into (iceberg order).
             interval (int): Interval between orders (iceberg order).
             chaser (bool): If True, use a chaser order to follow the Best Bid/Ask Price, updating the order whenever BBA changes.
@@ -1369,7 +1369,7 @@ class BinanceFutures:
             'profit_short_callback': profit_short_callback,
             'stop_long_callback': stop_long_callback,
             'stop_short_callback': stop_short_callback,
-            'sltp_working_type': workingType,
+            'sltp_working_type': trigger_by,
             'split': split,
             'interval': interval,
             'chaser': chaser,
@@ -1477,7 +1477,7 @@ class BinanceFutures:
                     time.sleep(1)
                     self.order("TP", False, abs(pos_size), limit=tp_price_long, reduce_only=True, 
                                callback=self.get_sltp_values()['profit_long_callback'], 
-                               workingType=self.get_sltp_values()['sltp_working_type'],
+                               trigger_by=self.get_sltp_values()['sltp_working_type'],
                                split=self.get_sltp_values()['split'], 
                                interval=self.get_sltp_values()['interval'],
                                chaser=self.get_sltp_values()['chaser'],
@@ -1485,7 +1485,7 @@ class BinanceFutures:
                 else:               
                     self.order("TP", False, abs(pos_size), limit=tp_price_long, reduce_only=True, 
                                callback=self.get_sltp_values()['profit_long_callback'], 
-                               workingType=self.get_sltp_values()['sltp_working_type'],
+                               trigger_by=self.get_sltp_values()['sltp_working_type'],
                                split=self.get_sltp_values()['split'], 
                                interval=self.get_sltp_values()['interval'],
                                chaser=self.get_sltp_values()['chaser'],
@@ -1499,14 +1499,14 @@ class BinanceFutures:
                     time.sleep(1)
                     self.order("TP", True, abs(pos_size), limit=tp_price_short, reduce_only=True, 
                                callback=self.get_sltp_values()['profit_short_callback'], 
-                               workingType=self.get_sltp_values()['sltp_working_type'],
+                               trigger_by=self.get_sltp_values()['sltp_working_type'],
                                split=self.get_sltp_values()['split'], interval=self.get_sltp_values()['interval'],
                                chaser=self.get_sltp_values()['chaser'],
                                retry_maker=self.get_sltp_values()['retry_maker'])
                 else:
                     self.order("TP", True, abs(pos_size), limit=tp_price_short, reduce_only=True, 
                                callback=self.get_sltp_values()['profit_short_callback'], 
-                               workingType=self.get_sltp_values()['sltp_working_type'],
+                               trigger_by=self.get_sltp_values()['sltp_working_type'],
                                split=self.get_sltp_values()['split'], 
                                interval=self.get_sltp_values()['interval'],
                                chaser=self.get_sltp_values()['chaser'],
@@ -1533,7 +1533,7 @@ class BinanceFutures:
                     time.sleep(1)
                     self.order("SL", False, abs(pos_size), stop=sl_price_long, reduce_only=True, 
                                callback=self.get_sltp_values()['stop_long_callback'], 
-                               workingType=self.get_sltp_values()['sltp_working_type'], 
+                               trigger_by=self.get_sltp_values()['sltp_working_type'], 
                                split=self.get_sltp_values()['split'], 
                                interval=self.get_sltp_values()['interval'],
                                chaser=self.get_sltp_values()['chaser'],
@@ -1541,7 +1541,7 @@ class BinanceFutures:
                 else:  
                     self.order("SL", False, abs(pos_size), stop=sl_price_long, reduce_only=True, 
                                callback=self.get_sltp_values()['stop_long_callback'], 
-                               workingType=self.get_sltp_values()['sltp_working_type'],
+                               trigger_by=self.get_sltp_values()['sltp_working_type'],
                                split=self.get_sltp_values()['split'], 
                                interval=self.get_sltp_values()['interval'],
                                chaser=self.get_sltp_values()['chaser'],
@@ -1555,7 +1555,7 @@ class BinanceFutures:
                     time.sleep(1)
                     self.order("SL", True, abs(pos_size), stop=sl_price_short, reduce_only=True, 
                                callback=self.get_sltp_values()['stop_short_callback'], 
-                               workingType=self.get_sltp_values()['sltp_working_type'], 
+                               trigger_by=self.get_sltp_values()['sltp_working_type'], 
                                split=self.get_sltp_values()['split'], 
                                interval=self.get_sltp_values()['interval'],
                                chaser=self.get_sltp_values()['chaser'],
@@ -1563,7 +1563,7 @@ class BinanceFutures:
                 else:  
                     self.order("SL", True, abs(pos_size), stop=sl_price_short, reduce_only=True, 
                                callback=self.get_sltp_values()['stop_short_callback'], 
-                               workingType=self.get_sltp_values()['sltp_working_type'],
+                               trigger_by=self.get_sltp_values()['sltp_working_type'],
                                split=self.get_sltp_values()['split'], 
                                interval=self.get_sltp_values()['interval'],
                                chaser=self.get_sltp_values()['chaser'],
