@@ -1,12 +1,14 @@
 # coding: UTF-8
 
-import sys
+import sys, os
 import time
 from datetime import datetime, timezone
 from time import sleep
 
 import json #pickle #jsonpickle #json
 from hyperopt import fmin, tpe, STATUS_OK, STATUS_FAIL, Trials
+
+from src.config import config as conf
 
 from src import logger, notify
 from src.exchange.bitmex.bitmex import BitMex
@@ -55,6 +57,8 @@ class Bot:
     spot = False
     # Parameter optimization?
     hyperopt = False
+    # Show Plot after back test
+    plot = True
     # Session Persistence
     session = Session()
     # session = type("Session", (object,), {})()
@@ -261,6 +265,13 @@ class Bot:
             else:
                 logger.info(f"--exchange argument missing or invalid")
                 return
+        
+        if conf["args"].check_candles is not None:
+            self.exchange.check_candles_flag = conf["args"].check_candles
+
+        if conf["args"].update_ohlcv is not None:
+            self.exchange.update_data = conf["args"].update_ohlcv
+        
         self.exchange.ohlcv_len = self.ohlcv_len()
         self.exchange.on_update(self.bin_size, self.strategy)
 
@@ -272,7 +283,7 @@ class Bot:
                f"Strategy : {type(self).__name__}\n"
                f"Balance : {self.exchange.get_balance()}")
         
-        self.exchange.show_result()
+        self.exchange.show_result(plot=self.plot)
 
     def stop(self):
         """
@@ -299,4 +310,4 @@ class Bot:
         if self.cancel_all_orders_at_stop:
             self.exchange.cancel_all()
 
-        sys.exit(0)
+        os._exit(0)

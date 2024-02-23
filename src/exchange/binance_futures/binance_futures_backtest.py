@@ -116,16 +116,16 @@ class BinanceFuturesBackTest(BackTest, BinanceFuturesStub):
 
             source = self.fetch_ohlcv(bin_size=bin_size, start_time=left_time, end_time=right_time)       
 
-            if search_left and not os.path.exists(file):
-                time.sleep(0.35)                
-                logger.info(f"Searching for older historical data. \n"
-                            f"                               >>>  Searching, please wait. <<<")                
-                start_time = start_time - timedelta(days=self.search_oldest)
-                left_time = None
+            # if search_left and not os.path.exists(file):
+            #     time.sleep(0.35)                
+            #     logger.info(f"Searching for older historical data. \n"
+            #                 f"                               >>>  Searching, please wait. <<<")                
+            #     start_time = start_time - timedelta(days=self.search_oldest)
+            #     left_time = None
                 
-                if len(source) == 0:
-                    search_left = False
-                continue
+            #     if len(source) == 0:
+            #         search_left = False
+            #     continue
             
             # if(data.shape[0]):
             #     logger.info(f"Last: {data.iloc[-1].name} Left: {left_time} Start: {source.iloc[0].name} Right: {right_time} End: {source.iloc[-1].name}")         

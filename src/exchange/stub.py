@@ -1,5 +1,6 @@
 # coding: UTF-8
 from src import logger
+from src.config import config as conf
 
 
 # stub (paper trading)
@@ -46,7 +47,7 @@ class Stub():
         self.isLongEntry = [False, False]
         self.isShortEntry = [False,False]               
 
-        self.order_log = open("orders.csv", "w")
+        self.order_log = open(conf["args"].order_log, "w")
         self.order_log.write("time,type,id,price,quantity,av_price,position,pnl,balance,drawdown\n") #header        
 
     def get_lot(self, **kwargs):
@@ -593,7 +594,7 @@ class Stub():
             if self.balance_ath < self.balance:
                     self.balance_ath = self.balance
             if self.balance_ath > self.balance:
-                if self.max_draw_down_session is 0:
+                if self.max_draw_down_session == 0:
                     self.max_draw_down_session = self.balance_ath - self.balance
                     self.max_draw_down_session_perc = (self.balance_ath - self.balance) / self.balance_ath * 100
                 else:

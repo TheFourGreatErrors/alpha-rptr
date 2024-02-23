@@ -1,6 +1,6 @@
 # coding: UTF-8
 
-import os
+import os, shutil
 import time
 import math
 from datetime import timedelta, datetime, timezone
@@ -19,6 +19,7 @@ from src.exchange.stub import Stub
 from src.exchange_config import exchange_config
 from src.exchange.binance_futures.binance_futures_stub import BinanceFuturesStub
 
+from src.config import config as conf
 
 OHLC_DIRNAME = os.path.join(os.path.dirname(__file__), "./ohlc/{}/{}/{}")
 OHLC_FILENAME = os.path.join(os.path.dirname(__file__), "./ohlc/{}/{}/{}/data.csv")
@@ -185,6 +186,19 @@ class BackTest(Stub):
         """      
         self.df_ohlcv = self.df_ohlcv.set_index(self.df_ohlcv.columns[0])       
         self.df_ohlcv.index = pd.to_datetime(self.df_ohlcv.index, errors='coerce')
+
+        #calculate warmup duration in minutes
+        warmup_duration = allowed_range_minute_granularity[self.warmup_tf][3] * self.ohlcv_len
+
+        if conf["args"].from_date != "epoch":
+            cut_off_time = pd.to_datetime(conf["args"].from_date, utc=True) - np.timedelta64(warmup_duration, 'm')
+            self.df_ohlcv = self.df_ohlcv.loc[(self.df_ohlcv.index >= cut_off_time)]
+            logger.info(f"OHLCV Buffer Start: {cut_off_time} - Strategy Start: {conf['args'].from_date} (Inclusive)")
+
+        if conf["args"].to_date != "now":
+            cut_off_time = pd.to_datetime(conf["args"].to_date, utc=True) 
+            self.df_ohlcv = self.df_ohlcv.loc[(self.df_ohlcv.index < cut_off_time)]
+            logger.info(f"Strategy End: {conf['args'].to_date} (Exclusive)")
         
         start = time.time()
 
@@ -380,11 +394,11 @@ class BackTest(Stub):
             None
         """
        
-        start_time = datetime.now(timezone.utc) - 1 * timedelta(days=self.days)
+        start_time = self.get_launch_date() + 1 * timedelta(days=1)
         end_time = datetime.now(timezone.utc)
         file = self.OHLC_FILENAME #OHLC_FILENAME.format("binance_futures", self.pair, bin_size) 
-        print(file)
-        print(self.bin_size)
+        #print(file)
+        #print(self.bin_size)
         # Force minute granularity if multiple timeframes are used
         if len(bin_size) > 1:
             self.minute_granularity = True   
@@ -411,7 +425,7 @@ class BackTest(Stub):
 
             if self.update_data:
                 self.df_ohlcv = self.df_ohlcv[:-1] # exclude last candle
-                data = self.download_data( bin_size, dateutil.parser.isoparse(self.df_ohlcv.iloc[-1].name), end_time)
+                data = self.download_data( bin_size, dateutil.parser.isoparse(self.df_ohlcv.iloc[-1].name) if self.df_ohlcv.shape[0] > 0 else start_time, end_time)
                 self.df_ohlcv = pd.concat([self.df_ohlcv, data])
                 self.save_csv(self.df_ohlcv, file) 
                 
@@ -426,7 +440,7 @@ class BackTest(Stub):
         if self.check_candles_flag:
             self.check_candles(self.df_ohlcv)
 			    
-    def show_result(self):
+    def show_result(self, plot=True):
         """
         Display the backtesting results.
 
@@ -435,10 +449,11 @@ class BackTest(Stub):
 
         It also plots the price chart and any additional plot data provided during backtesting.
         """
-        DATA_FILENAME = self.OHLC_FILENAME #OHLC_FILENAME.format("binance_futures", self.pair, self.bin_size)
-        symlink(DATA_FILENAME, 'html/data/data.csv', overwrite=True)
-        ORDERS_FILENAME = os.path.join(os.getcwd(), "./orders.csv")
-        symlink(ORDERS_FILENAME, 'html/data/orders.csv', overwrite=True)
+        if conf["args"].html_report:
+            DATA_FILENAME = self.OHLC_FILENAME #OHLC_FILENAME.format("binance_futures", self.pair, self.bin_size)
+            shutil.copy(DATA_FILENAME, 'html/data/data.csv')
+            ORDERS_FILENAME = os.path.join(os.getcwd(), "./", conf["args"].order_log)
+            shutil.copy(ORDERS_FILENAME, 'html/data/orders.csv')
         
         logger.info(f"============== Result ================")
         logger.info(f"TRADE COUNT         : {self.order_count}")
@@ -449,6 +464,9 @@ class BackTest(Stub):
         logger.info(f"SHARPE RATIO        : {sharpe_ratio(self.balance_history, 0)}")
         logger.info(f"MAX DRAW DOWN TOTAL : {round(self.max_draw_down_session, 4)} or {round(self.max_draw_down_session_perc, 2)}%")
         logger.info(f"======================================")
+
+        if not plot:
+            return
 
         import matplotlib.pyplot as plt
 
