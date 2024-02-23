@@ -7,6 +7,7 @@ import numpy as np
 from numpy import nan as npNaN
 import scipy 
 from scipy import stats
+import sklearn
 import pandas as pd
 import matplotlib.pyplot as plt
 from pandas import Series
@@ -1582,7 +1583,7 @@ def robust_normalization(data):
     """
     This method is robust to outliers and uses the median and interquartile range (IQR) to scale the data.
     """
-    return stats.robust_scale(data)
+    return sklearn.preprocessing.robust_scale(data)
 
 
 def unit_vector_normalization(data):
