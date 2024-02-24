@@ -143,16 +143,16 @@ class BinanceFuturesWs:
             self.__get_auth_user_data_streams()
             timer.start() 
           
-    def __on_error(self, ws, message):
+    def __on_error(self, ws, exception):
         """
         On Error listener
         :param ws:
         :param message:
         """
-        logger.error(message)
+        logger.error(exception)
         logger.error(traceback.format_exc())
 
-        notify(f"Error occurred. {message}")
+        notify(f"Error occurred. {exception}")
         notify(traceback.format_exc())
 
     def __on_message(self, ws, message):
@@ -228,7 +228,7 @@ class BinanceFuturesWs:
         if key in self.handlers:
             self.handlers[key](action, value)
 
-    def __on_close(self, ws):
+    def __on_close(self, ws, status_code, status_message):
         """
         On Close Listener
         :param ws:
