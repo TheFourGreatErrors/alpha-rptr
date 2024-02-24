@@ -13,3 +13,4 @@ html/data/*
 orders.csv
 trades.csv
 logs/
+venv/
