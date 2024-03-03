@@ -611,10 +611,10 @@ class Bybit:
         self.__init_client()
         ob =  retry(lambda: self.client
                                       .get_orderbook(symbol=self.pair, category=self.category))
-        self.best_bid_price = float(ob['b'][0])
-        self.best_ask_price = float(ob['a'][0])
-        self.bid_quantity_L1 = float(ob['b'][1])
-        self.ask_quantity_L1 = float(ob['a'][1])
+        self.best_bid_price = float(ob['b'][0][0])
+        self.best_ask_price = float(ob['a'][0][0])
+        self.bid_quantity_L1 = float(ob['b'][0][1])
+        self.ask_quantity_L1 = float(ob['a'][0][1])
         
     def get_trail_price(self):
         """
