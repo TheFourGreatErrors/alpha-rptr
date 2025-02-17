@@ -20,7 +20,7 @@ var chart = LightweightCharts.createChart(document.getElementById("chart"), {
     },
 });   
 
-candleSeries = chart.addCandlestickSeries({
+candleSeries = chart.addSeries(LightweightCharts.CandlestickSeries, {
     upColor: 'rgb(38,166,154)',
     downColor: 'rgb(255,82,82)',
     wickUpColor: 'rgb(38,166,154)',
@@ -28,7 +28,7 @@ candleSeries = chart.addCandlestickSeries({
     borderVisible: false,
 });
 
-equity_chart_series = chart.addAreaSeries({
+equity_chart_series = chart.addSeries(LightweightCharts.AreaSeries, {
     //title: "Equity",
     topColor: 'rgba(46, 139, 87, 0.1)',
     bottomColor: 'rgba(46, 139, 87, 0)',
@@ -38,7 +38,7 @@ equity_chart_series = chart.addAreaSeries({
     visible: true
 })
 
-drawdown_chart_series = chart.addAreaSeries({
+drawdown_chart_series = chart.addSeries(LightweightCharts.AreaSeries, {
     //title: "DD%",
     topColor: 'rgba(255, 82, 82, 0.1)',
     bottomColor: 'rgba(255, 82, 82, 0)',
@@ -521,9 +521,12 @@ function load_trades(chart_data, order_data){
     }
 
     equity_chart_series.setData(balance_series);      
-    drawdown_chart_series.setData(drawdown_series);      
+    drawdown_chart_series.setData(drawdown_series);
+    
+    // Create a markers primitive instance
+    const seriesMarkers = LightweightCharts.createSeriesMarkers(candleSeries, []);
 
-    candleSeries.setMarkers(markers);
+    seriesMarkers.setMarkers(markers);
 
     function onVisibleLogicalRangeChanged(range) {
         console.log(range);
@@ -531,11 +534,11 @@ function load_trades(chart_data, order_data){
         end = parseInt(range["to"]);
 
         if(end-start > 500)
-        candleSeries.setMarkers([]);
+        seriesMarkers.setMarkers([]);
         else if (end-start > 200)
-        candleSeries.setMarkers(only_markers);
+        seriesMarkers.setMarkers(only_markers);
         else
-        candleSeries.setMarkers(markers);
+        seriesMarkers.setMarkers(markers);
     }
 
     chart.timeScale().subscribeVisibleLogicalRangeChange(onVisibleLogicalRangeChanged);
