@@ -1655,7 +1655,7 @@ class BinanceFutures:
         Returns:
             pd.DataFrame: OHLCV data resampled to the specified bin_size.
         """    
-        if data == None:  # minute count of a timeframe for sorting when sorting is needed   
+        if data is None:  # minute count of a timeframe for sorting when sorting is needed
             timeframe_list = [allowed_range_minute_granularity[t][3] for t in self.bin_size]
             timeframe_list.sort(reverse=True)
             t = find_timeframe_string(timeframe_list[-1])     
@@ -1700,12 +1700,15 @@ class BinanceFutures:
                     "last_candle": self.timeframe_data[t].iloc[-2].values,  # Store last complete candle
                     "partial_candle": self.timeframe_data[t].iloc[-1].values  # Store incomplete candle
                 }
-                # The last candle is an incomplete candle with timestamp in future                
-                if self.timeframe_data[t].iloc[-1].name > end_time:
-                    
-                    last_candle = self.timeframe_data[t].iloc[-1].values # Store last candle
-                    self.timeframe_data[t] = self.timeframe_data[t][:-1] # Exclude last candle
-                    self.timeframe_data[t].loc[end_time.replace(microsecond=0)] = last_candle #set last candle to end_time
+                # Keep native partials at their candle-close timestamp so the
+                # matching cumulative WS candle replaces them. Lower-timeframe
+                # streams need the REST partial as a seed for resampling.
+                source_timeframe = allowed_range_minute_granularity[t][0] \
+                                   if self.minute_granularity else allowed_range[t][0]
+                if self.timeframe_data[t].iloc[-1].name > end_time and source_timeframe != t:
+                    last_candle = self.timeframe_data[t].iloc[-1].values
+                    self.timeframe_data[t] = self.timeframe_data[t][:-1]
+                    self.timeframe_data[t].loc[end_time.replace(microsecond=0)] = last_candle
 
                 logger.info(f"Initial Buffer Fill - Last Candle: {self.timeframe_data[t].iloc[-1].name}")   
         #logger.info(f"timeframe_data: {self.timeframe_data}") 
@@ -1743,6 +1746,7 @@ class BinanceFutures:
 
             #logger.info(f"{self.timeframe_info[t]['last_action_time']} : {self.timeframe_data[t].iloc[-1].name} : {re_sample_data.iloc[-1].name}")  
 
+            startup_call = self.timeframe_info[t]["last_action_time"] is None
             if self.call_strat_on_start:
                 if self.timeframe_info[t]["last_action_time"] is not None and \
                 self.timeframe_info[t]["last_action_time"] == re_sample_data.iloc[-1].name:
@@ -1754,11 +1758,17 @@ class BinanceFutures:
                 if self.timeframe_info[t]["last_action_time"] == re_sample_data.iloc[-1].name:
                     continue
 
-            # The last candle in the buffer needs to be preserved 
-            # while resetting the buffer as it may be incomlete
-            # or contains latest data from WS
-            self.timeframe_data[t] = pd.concat([re_sample_data.iloc[-1 * self.ohlcv_len:, :], 
-                                                self.timeframe_data[t].iloc[[-1]]]) 
+            # Preserve the REST partial on the initial lower-timeframe call. It
+            # seeds the target candle with the period before the bot started.
+            # TODO: The REST partial overlaps the first WS source candle, which
+            # slightly inflates volume in the first derived candle. When that
+            # candle closes, fetch that exact target candle from REST once and
+            # replace it before calling the strategy. Binance accepts one kline
+            # interval per request, so refresh only affected derived timeframes.
+            if not (startup_call and allowed_range_minute_granularity[action][3] <
+                    allowed_range_minute_granularity[t][3]):
+                self.timeframe_data[t] = pd.concat([re_sample_data.iloc[-1 * self.ohlcv_len:, :],
+                                                    self.timeframe_data[t].iloc[[-1]]])
             #store ohlcv dataframe to timeframe_info dictionary
             self.timeframe_info[t]["ohlcv"] = re_sample_data
             #logger.info(f"Buffer Right Edge: {self.data.iloc[-1]}")
